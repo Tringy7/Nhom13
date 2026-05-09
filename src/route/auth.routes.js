@@ -28,8 +28,8 @@ router.post(
   authController.login
 );
 
-router.post("/refresh", authController.refresh);
-router.post("/logout", authController.logout);
+router.post("/api/auth/refresh", authController.refresh);
+router.post("/api/auth/logout", authController.logout);
 
 // User profile routes
 router.get(
@@ -62,7 +62,17 @@ router.get(
 );
 
 router.patch(
-  "/admin/profile/:userId?",
+  "/admin/profile",
+  verifyToken,
+  authorize("admin"),
+  editProfileLimiter,
+  editProfileValidationRules,
+  validate,
+  authController.editAdminProfile
+);
+
+router.patch(
+  "/admin/profile/:userId",
   verifyToken,
   authorize("admin"),
   editProfileLimiter,

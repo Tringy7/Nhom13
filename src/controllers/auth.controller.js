@@ -57,9 +57,9 @@ let login = async (req, res) => {
 
     let redirectURI = "/";
 
-    if (role === "ADMIN") {
+    if (role === "admin") {
     redirectURI = "/admin/profile";
-    } else if (role === "USER") {
+    } else if (role === "user") {
     redirectURI = "/user/profile";
     }
 
@@ -306,14 +306,6 @@ let editAdminProfile = async (req, res) => {
     console.log(error);
     return res.status(500).json({ message: "Server error" });
   }
-};
-
-module.exports = {
-  login,
-  refresh,
-  logout,
-  editUserProfile,
-  editAdminProfile
 };
 
 import crypto from "crypto";
@@ -711,6 +703,8 @@ export default {
     login,
     refresh,
     logout,
+  editUserProfile,
+  editAdminProfile,
     register,
     verifyOtp,
     resendOtp,

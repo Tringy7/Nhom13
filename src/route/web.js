@@ -2,7 +2,7 @@ import express from "express"; //gọi Express
 import rateLimit from "express-rate-limit";
 import authRoutes from "./auth.routes.js";
 
-import { register, resendOtp, verifyOtp } from "../controllers/auth.controller";
+import { register, resendOtp, verifyOtp } from "../controllers/auth.controller.js";
 
 const router = express.Router(); //khởi tạo Route
 
