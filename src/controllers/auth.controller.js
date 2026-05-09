@@ -55,9 +55,19 @@ let login = async (req, res) => {
 
     const role = user.role;
 
+    let redirectURI = "/";
+
+    if (role === "ADMIN") {
+    redirectURI = "/admin/profile";
+    } else if (role === "USER") {
+    redirectURI = "/user/profile";
+    }
+
     return res.json({
-      message: "Login success",
-      token: accessToken
+        message: "Login success",
+        token: accessToken,
+        role,
+        redirectURI
     });
 
   } catch (error) {
@@ -166,17 +176,9 @@ let logout = async (req, res) => {
   }
 };
 
-module.exports = {
-  login,
-  refresh,
-  logout
-};
-
-import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import PasswordValidator from "password-validator";
-import { User } from "../models";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_TTL_MINUTES = 10;
@@ -563,4 +565,13 @@ export const resendOtp = async (req, res) => {
             message: "OTP resend failed. Please try again later." 
         });
     }
+};
+
+export default {
+    login,
+    refresh,
+    logout,
+    register,
+    verifyOtp,
+    resendOtp,
 };

@@ -14,7 +14,7 @@ const loginLimiter = rateLimit({
 });
 
 router.post(
-  "/login",
+  "/api/auth/login",
   loginLimiter,
   loginValidationRules,
   validate,
