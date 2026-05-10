@@ -57,9 +57,9 @@ let login = async (req, res) => {
 
     let redirectURI = "/";
 
-    if (role === "ADMIN") {
+    if (role === "admin") {
     redirectURI = "/admin/profile";
-    } else if (role === "USER") {
+    } else if (role === "user") {
     redirectURI = "/user/profile";
     }
 

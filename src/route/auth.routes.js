@@ -10,7 +10,7 @@ const router = express.Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 5, // 5 lần thử
+  max: 10, // 10 lần thử
   message: "Too many login attempts"
 });
 
@@ -26,10 +26,8 @@ router.post(
   loginValidationRules,
   validate,
   authController.login
-);
-
-router.post("/refresh", authController.refresh);
-router.post("/logout", authController.logout);
+);router.post("/api/auth/refresh", authController.refresh);
+router.post("/api/auth/logout", authController.logout);
 
 // User profile routes
 router.get(
