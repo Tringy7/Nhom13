@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, Row, Col, Descriptions, Avatar, Spin, Divider, Table, Space, Popconfirm, message } from 'antd';
 import { EditOutlined, UserOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchUserProfile } from '../../redux/profileSlice';
+import { getAllUsersApi } from '../util/api';
 import '../../components/styles/global.css';
 
 const AdminProfile = () => {
@@ -12,6 +13,7 @@ const AdminProfile = () => {
     const { profile, loading } = useSelector(state => state.profile);
     const [users, setUsers] = useState([]);
     const [usersLoading, setUsersLoading] = useState(false);
+    const [usersError, setUsersError] = useState(null);
 
     useEffect(() => {
         dispatch(fetchUserProfile());
@@ -25,25 +27,28 @@ const AdminProfile = () => {
         navigate(`/admin/edit-profile/${userId}`);
     };
 
-    // Mock data - replace with actual API call
-    const mockUsers = [
-        {
-            id: 1,
-            email: 'user1@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            phoneNumber: '0123456789',
-            role: 'user'
-        },
-        {
-            id: 2,
-            email: 'user2@example.com',
-            firstName: 'Jane',
-            lastName: 'Smith',
-            phoneNumber: '0987654321',
-            role: 'user'
-        }
-    ];
+    // Load all users from API (if backend provides endpoint)
+    useEffect(() => {
+        let mounted = true;
+        const loadUsers = async () => {
+            setUsersLoading(true);
+            setUsersError(null);
+            try {
+                const data = await getAllUsersApi();
+                // axios.customize returns data directly via interceptor
+                // try common shapes: { users: [...] } or { data: { users: [...] } }
+                const usersList = data?.users || data?.data?.users || [];
+                if (mounted) setUsers(usersList);
+            } catch (err) {
+                if (mounted) setUsersError(err?.message || 'Không tải được danh sách người dùng');
+            } finally {
+                if (mounted) setUsersLoading(false);
+            }
+        };
+
+        loadUsers();
+        return () => { mounted = false; };
+    }, []);
 
     const columns = [
         {
@@ -166,10 +171,11 @@ const AdminProfile = () => {
             >
                 <Table 
                     columns={columns} 
-                    dataSource={mockUsers}
+                    dataSource={users}
                     rowKey="id"
                     loading={usersLoading}
                     pagination={{ pageSize: 10 }}
+                    locale={{ emptyText: usersError ? usersError : 'Không có người dùng' }}
                 />
             </Card>
         </div>
