@@ -6,10 +6,11 @@ export const fetchUserProfile = createAsyncThunk(
     'profile/fetchUserProfile',
     async (_, { rejectWithValue }) => {
         try {
-            const response = await getUserProfileApi();
-            return response.data.user;
+            const data = await getUserProfileApi();
+            if (data && data.user) return data.user;
+            return rejectWithValue(data?.message || 'Failed to fetch profile');
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to fetch profile');
+            return rejectWithValue(error?.message || 'Failed to fetch profile');
         }
     }
 );
@@ -18,10 +19,11 @@ export const updateUserProfile = createAsyncThunk(
     'profile/updateUserProfile',
     async (profileData, { rejectWithValue }) => {
         try {
-            const response = await updateUserProfileApi(profileData);
-            return response.data.user;
+            const data = await updateUserProfileApi(profileData);
+            if (data && data.user) return data.user;
+            return rejectWithValue(data?.message || 'Failed to update profile');
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update profile');
+            return rejectWithValue(error?.message || 'Failed to update profile');
         }
     }
 );
@@ -30,10 +32,11 @@ export const updateAdminProfile = createAsyncThunk(
     'profile/updateAdminProfile',
     async ({ userId, profileData }, { rejectWithValue }) => {
         try {
-            const response = await updateAdminProfileApi(userId, profileData);
-            return response.data.user;
+            const data = await updateAdminProfileApi(userId, profileData);
+            if (data && data.user) return data.user;
+            return rejectWithValue(data?.message || 'Failed to update profile');
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to update profile');
+            return rejectWithValue(error?.message || 'Failed to update profile');
         }
     }
 );
