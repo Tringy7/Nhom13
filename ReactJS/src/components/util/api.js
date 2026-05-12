@@ -63,6 +63,21 @@ const resendRegisterOtpApi = (email) => {
     return axios.post(URL_API, data);
 };
 
+const getUserProfileApi = () => {
+    const URL_API = "/api/auth/profile";
+    return axios.get(URL_API);
+};
+
+const updateUserProfileApi = (profileData) => {
+    const URL_API = "/api/user/profile";
+    return axios.patch(URL_API, profileData);
+};
+
+const updateAdminProfileApi = (userId, profileData) => {
+    const URL_API = userId ? `/api/admin/profile/${userId}` : "/api/admin/profile";
+    return axios.patch(URL_API, profileData);
+};
+
 export {
     createUserApi,
     loginApi,
@@ -71,4 +86,7 @@ export {
     registerApi,
     verifyRegisterOtpApi,
     resendRegisterOtpApi,
+    getUserProfileApi,
+    updateUserProfileApi,
+    updateAdminProfileApi,
 };
