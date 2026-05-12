@@ -27,6 +27,12 @@ instance.interceptors.response.use(
         return response;
     },
     function (error) {
+        // 🔒 Nếu API trả 401 -> redirect login
+        if (error?.response?.status === 401) {
+            localStorage.removeItem("access_token");
+            window.location.href = '/login';
+        }
+        
         if (error?.response?.data) return error?.response?.data;
         return Promise.reject(error);
     }

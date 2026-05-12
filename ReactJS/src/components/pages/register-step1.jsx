@@ -56,7 +56,7 @@ const RegisterStep1 = ({ onNext, email: initialEmail = '' }) => {
                         boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
                         backdropFilter: "blur(10px)"
                     }}>
-                        <legend>Đăng Ký - Bước 1</legend>
+                        <legend>Đăng Ký</legend>
                         <Form
                             form={form}
                             name="registerStep1"
