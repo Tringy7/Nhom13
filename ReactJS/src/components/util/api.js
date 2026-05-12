@@ -83,6 +83,33 @@ const getAllUsersApi = () => {
     return axios.get(URL_API);
 };
 
+const forgotPasswordApi = (email) => {
+    const URL_API = "/api/auth/forgot-password";
+    const data = { email };
+
+    return axios.post(URL_API, data);
+};
+
+const resetPasswordApi = (email, otp, tempToken, newPassword, confirmPassword) => {
+    const URL_API = "/api/auth/reset-password";
+    const data = {
+        email,
+        otp,
+        tempToken,
+        newPassword,
+        confirmPassword,
+    };
+
+    return axios.post(URL_API, data);
+};
+
+const resendForgotOtpApi = (email) => {
+    const URL_API = "/api/auth/resend-otp";
+    const data = { email };
+
+    return axios.post(URL_API, data);
+};
+
 export {
     createUserApi,
     loginApi,
@@ -95,4 +122,7 @@ export {
     updateUserProfileApi,
     updateAdminProfileApi,
     getAllUsersApi,
+    forgotPasswordApi,
+    resetPasswordApi,
+    resendForgotOtpApi,
 };

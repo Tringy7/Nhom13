@@ -100,6 +100,9 @@ const LoginPage = () => {
                             </Button>
                         </Form.Item>
                     </Form>
+                    <div style={{ textAlign: "right", marginBottom: "8px" }}>
+                        <Link to={"/forgot-password"}>Quên mật khẩu?</Link>
+                    </div>
                     <Link to={"/"}><ArrowLeftOutlined /> Quay lại trang chủ</Link>
                     <Divider />
                     <div style={{ textAlign: "center" }}>

@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import profileReducer from './profileSlice';
+import forgotPasswordReducer from './forgotPasswordSlice';
 
 export const store = configureStore({
     reducer: {
-        profile: profileReducer
+        profile: profileReducer,
+        forgotPassword: forgotPasswordReducer,
     }
 });
 
