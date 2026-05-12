@@ -78,6 +78,11 @@ const updateAdminProfileApi = (userId, profileData) => {
     return axios.patch(URL_API, profileData);
 };
 
+const getAllUsersApi = () => {
+    const URL_API = "/api/admin/users"; // expected backend endpoint; adjust if different
+    return axios.get(URL_API);
+};
+
 export {
     createUserApi,
     loginApi,
@@ -89,4 +94,5 @@ export {
     getUserProfileApi,
     updateUserProfileApi,
     updateAdminProfileApi,
+    getAllUsersApi,
 };
