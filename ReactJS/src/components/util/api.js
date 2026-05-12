@@ -83,8 +83,6 @@ const getAllUsersApi = () => {
     return axios.get(URL_API);
 };
 
-<<<<<<< HEAD
-=======
 const forgotPasswordApi = (email) => {
     const URL_API = "/api/auth/forgot-password";
     const data = { email };
@@ -112,7 +110,6 @@ const resendForgotOtpApi = (email) => {
     return axios.post(URL_API, data);
 };
 
->>>>>>> UI/forgotPassword
 export {
     createUserApi,
     loginApi,
@@ -125,10 +122,7 @@ export {
     updateUserProfileApi,
     updateAdminProfileApi,
     getAllUsersApi,
-<<<<<<< HEAD
-=======
     forgotPasswordApi,
     resetPasswordApi,
     resendForgotOtpApi,
->>>>>>> UI/forgotPassword
 };
