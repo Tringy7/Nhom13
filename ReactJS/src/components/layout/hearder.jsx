@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { UsergroupAddOutlined, HomeOutlined, SettingOutlined } from '@ant-design/icons';
+import { UsergroupAddOutlined, HomeOutlined, SettingOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/auth.context';
@@ -8,23 +8,28 @@ const Header = () => {
 
     const navigate = useNavigate();
     const { auth, dispatch } = useContext(AuthContext);
-    const [current, setCurrent] = useState('mail');
-    console.log(">>> check auth: ", auth);
+    const [current, setCurrent] = useState('home');
+
     const items = [
         {
-            label: <Link to="/">Home Page</Link>,
+            label: <Link to="/home">Home Page</Link>,
             key: 'home',
             icon: <HomeOutlined />,
         },
+        {
+            label: <Link to="/products">Products</Link>,
+            key: 'products',
+            icon: <ShoppingOutlined />,
+        },
         ...(auth.isAuthenticated ? [{
-            label: <Link to="/user">Users</Link>,
+            label: <Link to="/user/profile">Users</Link>,
             key: 'user',
             icon: <UsergroupAddOutlined />,
         }] : []),
 
         {
-            label: `Welcome ${auth?.user?.email ?? ""}`,
-            key: 'SubMenu',
+            label: `Setting ${auth?.user?.email ?? ""}`,
+            key: 'settings',
             icon: <SettingOutlined />,
             children: [
                 ...(auth.isAuthenticated ? [{
@@ -32,7 +37,7 @@ const Header = () => {
                         localStorage.removeItem("access_token");
                         setCurrent("home");
                         dispatch({ type: 'LOGOUT' });
-                        navigate("/");
+                        navigate("/login");
                     }}>Đăng xuất</span>,
                     key: 'logout',
                 }] : [
@@ -44,9 +49,8 @@ const Header = () => {
             ],
         },
     ];
-    const [current, setCurrent] = useState('mail');
+
     const onClick = (e) => {
-        console.log('click ', e);
         setCurrent(e.key);
     };
     return <Menu onClick={onClick} selectedKeys={[current]} mode="horizontal" items={items} />;
