@@ -24,12 +24,12 @@ const UserProfile = () => {
     }
 
     return (
-        <Card 
-            title="Thông Tin Cá Nhân" 
+        <Card
+            title="Thông Tin Cá Nhân"
             style={{ maxWidth: '800px', margin: '30px auto' }}
             extra={
-                <Button 
-                    type="primary" 
+                <Button
+                    type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditClick}
                 >
