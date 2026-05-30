@@ -28,4 +28,32 @@ router.get(
   verifyToken,
   authorize("user", "admin"),
   orderController.getOrderById);
+
+router.get(
+  '/api/admin/orders',
+  verifyToken,
+  authorize('admin'),
+  orderController.getAdminOrders
+);
+
+router.get(
+  '/api/admin/orders/:orderId',
+  verifyToken,
+  authorize('admin'),
+  orderController.getAdminOrderById
+);
+
+router.patch(
+  '/api/admin/orders/:orderId/status',
+  verifyToken,
+  authorize('admin'),
+  orderController.updateOrderStatus
+);
+
+router.patch(
+  '/api/admin/orders/:orderId/cancel-request',
+  verifyToken,
+  authorize('admin'),
+  orderController.handleCancelRequest
+);
 export default router;

@@ -20,6 +20,26 @@ export const getOrderById = (orderId) => {
 
 // Huỷ đơn hàng
 export const cancelOrder = (orderId) => {
-    const URL_API = `/api/orders/${orderId}/cancel`;
-    return axios.put(URL_API);
+    const URL_API = `/api/order/${orderId}/cancel`;
+    return axios.delete(URL_API);
+};
+
+export const getAdminOrders = () => {
+    const URL_API = '/api/admin/orders';
+    return axios.get(URL_API);
+};
+
+export const getAdminOrderById = (orderId) => {
+    const URL_API = `/api/admin/orders/${orderId}`;
+    return axios.get(URL_API);
+};
+
+export const updateAdminOrderStatus = (orderId, status, note) => {
+    const URL_API = `/api/admin/orders/${orderId}/status`;
+    return axios.patch(URL_API, { status, note });
+};
+
+export const handleAdminCancelRequest = (orderId, approve = true) => {
+    const URL_API = `/api/admin/orders/${orderId}/cancel-request`;
+    return axios.patch(URL_API, { approve });
 };

@@ -41,7 +41,13 @@ const Header = () => {
         { label: 'About', key: 'about', path: '#' }
     ];
 
+    const isAdmin = String(auth.user?.role || '').toLowerCase() === 'admin';
+
     const profileMenuItems = [
+        ...(isAdmin ? [{
+            key: 'admin-orders',
+            label: <Link to="/admin/orders" style={{ fontSize: '13px', fontWeight: 500 }}>Admin Orders</Link>,
+        }] : []),
         {
             key: 'profile',
             label: <Link to="/user/profile" style={{ fontSize: '13px', fontWeight: 500 }}>My Profile</Link>,
@@ -217,7 +223,7 @@ const Header = () => {
                 placement="right"
                 onClose={() => setIsDrawerVisible(false)}
                 open={isDrawerVisible}
-                width={280}
+                size="default"
                 styles={{ body: { padding: '24px' } }}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -241,6 +247,11 @@ const Header = () => {
                     
                     {auth.isAuthenticated ? (
                         <>
+                            {isAdmin && (
+                                <Link to="/admin/orders" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
+                                    Admin Orders
+                                </Link>
+                            )}
                             <Link to="/user/profile" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
                                 Profile
                             </Link>

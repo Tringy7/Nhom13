@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, Popconfirm, message } from 'antd';
 import { ArrowLeftOutlined, DollarCircleOutlined, WalletOutlined, CheckCircleOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, CarOutlined, RocketOutlined, TagOutlined, EditOutlined } from '@ant-design/icons';
 import { getOrderById, createOrder } from '../util/api/order.api';
+import { getUserCouponsApi, previewDiscountApi } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import axios from '../util/axios.customize';
 
@@ -37,6 +38,10 @@ const CheckoutPage = () => {
     const [paymentMethod, setPaymentMethod] = useState("COD");
     const [deliveryMethod, setDeliveryMethod] = useState("standard");
     const [submitting, setSubmitting] = useState(false);
+    const [couponCode, setCouponCode] = useState('');
+    const [pointsToUse, setPointsToUse] = useState(0);
+    const [discountPreview, setDiscountPreview] = useState(null);
+    const [coupons, setCoupons] = useState([]);
 
     useEffect(() => {
         if (orderId && orderId !== 'new') {
@@ -66,6 +71,35 @@ const CheckoutPage = () => {
         }
     };
 
+    const fetchCoupons = async () => {
+        try {
+            const res = await getUserCouponsApi();
+            const data = res?.data || res || [];
+            setCoupons(data);
+        } catch (error) {
+            setCoupons([]);
+        }
+    };
+
+    const refreshDiscountPreview = async (nextCouponCode = couponCode, nextPoints = pointsToUse) => {
+        if (!orderItems || orderItems.length === 0) return;
+
+        try {
+            const res = await previewDiscountApi({
+                subtotal,
+                couponCode: nextCouponCode || null,
+                pointsToUse: Number(nextPoints || 0)
+            });
+            const data = res?.data || res;
+            setDiscountPreview(data);
+        } catch (error) {
+            setDiscountPreview(null);
+            if (nextCouponCode || Number(nextPoints || 0) > 0) {
+                message.error(error?.response?.data?.message || 'Không áp dụng được ưu đãi');
+            }
+        }
+    };
+
     const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
 
     const handleConfirmOrder = async (values) => {
@@ -79,6 +113,8 @@ const CheckoutPage = () => {
                 shippingAddress: values.shippingAddress,
                 phoneNumber: values.phoneNumber,
                 note: values.note,
+                couponCode: couponCode || null,
+                pointsToUse: Number(pointsToUse || 0),
                 items: order.items.map(item => ({
                     productId: item.productId || item.product?.id,
                     quantity: item.quantity,
@@ -140,7 +176,18 @@ const CheckoutPage = () => {
     const orderItems = order.items || order.OrderItems || [];
     const subtotal = order.totalPrice || orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const shippingFee = deliveryMethod === 'express' ? 40000 : 0;
-    const total = subtotal + shippingFee;
+    const discountAmount = Number(discountPreview?.discountAmount || 0);
+    const total = Math.max(0, subtotal + shippingFee - discountAmount);
+
+    useEffect(() => {
+        fetchCoupons();
+    }, []);
+
+    useEffect(() => {
+        if (orderItems.length > 0) {
+            refreshDiscountPreview();
+        }
+    }, [orderItems.length]);
 
     return (
         <div style={styles.pageWrapper}>
@@ -244,13 +291,44 @@ const CheckoutPage = () => {
                                 <Space direction="vertical" size={20} style={{ width: '100%' }}>
                                     <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Tạm tính</Text><Text strong style={{fontSize: 15}}>{formatPrice(subtotal)}</Text></Row>
                                     <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Phí vận chuyển</Text><Text strong style={{fontSize: 15}}>{formatPrice(shippingFee)}</Text></Row>
-                                    <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Giảm giá</Text><Text strong style={{fontSize: 15, color: '#10b981'}}>- {formatPrice(0)}</Text></Row>
+                                    <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Giảm giá</Text><Text strong style={{fontSize: 15, color: '#10b981'}}>- {formatPrice(discountAmount)}</Text></Row>
                                     
                                     <div style={{padding: '16px 0'}}>
                                         <Space.Compact style={{ width: '100%' }}>
-                                            <Input placeholder="Mã giảm giá" size="large" style={{...styles.input, height: 48, borderRight: 'none'}} prefix={<TagOutlined style={{color: '#9ca3af'}} />} />
-                                            <Button type="primary" size="large" style={{ height: 48, borderRadius: '0 14px 14px 0', background: '#111827', borderColor: '#111827', fontWeight: 600 }}>Áp dụng</Button>
+                                            <Input
+                                                value={couponCode}
+                                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                                placeholder="Mã giảm giá"
+                                                size="large"
+                                                style={{...styles.input, height: 48, borderRight: 'none'}}
+                                                prefix={<TagOutlined style={{color: '#9ca3af'}} />}
+                                            />
+                                            <Button
+                                                type="primary"
+                                                size="large"
+                                                onClick={() => refreshDiscountPreview(couponCode, pointsToUse)}
+                                                style={{ height: 48, borderRadius: '0 14px 14px 0', background: '#111827', borderColor: '#111827', fontWeight: 600 }}
+                                            >
+                                                Áp dụng
+                                            </Button>
                                         </Space.Compact>
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text type="secondary">Điểm tích lũy sử dụng</Text>
+                                            <Input
+                                                value={pointsToUse}
+                                                onChange={(e) => setPointsToUse(Number(e.target.value || 0))}
+                                                placeholder="Nhập số điểm muốn dùng"
+                                                style={{...styles.input, height: 44, marginTop: 6}}
+                                            />
+                                            <Button type="link" style={{ paddingLeft: 0 }} onClick={() => refreshDiscountPreview(couponCode, pointsToUse)}>
+                                                Tính lại ưu đãi
+                                            </Button>
+                                            {coupons.length > 0 && (
+                                                <div style={{ marginTop: 6 }}>
+                                                    <Text type="secondary">Mã khả dụng: {coupons.slice(0, 3).map(c => c.code).join(', ')}</Text>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <Divider style={{ margin: '8px 0' }} />

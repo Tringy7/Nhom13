@@ -12,14 +12,24 @@ export const verifyToken = (req, res, next) => {
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
-    req.user = user;
+    req.user = {
+      ...user,
+      id: user?.id ?? user?.userId ?? user?.user_id ?? null,
+    };
+
+    if (!req.user.id) {
+      return res.status(401).json({ message: 'Invalid token payload' });
+    }
     next();
   });
 };
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const userRole = String(req.user?.role || '').toLowerCase();
+    const allowedRoles = roles.map(role => String(role).toLowerCase());
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({ message: "Forbidden" });
     }
     next();
