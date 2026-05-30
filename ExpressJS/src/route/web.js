@@ -14,6 +14,9 @@ import {
 import authRoutes from './auth.routes.js';
 import homeRoutes from './home.routes.js';
 import productRoutes from './product.routes.js';
+import cartRoutes from './cart.routes.js';
+import orderRoutes from './order.routes.js';
+
 
 let router = express.Router();
 
@@ -43,6 +46,9 @@ let initWebRoutes = (app) => {
     app.use('/', authRoutes);
     app.use('/', homeRoutes);
     app.use('/', productRoutes);
+    app.use('/', cartRoutes);
+    app.use('/', orderRoutes)
+
 
     return app.use('/', router);
 };
