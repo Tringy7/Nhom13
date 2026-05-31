@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Button, InputNumber, Divider, Image, Space, message, Popconfirm, Checkbox, Spin, Breadcrumb, Tag, Input } from 'antd';
-import { DeleteOutlined, ShoppingOutlined, ArrowLeftOutlined, ShoppingCartOutlined, HeartOutlined, RightOutlined, CreditCardOutlined, SafetyCertificateOutlined, SyncOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Button, Divider, Image, Space, message, Popconfirm, Checkbox, Spin, Breadcrumb, Tag } from 'antd';
+import { DeleteOutlined, ShoppingCartOutlined, ArrowLeftOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getCart, deleteCartItem, updateCartItem } from '../util/api/cart.api';
 import { getImageUrl } from '../util/helpers';
@@ -19,7 +19,6 @@ const styles = {
     productName: { fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 8px 0', transition: 'color 0.2s ease', cursor: 'pointer' },
     summaryCard: { borderRadius: 32, boxShadow: '0 10px 40px rgba(0,0,0,0.08)', position: 'sticky', top: 32, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' },
     checkoutBtn: { height: 58, borderRadius: 29, fontSize: 18, fontWeight: 700, background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)', border: 'none', boxShadow: '0 8px 20px rgba(22, 119, 255, 0.3)' },
-    iconSection: { display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', fontSize: 13, marginTop: 16 }
 };
 
 const CartPage = () => {
@@ -28,6 +27,7 @@ const CartPage = () => {
     const [cartItems, setCartItems] = useState([]);
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [updatingItems, setUpdatingItems] = useState({});
 
     useEffect(() => {
         fetchCartData();
@@ -48,7 +48,7 @@ const CartPage = () => {
                 quantity: item.quantity || 1,
                 image: getImageUrl(item.product?.thumbnail || '') || 'https://via.placeholder.com/200?text=Product',
                 brand: item.product?.brand?.name || 'Apple',
-                category: item.product?.category?.name || 'Electronics',
+                category: item.product?.category || 'Electronics',
                 inStock: item.product?.stock > 0 || true
             }));
             
@@ -71,23 +71,32 @@ const CartPage = () => {
 
     const handleQuantityChange = async (id, value) => {
         if (value < 1) return;
+        
+        setUpdatingItems(prev => ({ ...prev, [id]: true }));
+        const originalItems = [...cartItems];
         setCartItems(prev => prev.map(item => item.id === id ? { ...item, quantity: value } : item));
+        
         try {
             await updateCartItem(id, value);
         } catch (error) {
             message.error('Lỗi khi cập nhật số lượng');
-            fetchCartData(); 
+            setCartItems(originalItems);
+        } finally {
+            setUpdatingItems(prev => ({ ...prev, [id]: false }));
         }
     };
 
     const handleRemoveItem = async (id) => {
         try {
+            setUpdatingItems(prev => ({ ...prev, [id]: true }));
             await deleteCartItem(id);
             setCartItems(prev => prev.filter(item => item.id !== id));
             setSelectedRowKeys(prev => prev.filter(key => key !== id));
             message.success('Đã xóa sản phẩm khỏi giỏ hàng');
         } catch (error) {
             message.error('Lỗi khi xóa sản phẩm');
+        } finally {
+            setUpdatingItems(prev => ({ ...prev, [id]: false }));
         }
     };
 
@@ -110,9 +119,6 @@ const CartPage = () => {
 
     const selectedItems = cartItems.filter(item => selectedRowKeys.includes(item.id));
     const subtotal = selectedItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const shipping = subtotal > 0 ? 50000 : 0;
-    const discount = subtotal > 50000000 ? 500000 : 0;
-    const total = subtotal + shipping - discount;
 
     const handleCheckoutClick = async () => {
         if (selectedRowKeys.length === 0) {
@@ -159,12 +165,6 @@ const CartPage = () => {
                     transform: translateY(-4px);
                     box-shadow: 0 14px 40px rgba(0,0,0,0.10) !important;
                 }
-                .cart-image-wrapper img {
-                    transition: transform 0.4s ease;
-                }
-                .cart-card:hover .cart-image-wrapper img {
-                    transform: scale(1.05);
-                }
                 .product-name:hover {
                     color: #1677ff !important;
                 }
@@ -172,16 +172,32 @@ const CartPage = () => {
                     transform: scale(1.02);
                     box-shadow: 0 12px 24px rgba(22, 119, 255, 0.4) !important;
                 }
-                .qty-input .ant-input-number-input {
-                    text-align: center;
-                    font-weight: 600;
-                }
                 .action-btn {
                     transition: all 0.2s ease;
                 }
                 .action-btn:hover {
                     background: #fee2e2 !important;
                     color: #ef4444 !important;
+                }
+                .qty-btn {
+                    border-radius: 8px;
+                    width: 32px;
+                    height: 32px;
+                    padding: 0;
+                    background: #fff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    border: 1px solid transparent;
+                }
+                .qty-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .qty-btn:hover:not(:disabled) {
+                    border-color: #1677ff;
+                    color: #1677ff;
                 }
             `}</style>
 
@@ -205,7 +221,6 @@ const CartPage = () => {
                         <Col style={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
                             <div style={{ background: '#fff', padding: '16px 24px', borderRadius: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.03)' }}>
                                 <Text strong style={{ fontSize: 18, color: '#111827', display: 'block' }}>{selectedRowKeys.length} items selected</Text>
-                                <Text type="secondary" style={{ fontSize: 14 }}>Estimated delivery: 2-4 days</Text>
                             </div>
                         </Col>
                     </Row>
@@ -224,20 +239,18 @@ const CartPage = () => {
                             >
                                 Select all items ({cartItems.length})
                             </Checkbox>
-                            <Button type="text" danger onClick={() => message.info('Tính năng xóa nhiều sản phẩm đang phát triển')} style={{ fontWeight: 500 }}>
-                                Remove selected
-                            </Button>
                         </div>
 
                         {/* Items List */}
                         <Space direction="vertical" size={24} style={{ width: '100%' }}>
-                            {cartItems.map(item => (
+                            {cartItems.map(item => {
+                                const isUpdating = updatingItems[item.id];
+                                return (
                                 <Card 
                                     key={item.id} 
                                     bordered={false}
                                     className="cart-card"
-                                    style={styles.cartCard}
-                                    bodyStyle={{ padding: 32 }}
+                                    style={{...styles.cartCard, opacity: isUpdating ? 0.7 : 1}}
                                 >
                                     <Row gutter={24} align="top">
                                         <Col>
@@ -245,11 +258,12 @@ const CartPage = () => {
                                                 checked={selectedRowKeys.includes(item.id)}
                                                 onChange={(e) => handleSelect(item.id, e.target.checked)}
                                                 style={{ marginTop: 40 }}
+                                                disabled={isUpdating}
                                             />
                                         </Col>
                                         
                                         <Col xs={24} sm={6}>
-                                            <div style={styles.imageContainer} className="cart-image-wrapper">
+                                            <div style={styles.imageContainer}>
                                                 <Image 
                                                     src={item.image} 
                                                     alt={item.name}
@@ -267,12 +281,9 @@ const CartPage = () => {
                                                         <Tag color="blue" style={{ borderRadius: 6, border: 'none', background: '#eff6ff', color: '#1d4ed8' }}>{item.brand}</Tag>
                                                         <Tag style={{ borderRadius: 6, border: 'none', background: '#f3f4f6', color: '#4b5563' }}>{item.category}</Tag>
                                                     </div>
-                                                    <Title level={4} style={styles.productName} className="product-name" onClick={() => navigate(`/product/${item.productId}`)}>
+                                                    <Title level={4} style={styles.productName} className="product-name" onClick={() => !isUpdating && navigate(`/product/${item.productId}`)}>
                                                         {item.name}
                                                     </Title>
-                                                    <Text style={{ color: '#6b7280', fontSize: 15, display: 'block', marginBottom: 4 }}>
-                                                        SKU: PRD-{String(item.productId).substring(0,6).toUpperCase()}
-                                                    </Text>
                                                     <Text style={{ color: item.inStock ? '#059669' : '#dc2626', fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
                                                         <div style={{ width: 6, height: 6, borderRadius: '50%', background: item.inStock ? '#059669' : '#dc2626' }}></div>
                                                         {item.inStock ? 'In Stock' : 'Out of Stock'}
@@ -293,16 +304,25 @@ const CartPage = () => {
                                             <Row justify="space-between" align="middle">
                                                 <Col>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#f3f4f6', padding: '4px', borderRadius: 12 }}>
-                                                        <Button type="text" onClick={() => handleQuantityChange(item.id, item.quantity - 1)} disabled={item.quantity <= 1} style={{ borderRadius: 8, width: 32, height: 32, padding: 0, background: '#fff' }}>-</Button>
+                                                        <button 
+                                                            className="qty-btn" 
+                                                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)} 
+                                                            disabled={item.quantity <= 1 || isUpdating}
+                                                        >
+                                                            -
+                                                        </button>
                                                         <Text strong style={{ width: 24, textAlign: 'center', fontSize: 16 }}>{item.quantity}</Text>
-                                                        <Button type="text" onClick={() => handleQuantityChange(item.id, item.quantity + 1)} style={{ borderRadius: 8, width: 32, height: 32, padding: 0, background: '#fff' }}>+</Button>
+                                                        <button 
+                                                            className="qty-btn" 
+                                                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)} 
+                                                            disabled={isUpdating}
+                                                        >
+                                                            +
+                                                        </button>
                                                     </div>
                                                 </Col>
                                                 <Col>
                                                     <Space size={8}>
-                                                        <Button type="text" icon={<HeartOutlined />} style={{ color: '#6b7280', borderRadius: 10 }}>
-                                                            Save
-                                                        </Button>
                                                         <Popconfirm
                                                             title="Remove item"
                                                             description="Are you sure you want to remove this item?"
@@ -311,8 +331,9 @@ const CartPage = () => {
                                                             cancelText="Cancel"
                                                             okButtonProps={{ danger: true, style: { borderRadius: 8 } }}
                                                             cancelButtonProps={{ style: { borderRadius: 8 } }}
+                                                            disabled={isUpdating}
                                                         >
-                                                            <Button type="text" className="action-btn" icon={<DeleteOutlined />} style={{ color: '#6b7280', borderRadius: 10 }}>
+                                                            <Button type="text" className="action-btn" icon={<DeleteOutlined />} style={{ color: '#ef4444', borderRadius: 10 }} disabled={isUpdating}>
                                                                 Remove
                                                             </Button>
                                                         </Popconfirm>
@@ -322,7 +343,7 @@ const CartPage = () => {
                                         </Col>
                                     </Row>
                                 </Card>
-                            ))}
+                            )})}
                         </Space>
                     </Col>
 
@@ -336,35 +357,15 @@ const CartPage = () => {
                                     <Text style={{ color: '#6b7280', fontSize: 16 }}>Subtotal ({selectedRowKeys.length} items)</Text>
                                     <Text strong style={{ fontSize: 16, color: '#111827' }}>{formatPrice(subtotal)}</Text>
                                 </Row>
-                                
-                                <Row justify="space-between">
-                                    <Text style={{ color: '#6b7280', fontSize: 16 }}>Shipping</Text>
-                                    <Text strong style={{ fontSize: 16, color: '#111827' }}>{shipping === 0 ? 'Calculated at checkout' : formatPrice(shipping)}</Text>
-                                </Row>
-
-                                {discount > 0 && (
-                                    <Row justify="space-between">
-                                        <Text style={{ color: '#059669', fontSize: 16 }}>Discount</Text>
-                                        <Text strong style={{ color: '#059669', fontSize: 16 }}>-{formatPrice(discount)}</Text>
-                                    </Row>
-                                )}
-
-                                <div style={{ marginTop: 8 }}>
-                                    <Space.Compact style={{ width: '100%' }}>
-                                        <Input placeholder="Discount code" size="large" style={{ borderRadius: '12px 0 0 12px', background: '#f9fafb', border: '1px solid #e5e7eb' }} />
-                                        <Button type="primary" size="large" style={{ borderRadius: '0 12px 12px 0', background: '#111827', borderColor: '#111827', fontWeight: 600 }}>Apply</Button>
-                                    </Space.Compact>
-                                </div>
 
                                 <Divider style={{ margin: '16px 0' }} />
 
                                 <Row justify="space-between" align="bottom">
                                     <Text style={{ fontSize: 18, color: '#111827', fontWeight: 600 }}>Total</Text>
                                     <div style={{ textAlign: 'right' }}>
-                                        <Title level={2} style={{ color: '#ff4d4f', margin: 0, fontWeight: 800 }}>
-                                            {formatPrice(total)}
+                                        <Title level={2} style={{ color: '#2563eb', margin: 0, fontWeight: 800 }}>
+                                            {formatPrice(subtotal)}
                                         </Title>
-                                        <Text style={{ color: '#6b7280', fontSize: 13 }}>Including VAT</Text>
                                     </div>
                                 </Row>
 
@@ -378,26 +379,6 @@ const CartPage = () => {
                                     >
                                         Proceed to Checkout
                                     </Button>
-                                    
-                                    <Button 
-                                        type="default" 
-                                        block 
-                                        onClick={() => navigate('/products')}
-                                        style={{ height: 50, borderRadius: 25, fontWeight: 600, marginTop: 16, color: '#4b5563', borderColor: '#d1d5db' }}
-                                    >
-                                        Continue Shopping
-                                    </Button>
-                                </div>
-
-                                <div style={{ marginTop: 24, padding: 16, background: '#f9fafb', borderRadius: 16 }}>
-                                    <div style={styles.iconSection}>
-                                        <SafetyCertificateOutlined style={{ fontSize: 18, color: '#10b981' }} />
-                                        <Text style={{ color: '#4b5563' }}>Secure SSL Checkout</Text>
-                                    </div>
-                                    <div style={styles.iconSection}>
-                                        <SyncOutlined style={{ fontSize: 18, color: '#3b82f6' }} />
-                                        <Text style={{ color: '#4b5563' }}>Free Returns within 30 Days</Text>
-                                    </div>
                                 </div>
                             </Space>
                         </Card>

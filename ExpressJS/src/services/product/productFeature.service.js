@@ -170,7 +170,7 @@ const getWishlist = async (userId) => {
     include: [{
       model: Product,
       as: 'product',
-      attributes: ['id', 'name', 'price', 'thumbnail', 'sold', 'stock', 'categoryId'],
+      attributes: ['id', 'name', 'price', 'thumbnail', 'sold', 'stock', 'category'],
       include: [
         { model: ProductImage, as: 'images', attributes: ['id', 'imageUrl'] },
         { model: Brand, as: 'brand', attributes: ['id', 'name'] }
@@ -190,7 +190,7 @@ const getSimilarProducts = async (productId, limit = 8) => {
     where: {
       id: { [Op.ne]: product.id },
       [Op.or]: [
-        { categoryId: product.categoryId },
+        { category: product.category },
         { brandId: product.brandId }
       ]
     },

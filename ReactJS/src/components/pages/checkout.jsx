@@ -1,370 +1,244 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, Popconfirm, message } from 'antd';
-import { ArrowLeftOutlined, DollarCircleOutlined, WalletOutlined, CheckCircleOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, CarOutlined, RocketOutlined, TagOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrderById, createOrder } from '../util/api/order.api';
-import { getUserCouponsApi, previewDiscountApi } from '../util/api/product-feature.api';
+import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, message, Modal, Empty, Tag } from 'antd';
+import { ArrowLeftOutlined, DollarCircleOutlined, WalletOutlined, CheckCircleOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, CarOutlined, RocketOutlined, TagOutlined, StarOutlined, RightOutlined } from '@ant-design/icons';
+import { createOrder } from '../util/api/order.api';
+import { getMyVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
 import { getImageUrl } from '../util/helpers';
-import axios from '../util/axios.customize';
 
 const { Title, Text, Paragraph } = Typography;
 
+// --- STYLES ---
 const styles = {
     pageWrapper: { background: '#f5f7fb', minHeight: '100vh', padding: '40px 0', fontFamily: 'Inter, sans-serif' },
     container: { maxWidth: 1400, margin: '0 auto', padding: '0 24px' },
     card: { background: '#fff', borderRadius: 24, boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' },
     input: { height: 52, borderRadius: 14, background: '#f9fafb', border: '1px solid #e5e7eb', fontSize: 15 },
     primaryBtn: { height: 56, borderRadius: 16, fontSize: 16, fontWeight: 700, background: 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)', border: 'none' },
-    selectableCard: (selected) => ({
-        padding: '20px 24px',
-        borderRadius: 18,
-        border: selected ? '2px solid #4f46e5' : '2px solid #e5e7eb',
-        cursor: 'pointer',
-        transition: 'all 0.25s ease',
-        background: selected ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%)' : '#fff',
-        boxShadow: selected ? '0 0 20px rgba(79, 70, 229, 0.1)' : 'none',
-    }),
     summaryCard: { borderRadius: 28, boxShadow: '0 14px 40px rgba(0,0,0,0.06)', position: 'sticky', top: 24, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.2)' },
+    voucherRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb', cursor: 'pointer' },
+    voucherModalCard: { border: '1px solid #e5e7eb', borderRadius: 12, marginBottom: 12, padding: 16, transition: 'all 0.2s ease' },
 };
 
 const CheckoutPage = () => {
-    const { orderId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const [form] = Form.useForm();
     
-    const [order, setOrder] = useState(null);
+    const [orderItems, setOrderItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [paymentMethod, setPaymentMethod] = useState("COD");
-    const [deliveryMethod, setDeliveryMethod] = useState("standard");
     const [submitting, setSubmitting] = useState(false);
-    const [couponCode, setCouponCode] = useState('');
-    const [pointsToUse, setPointsToUse] = useState(0);
-    const [discountPreview, setDiscountPreview] = useState(null);
-    const [coupons, setCoupons] = useState([]);
+
+    // --- Voucher & Points State ---
+    const [myVouchers, setMyVouchers] = useState([]);
+    const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
+    const [selectedVoucher, setSelectedVoucher] = useState(null);
+    const [voucherDiscount, setVoucherDiscount] = useState(0);
+    
+    const [userPoints, setUserPoints] = useState(0);
+    const [pointsToUse, setPointsToUse] = useState(''); // Changed to string for empty input
+    const [pointsError, setPointsError] = useState(null); // State for points validation error
+
+    // --- Calculation ---
+    const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const shippingFee = 0; // Tạm tính free ship
+    const pointsDiscount = Number(pointsToUse) || 0;
+    const total = Math.max(0, subtotal + shippingFee - voucherDiscount - pointsDiscount);
 
     useEffect(() => {
-        if (orderId && orderId !== 'new') {
-            fetchOrderDetails();
-        } else if (location.state && location.state.selectedItems) {
-            setOrder({
-                id: 'Mới',
-                items: location.state.selectedItems,
-                status: 'new'
-            });
-            setLoading(false);
+        if (location.state && location.state.selectedItems) {
+            const items = location.state.selectedItems;
+            setOrderItems(items);
+            fetchInitialData();
         } else {
             setLoading(false);
         }
-    }, [orderId, location.state]);
+    }, [location.state]);
 
-    const fetchOrderDetails = async () => {
+    const fetchInitialData = async () => {
         try {
-            setLoading(true);
-            const res = await getOrderById(orderId);
-            const data = res?.data?.data || res?.data;
-            if (data) setOrder(data);
+            const [vouchersRes, balanceRes] = await Promise.all([
+                getMyVouchersApi(),
+                getRewardBalanceApi()
+            ]);
+            setMyVouchers(vouchersRes.data || []);
+            setUserPoints(balanceRes.data?.points || 0);
         } catch (error) {
-            console.error('Lỗi khi lấy thông tin đơn hàng:', error);
+            message.error('Lỗi khi tải dữ liệu ưu đãi.');
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchCoupons = async () => {
+    useEffect(() => {
+        const pointsValue = Number(pointsToUse);
+        const maxPointsCanUse = Math.min(userPoints, subtotal - voucherDiscount);
+
+        if (pointsValue > maxPointsCanUse) {
+            setPointsError(`Số điểm sử dụng không được vượt quá ${Math.floor(maxPointsCanUse).toLocaleString()}`);
+        } else {
+            setPointsError(null);
+        }
+    }, [pointsToUse, userPoints, subtotal, voucherDiscount]);
+
+    const handleSelectVoucher = async (userVoucher) => {
         try {
-            const res = await getUserCouponsApi();
-            const data = res?.data || res || [];
-            setCoupons(data);
-        } catch (error) {
-            setCoupons([]);
+            const res = await applyVoucherApi(userVoucher.rewardCode, subtotal);
+            const { discountAmount } = res.data;
+            
+            setSelectedVoucher(userVoucher);
+            setVoucherDiscount(discountAmount);
+            setIsVoucherModalVisible(false);
+            message.success(`Áp dụng voucher "${userVoucher.voucher.code}" thành công!`);
+        } catch (error)
+ {
+            message.error(error.response?.data?.message || 'Không thể áp dụng voucher này.');
         }
     };
 
-    const refreshDiscountPreview = async (nextCouponCode = couponCode, nextPoints = pointsToUse) => {
-        if (!orderItems || orderItems.length === 0) return;
-
-        try {
-            const res = await previewDiscountApi({
-                subtotal,
-                couponCode: nextCouponCode || null,
-                pointsToUse: Number(nextPoints || 0)
-            });
-            const data = res?.data || res;
-            setDiscountPreview(data);
-        } catch (error) {
-            setDiscountPreview(null);
-            if (nextCouponCode || Number(nextPoints || 0) > 0) {
-                message.error(error?.response?.data?.message || 'Không áp dụng được ưu đãi');
-            }
-        }
+    const handleUseMaxPoints = () => {
+        const maxPointsCanUse = Math.floor(Math.min(userPoints, subtotal - voucherDiscount));
+        setPointsToUse(maxPointsCanUse);
     };
-
-    const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
 
     const handleConfirmOrder = async (values) => {
-        if (paymentMethod !== 'COD') {
-            return message.info('Tính năng đang được phát triển 🚧');
+        if (pointsError) {
+            message.error(pointsError);
+            return;
         }
         setSubmitting(true);
         try {
             const payload = {
-                paymentMethod: 'COD',
                 shippingAddress: values.shippingAddress,
                 phoneNumber: values.phoneNumber,
                 note: values.note,
-                couponCode: couponCode || null,
-                pointsToUse: Number(pointsToUse || 0),
-                items: order.items.map(item => ({
-                    productId: item.productId || item.product?.id,
+                items: orderItems.map(item => ({
+                    productId: item.productId,
                     quantity: item.quantity,
                     price: item.price
-                }))
+                })),
+                couponCode: selectedVoucher ? selectedVoucher.rewardCode : null,
+                pointsToUse: Number(pointsToUse) || 0,
             };
             
             await createOrder(payload);
             message.success('Đặt hàng thành công!');
             navigate('/history');
         } catch (error) {
-            console.error(error);
-            message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xác nhận đơn hàng');
+            message.error(error.response?.data?.message || 'Có lỗi xảy ra khi đặt hàng.');
         } finally {
             setSubmitting(false);
         }
     };
 
+    const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+
+    // --- RENDER LOGIC ---
     if (loading) {
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f7fb' }}>
-                <Spin size="large" />
-            </div>
-        );
+        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}><Spin size="large" /></div>;
     }
 
-    if (!order) {
-        return (
-            <div style={{ background: '#f5f7fb', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Result
-                    status="404"
-                    title="Không tìm thấy đơn hàng"
-                    subTitle="Vui lòng quay lại giỏ hàng và chọn sản phẩm để thanh toán."
-                    extra={<Button type="primary" onClick={() => navigate('/cart')} style={styles.primaryBtn}>Quay lại giỏ hàng</Button>}
-                />
-            </div>
-        );
+    if (orderItems.length === 0) {
+        return <Result status="404" title="Không có sản phẩm" subTitle="Vui lòng quay lại giỏ hàng." extra={<Button type="primary" onClick={() => navigate('/cart')}>Về giỏ hàng</Button>} />;
     }
-
-    const isOrderConfirmed = order.status !== 'new' && order.status !== 'PENDING' && order.status !== 'pending';
-
-    if (isOrderConfirmed) {
-        return (
-            <div style={{ background: '#f5f7fb', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Result
-                    status="success"
-                    icon={<CheckCircleOutlined style={{ color: '#10b981' }} />}
-                    title="Đơn hàng đã được xác nhận"
-                    subTitle={`Đơn hàng #${order.id} của bạn đang được xử lý. Chúng tôi sẽ thông báo cho bạn khi đơn hàng được vận chuyển.`}
-                    extra={[
-                        <Button type="primary" key="history" onClick={() => navigate('/history')} style={styles.primaryBtn}>Xem lịch sử đơn hàng</Button>,
-                        <Button key="home" onClick={() => navigate('/')} style={{ height: 56, borderRadius: 16 }}>Về trang chủ</Button>
-                    ]}
-                />
-            </div>
-        );
-    }
-
-    const orderItems = order.items || order.OrderItems || [];
-    const subtotal = order.totalPrice || orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const shippingFee = deliveryMethod === 'express' ? 40000 : 0;
-    const discountAmount = Number(discountPreview?.discountAmount || 0);
-    const total = Math.max(0, subtotal + shippingFee - discountAmount);
-
-    useEffect(() => {
-        fetchCoupons();
-    }, []);
-
-    useEffect(() => {
-        if (orderItems.length > 0) {
-            refreshDiscountPreview();
-        }
-    }, [orderItems.length]);
 
     return (
         <div style={styles.pageWrapper}>
             <div style={styles.container}>
+                {/* Header */}
                 <div style={{ marginBottom: 40 }}>
-                    <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/cart')} style={{ color: '#6b7280', fontWeight: 500, padding: 0 }}>
-                        Quay lại giỏ hàng
-                    </Button>
-                    <Title level={2} style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginTop: 16, letterSpacing: '-0.02em' }}>Thanh toán đơn hàng</Title>
-                    <Paragraph style={{ fontSize: 16, color: '#6b7280' }}>Hoàn tất thông tin để xác nhận đơn hàng của bạn.</Paragraph>
+                    <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ color: '#6b7280', fontWeight: 500, padding: 0 }}>Quay lại</Button>
+                    <Title level={2} style={{ fontSize: 36, fontWeight: 800, color: '#111827', marginTop: 16 }}>Thanh toán</Title>
                 </div>
 
                 <Form form={form} layout="vertical" onFinish={handleConfirmOrder} size="large">
                     <Row gutter={[40, 40]}>
                         {/* Left Column */}
-                        <Col xs={24} lg={16}>
+                        <Col xs={24} lg={15}>
                             <Space direction="vertical" size={32} style={{ width: '100%' }}>
                                 {/* Shipping Info */}
-                                <Card title={<Space><EnvironmentOutlined style={{fontSize: 20}} /> <Text strong style={{fontSize: 18}}>Thông tin giao hàng</Text></Space>} bordered={false} style={styles.card} bodyStyle={{padding: 32}}>
+                                <Card title={<Space><EnvironmentOutlined /> <Text strong>Thông tin giao hàng</Text></Space>} bordered={false} style={styles.card}>
                                     <Row gutter={24}>
-                                        <Col span={12}>
-                                            <Form.Item name="fullName" rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}>
-                                                <Input prefix={<UserOutlined style={{color: '#9ca3af'}} />} placeholder="Họ và tên người nhận" style={styles.input} />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item name="phoneNumber" rules={[{ required: true, message: 'Vui lòng nhập số điện thoại!' }]}>
-                                                <Input prefix={<PhoneOutlined style={{color: '#9ca3af'}} />} placeholder="Số điện thoại" style={styles.input} />
-                                            </Form.Item>
-                                        </Col>
+                                        <Col span={12}><Form.Item name="fullName" rules={[{ required: true }]}><Input prefix={<UserOutlined />} placeholder="Họ và tên" style={styles.input} /></Form.Item></Col>
+                                        <Col span={12}><Form.Item name="phoneNumber" rules={[{ required: true }]}><Input prefix={<PhoneOutlined />} placeholder="Số điện thoại" style={styles.input} /></Form.Item></Col>
                                     </Row>
-                                    <Form.Item name="shippingAddress" rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}>
-                                        <Input prefix={<MailOutlined style={{color: '#9ca3af'}} />} placeholder="Địa chỉ giao hàng chi tiết" style={styles.input} />
-                                    </Form.Item>
-                                    <Form.Item name="note" label={<Text strong style={{fontSize: 16, color: '#4b5563'}}>Ghi chú (tùy chọn)</Text>}>
-                                        <Input.TextArea placeholder="Thêm ghi chú cho đơn hàng của bạn..." style={{...styles.input, height: 'auto', minHeight: 100, padding: 16}} />
-                                    </Form.Item>
+                                    <Form.Item name="shippingAddress" rules={[{ required: true }]}><Input prefix={<MailOutlined />} placeholder="Địa chỉ" style={styles.input} /></Form.Item>
+                                    <Form.Item name="note"><Input.TextArea placeholder="Ghi chú (tùy chọn)" style={{...styles.input, height: 'auto' }} /></Form.Item>
                                 </Card>
-
                                 {/* Order Items */}
-                                <Card title={<Space><Text strong style={{fontSize: 18}}>Sản phẩm trong đơn hàng</Text></Space>} bordered={false} style={styles.card} bodyStyle={{padding: '8px 32px 32px'}}>
-                                    <Space direction="vertical" style={{ width: '100%' }} size={0}>
-                                        {orderItems.map((item, idx) => (
-                                            <div key={item.id || idx} style={{padding: '20px 0', borderBottom: idx < orderItems.length - 1 ? '1px solid #f0f0f0' : 'none'}}>
-                                                <Row gutter={24} align="middle">
-                                                    <Col>
-                                                        <div style={{width: 88, height: 88, background: '#f9fafb', borderRadius: 16, padding: 8, border: '1px solid #e5e7eb'}}>
-                                                            <Image src={getImageUrl(item.product?.thumbnail || item.thumbnail || item.image || '')} preview={false} style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} />
-                                                        </div>
-                                                    </Col>
-                                                    <Col flex="auto">
-                                                        <Text strong style={{ fontSize: 16, display: 'block' }}>{item.product?.name || item.name || 'Sản phẩm'}</Text>
-                                                        <Text type="secondary">Số lượng: {item.quantity}</Text>
-                                                    </Col>
-                                                    <Col>
-                                                        <Text strong style={{ color: '#111827', fontSize: 18 }}>{formatPrice(item.price * item.quantity)}</Text>
-                                                    </Col>
-                                                </Row>
-                                            </div>
-                                        ))}
-                                    </Space>
-                                </Card>
-
-                                {/* Delivery Method */}
-                                <Card title={<Space><CarOutlined style={{fontSize: 20}} /> <Text strong style={{fontSize: 18}}>Phương thức vận chuyển</Text></Space>} bordered={false} style={styles.card} bodyStyle={{padding: 32}}>
-                                    <Space direction="vertical" style={{width: '100%'}} size={16}>
-                                        <div style={styles.selectableCard(deliveryMethod === 'standard')} onClick={() => setDeliveryMethod('standard')}>
-                                            <Row justify="space-between" align="middle">
-                                                <Space size="large">
-                                                    <CarOutlined style={{fontSize: 24, color: '#4f46e5'}} />
-                                                    <div>
-                                                        <Text strong style={{fontSize: 16, display: 'block'}}>Giao hàng tiêu chuẩn</Text>
-                                                        <Text type="secondary">Dự kiến 2-4 ngày</Text>
-                                                    </div>
-                                                </Space>
-                                                <Text strong style={{fontSize: 16}}>Miễn phí</Text>
-                                            </Row>
-                                        </div>
-                                        <div style={styles.selectableCard(deliveryMethod === 'express')} onClick={() => setDeliveryMethod('express')}>
-                                            <Row justify="space-between" align="middle">
-                                                <Space size="large">
-                                                    <RocketOutlined style={{fontSize: 24, color: '#4f46e5'}} />
-                                                    <div>
-                                                        <Text strong style={{fontSize: 16, display: 'block'}}>Giao hàng nhanh</Text>
-                                                        <Text type="secondary">Trong ngày (nội thành)</Text>
-                                                    </div>
-                                                </Space>
-                                                <Text strong style={{fontSize: 16}}>+ {formatPrice(40000)}</Text>
-                                            </Row>
-                                        </div>
-                                    </Space>
+                                <Card title={<Text strong>Sản phẩm</Text>} bordered={false} style={styles.card}>
+                                    {orderItems.map((item, idx) => (
+                                        <Row key={idx} gutter={16} align="middle" style={{ padding: '12px 0', borderBottom: idx < orderItems.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                                            <Col><Image src={getImageUrl(item.image)} width={64} height={64} style={{ objectFit: 'contain', borderRadius: 8, background: '#f9fafb' }} /></Col>
+                                            <Col flex="auto"><Text strong>{item.name}</Text><div><Text type="secondary">SL: {item.quantity}</Text></div></Col>
+                                            <Col><Text strong>{formatPrice(item.price * item.quantity)}</Text></Col>
+                                        </Row>
+                                    ))}
                                 </Card>
                             </Space>
                         </Col>
 
                         {/* Right Column */}
-                        <Col xs={24} lg={8}>
-                            <Card bordered={false} style={styles.summaryCard} bodyStyle={{padding: 32}}>
-                                <Title level={4} style={{ marginBottom: 32, fontWeight: 700, color: '#111827' }}>Tóm tắt đơn hàng</Title>
-                                
-                                <Space direction="vertical" size={20} style={{ width: '100%' }}>
-                                    <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Tạm tính</Text><Text strong style={{fontSize: 15}}>{formatPrice(subtotal)}</Text></Row>
-                                    <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Phí vận chuyển</Text><Text strong style={{fontSize: 15}}>{formatPrice(shippingFee)}</Text></Row>
-                                    <Row justify="space-between"><Text style={{fontSize: 15, color: '#6b7280'}}>Giảm giá</Text><Text strong style={{fontSize: 15, color: '#10b981'}}>- {formatPrice(discountAmount)}</Text></Row>
-                                    
-                                    <div style={{padding: '16px 0'}}>
-                                        <Space.Compact style={{ width: '100%' }}>
-                                            <Input
-                                                value={couponCode}
-                                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                                placeholder="Mã giảm giá"
-                                                size="large"
-                                                style={{...styles.input, height: 48, borderRight: 'none'}}
-                                                prefix={<TagOutlined style={{color: '#9ca3af'}} />}
-                                            />
-                                            <Button
-                                                type="primary"
-                                                size="large"
-                                                onClick={() => refreshDiscountPreview(couponCode, pointsToUse)}
-                                                style={{ height: 48, borderRadius: '0 14px 14px 0', background: '#111827', borderColor: '#111827', fontWeight: 600 }}
-                                            >
-                                                Áp dụng
-                                            </Button>
-                                        </Space.Compact>
-                                        <div style={{ marginTop: 8 }}>
-                                            <Text type="secondary">Điểm tích lũy sử dụng</Text>
-                                            <Input
-                                                value={pointsToUse}
-                                                onChange={(e) => setPointsToUse(Number(e.target.value || 0))}
-                                                placeholder="Nhập số điểm muốn dùng"
-                                                style={{...styles.input, height: 44, marginTop: 6}}
-                                            />
-                                            <Button type="link" style={{ paddingLeft: 0 }} onClick={() => refreshDiscountPreview(couponCode, pointsToUse)}>
-                                                Tính lại ưu đãi
-                                            </Button>
-                                            {coupons.length > 0 && (
-                                                <div style={{ marginTop: 6 }}>
-                                                    <Text type="secondary">Mã khả dụng: {coupons.slice(0, 3).map(c => c.code).join(', ')}</Text>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                        <Col xs={24} lg={9}>
+                            <Card bordered={false} style={styles.summaryCard} bodyStyle={{ padding: 32 }}>
+                                {/* Voucher Section */}
+                                <div style={{ ...styles.voucherRow, marginBottom: 24 }} onClick={() => setIsVoucherModalVisible(true)}>
+                                    <Space><TagOutlined style={{ color: '#2563eb' }} /> <Text strong>Mã giảm giá</Text></Space>
+                                    <Space>
+                                        {selectedVoucher ? (
+                                            <Tag color="blue">{selectedVoucher.voucher.code}</Tag>
+                                        ) : (
+                                            <Text type="secondary">
+                                                {myVouchers.length === 0 ? 'Không có voucher' : 'Chọn voucher'}
+                                            </Text>
+                                        )}
+                                        <RightOutlined />
+                                    </Space>
+                                </div>
 
+                                {/* Points Section */}
+                                <div style={{ background: '#f9fafb', borderRadius: 12, padding: 16, border: '1px solid #e5e7eb', marginBottom: 24 }}>
+                                    <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+                                        <Space><StarOutlined style={{ color: '#f59e0b' }} /> <Text strong>Điểm thưởng</Text></Space>
+                                        <Text type="secondary">Hiện có: {userPoints.toLocaleString()}</Text>
+                                    </Row>
+                                    <Space.Compact style={{ width: '100%' }}>
+                                        <Input 
+                                            type="number" 
+                                            placeholder="Nhập số điểm" 
+                                            value={pointsToUse} 
+                                            onChange={e => setPointsToUse(e.target.value)} 
+                                            style={{ height: 44 }} 
+                                        />
+                                        <Button type="default" onClick={handleUseMaxPoints} style={{ height: 44 }}>Dùng tối đa</Button>
+                                    </Space.Compact>
+                                    {pointsError && <Text type="danger" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>{pointsError}</Text>}
+                                    <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>1 điểm = 1 VNĐ</Text>
+                                </div>
+
+                                {/* Summary */}
+                                <Title level={4} style={{ marginBottom: 20 }}>Tóm tắt đơn hàng</Title>
+                                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                                    <Row justify="space-between"><Text type="secondary">Tạm tính</Text><Text>{formatPrice(subtotal)}</Text></Row>
+                                    <Row justify="space-between"><Text type="secondary">Phí vận chuyển</Text><Text>{formatPrice(shippingFee)}</Text></Row>
+                                    {voucherDiscount > 0 && <Row justify="space-between"><Text style={{ color: '#22c55e' }}>Voucher giảm</Text><Text style={{ color: '#22c55e' }}>- {formatPrice(voucherDiscount)}</Text></Row>}
+                                    {pointsDiscount > 0 && <Row justify="space-between"><Text style={{ color: '#22c55e' }}>Điểm thưởng</Text><Text style={{ color: '#22c55e' }}>- {formatPrice(pointsDiscount)}</Text></Row>}
                                     <Divider style={{ margin: '8px 0' }} />
-
                                     <Row justify="space-between" align="bottom">
-                                        <Text style={{ fontSize: 18, color: '#111827', fontWeight: 600 }}>Tổng cộng</Text>
-                                        <Title level={2} style={{ color: '#4f46e5', margin: 0, fontWeight: 800 }}>{formatPrice(total)}</Title>
+                                        <Text strong style={{ fontSize: 18 }}>Tổng cộng</Text>
+                                        <Title level={2} style={{ color: '#4f46e5', margin: 0 }}>{formatPrice(total)}</Title>
                                     </Row>
                                 </Space>
 
-                                <Divider style={{ margin: '24px 0' }} />
-
-                                <Title level={5} style={{ marginBottom: 20, fontWeight: 600 }}>Phương thức thanh toán</Title>
-                                <Space direction="vertical" style={{width: '100%'}} size={16}>
-                                    <div style={styles.selectableCard(paymentMethod === 'COD')} onClick={() => setPaymentMethod('COD')}>
-                                        <Space size="large">
-                                            <DollarCircleOutlined style={{fontSize: 24, color: '#4f46e5'}} />
-                                            <div>
-                                                <Text strong style={{fontSize: 16, display: 'block'}}>Thanh toán khi nhận hàng (COD)</Text>
-                                                <Text type="secondary">Thanh toán bằng tiền mặt</Text>
-                                            </div>
-                                        </Space>
-                                    </div>
-                                    <div style={{...styles.selectableCard(paymentMethod === 'E-Wallet'), opacity: 0.5, cursor: 'not-allowed'}} onClick={() => message.info('Tính năng đang được phát triển 🚧')}>
-                                        <Space size="large">
-                                            <WalletOutlined style={{fontSize: 24, color: '#6b7280'}} />
-                                            <div>
-                                                <Text strong style={{fontSize: 16, display: 'block', color: '#6b7280'}}>Ví điện tử / QR Code</Text>
-                                                <Text type="secondary">MoMo, ZaloPay, VNPay (Coming soon)</Text>
-                                            </div>
-                                        </Space>
-                                    </div>
-                                </Space>
-
                                 <div style={{ marginTop: 32 }}>
-                                    <Button type="primary" htmlType="submit" block loading={submitting} style={styles.primaryBtn}>
+                                    <Button 
+                                        type="primary" 
+                                        htmlType="submit" 
+                                        block 
+                                        loading={submitting} 
+                                        style={styles.primaryBtn}
+                                        disabled={!!pointsError || submitting}
+                                    >
                                         Xác nhận đặt hàng
                                     </Button>
                                 </div>
@@ -373,6 +247,31 @@ const CheckoutPage = () => {
                     </Row>
                 </Form>
             </div>
+
+            {/* Voucher Modal */}
+            <Modal
+                title="Voucher của tôi"
+                open={isVoucherModalVisible}
+                onCancel={() => setIsVoucherModalVisible(false)}
+                footer={null}
+                bodyStyle={{ maxHeight: '60vh', overflowY: 'auto', padding: '8px' }}
+            >
+                {myVouchers.length > 0 ? myVouchers.map(uv => (
+                    <div key={uv.id} style={styles.voucherModalCard}>
+                        <Row justify="space-between">
+                            <Col>
+                                <Title level={5} style={{ margin: 0 }}>{uv.voucher.title}</Title>
+                                <Text type="secondary" style={{ fontSize: 12 }}>HSD: {new Date(uv.voucher.endDate).toLocaleDateString('vi-VN')}</Text>
+                            </Col>
+                            <Col>
+                                <Button type="primary" onClick={() => handleSelectVoucher(uv)}>Sử dụng</Button>
+                            </Col>
+                        </Row>
+                        <Divider style={{ margin: '12px 0' }} />
+                        <Text>{uv.voucher.description}</Text>
+                    </div>
+                )) : <Empty description="Bạn không có voucher nào." />}
+            </Modal>
         </div>
     );
 };

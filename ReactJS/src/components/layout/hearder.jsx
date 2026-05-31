@@ -4,6 +4,7 @@ import {
     ShoppingCartOutlined,
     SearchOutlined,
     MenuOutlined,
+    GiftOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Dropdown } from 'antd';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -38,6 +39,7 @@ const Header = () => {
         { label: 'Home', key: 'home', path: '/home' },
         { label: 'Shop', key: 'products', path: '/products' },
         { label: 'Orders', key: 'history', path: '/history' },
+        { label: 'Rewards', key: 'rewards', path: '/rewards' },
         { label: 'About', key: 'about', path: '#' }
     ];
 
@@ -51,6 +53,10 @@ const Header = () => {
         {
             key: 'profile',
             label: <Link to="/user/profile" style={{ fontSize: '13px', fontWeight: 500 }}>My Profile</Link>,
+        },
+        {
+            key: 'rewards',
+            label: <Link to="/rewards" style={{ fontSize: '13px', fontWeight: 500 }}>My Rewards</Link>,
         },
         {
             key: 'logout',

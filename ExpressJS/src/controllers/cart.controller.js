@@ -45,6 +45,33 @@ const deleteCartItem = async (req, res) => {
   }
 }
 
+const updateCartItem = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { cartItemId } = req.params;
+    const { quantity } = req.body;
+    
+    if (quantity === undefined || quantity < 1) {
+       return res.status(400).json({
+         success: false,
+         message: 'Số lượng không hợp lệ'
+       });
+    }
+
+    await cartService.updateCartItem(userId, cartItemId, quantity);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Update cart item successfully'
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
 const getCart = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -69,5 +96,6 @@ const getCart = async (req, res) => {
 export default {
   addToCart,
   deleteCartItem,
+  updateCartItem,
   getCart
 };
