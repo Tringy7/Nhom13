@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, message, Modal, Empty, Tag } from 'antd';
 import { ArrowLeftOutlined, DollarCircleOutlined, WalletOutlined, CheckCircleOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, CarOutlined, RocketOutlined, TagOutlined, StarOutlined, RightOutlined } from '@ant-design/icons';
 import { createOrder } from '../util/api/order.api';
-import { getCheckoutVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
+import { getMyVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Text, Paragraph } = Typography;
@@ -49,17 +49,16 @@ const CheckoutPage = () => {
         if (location.state && location.state.selectedItems) {
             const items = location.state.selectedItems;
             setOrderItems(items);
-            const currentSubtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-            fetchInitialData(currentSubtotal);
+            fetchInitialData();
         } else {
             setLoading(false);
         }
     }, [location.state]);
 
-    const fetchInitialData = async (currentSubtotal) => {
+    const fetchInitialData = async () => {
         try {
             const [vouchersRes, balanceRes] = await Promise.all([
-                getCheckoutVouchersApi(currentSubtotal),
+                getMyVouchersApi(),
                 getRewardBalanceApi()
             ]);
             setMyVouchers(vouchersRes.data || []);
@@ -190,7 +189,7 @@ const CheckoutPage = () => {
                                             <Tag color="blue">{selectedVoucher.voucher.code}</Tag>
                                         ) : (
                                             <Text type="secondary">
-                                                {myVouchers.length === 0 ? 'Không có voucher khả dụng' : 'Chọn voucher'}
+                                                {myVouchers.length === 0 ? 'Không có voucher' : 'Chọn voucher'}
                                             </Text>
                                         )}
                                         <RightOutlined />
@@ -271,7 +270,7 @@ const CheckoutPage = () => {
                         <Divider style={{ margin: '12px 0' }} />
                         <Text>{uv.voucher.description}</Text>
                     </div>
-                )) : <Empty description="Bạn không có voucher nào khả dụng." />}
+                )) : <Empty description="Bạn không có voucher nào." />}
             </Modal>
         </div>
     );
