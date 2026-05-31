@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Button, Badge, Space, Image, Divider, Empty, Breadcrumb, Tag, Spin, message, Avatar, Tooltip } from 'antd';
-import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, CompassOutlined, DollarOutlined, RightOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Button, Badge, Space, Image, Divider, Empty, Breadcrumb, Tag, Spin, message, Modal, Timeline, Descriptions, Alert, Drawer, Rate, Input } from 'antd';
+import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, CompassOutlined, DollarOutlined, RightOutlined, CreditCardOutlined, ExclamationCircleOutlined, CameraOutlined, ShopOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
-import { getOrders } from '../util/api/order.api';
+import { getOrders, getOrderById, cancelOrder } from '../util/api/order.api';
+import { submitReviewApi } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Text } = Typography;
 
 const STATUS_CONFIG = {
-    'new': { text: 'New Order', color: 'blue', icon: <SyncOutlined spin /> },
-    'pending': { text: 'Processing', color: 'gold', icon: <SyncOutlined spin /> },
-    'preparing': { text: 'Preparing', color: 'orange', icon: <SyncOutlined spin /> },
-    'confirmed': { text: 'Confirmed', color: 'blue', icon: <CheckCircleOutlined /> },
-    'delivered': { text: 'Delivered', color: 'green', icon: <CarOutlined /> },
-    'cancelled': { text: 'Cancelled', color: 'red', icon: <CloseCircleOutlined /> },
-    'cancel_request': { text: 'Cancel Requested', color: 'volcano', icon: <SyncOutlined spin /> },
+    'new': { text: 'Đơn hàng mới', color: 'blue', icon: <SyncOutlined spin /> },
+    'confirmed': { text: 'Đã xác nhận', color: 'geekblue', icon: <CheckCircleOutlined /> },
+    'preparing': { text: 'Shop đang chuẩn bị hàng', color: 'orange', icon: <ShoppingOutlined /> },
+    'shipping': { text: 'Đang giao hàng', color: 'gold', icon: <CarOutlined /> },
+    'delivered': { text: 'Đã giao thành công', color: 'green', icon: <CarOutlined /> },
+    'cancelled': { text: 'Đã hủy', color: 'red', icon: <CloseCircleOutlined /> },
+    'cancel_request': { text: 'Yêu cầu hủy đơn', color: 'volcano', icon: <SyncOutlined spin /> },
 };
 
 const styles = {
@@ -36,6 +37,25 @@ const OrderHistoryPage = () => {
     const [filterStatus, setFilterStatus] = useState('all');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [actionLoadingId, setActionLoadingId] = useState(null);
+    const [reviewDrawerVisible, setReviewDrawerVisible] = useState(false);
+    const [reviewTargetItem, setReviewTargetItem] = useState(null);
+    const [reviewRating, setReviewRating] = useState(0);
+    const [shopRating, setShopRating] = useState(0);
+    const [reviewComment, setReviewComment] = useState('');
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+    const breadcrumbItems = [
+        {
+            title: <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</a>
+        },
+        {
+            title: 'My Orders'
+        }
+    ];
 
     useEffect(() => {
         fetchOrders();
@@ -49,10 +69,12 @@ const OrderHistoryPage = () => {
             
             const formattedOrders = data.map(order => ({
                 id: order.id,
+                createdAt: order.createdAt,
                 date: new Date(order.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' }),
                 status: order.status,
                 totalPrice: order.totalPrice,
                 paymentMethod: order.payment?.method || 'COD',
+                statusHistory: order.statusHistory || [],
                 items: order.items?.map(item => ({
                     id: item.productId,
                     name: item.product?.name || 'Sản phẩm',
@@ -70,16 +92,91 @@ const OrderHistoryPage = () => {
         }
     };
 
+    const loadOrderDetail = async (orderId) => {
+        setDetailVisible(true);
+        setDetailLoading(true);
+        try {
+            const res = await getOrderById(orderId);
+            const data = res?.data?.data || res?.data || null;
+            setSelectedOrder(data);
+        } catch (error) {
+            message.error(error?.response?.data?.message || 'Không tải được chi tiết đơn hàng');
+            setDetailVisible(false);
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
+    const canCancelOrder = (order) => {
+        if (!order) return false;
+        if (!['new', 'confirmed', 'preparing'].includes(order.status)) return false;
+
+        const createdAt = new Date(order.createdAt);
+        const diffMinutes = (Date.now() - createdAt.getTime()) / 1000 / 60;
+        return diffMinutes <= 30;
+    };
+
+    const handleCancelOrder = async (orderId) => {
+        setActionLoadingId(orderId);
+        try {
+            await cancelOrder(orderId);
+            message.success('Cập nhật trạng thái hủy đơn thành công');
+            await fetchOrders();
+            if (selectedOrder?.id === orderId) {
+                await loadOrderDetail(orderId);
+            }
+        } catch (error) {
+            message.error(error?.response?.data?.message || 'Không thể hủy đơn hàng');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const openReviewDrawer = (item) => {
+        setReviewTargetItem(item);
+        setReviewRating(0);
+        setShopRating(0);
+        setReviewComment('');
+        setReviewDrawerVisible(true);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!selectedOrder?.id || !reviewTargetItem) return;
+        if (!reviewRating) {
+            message.warning('Vui lòng chọn số sao đánh giá sản phẩm');
+            return;
+        }
+
+        setReviewSubmitting(true);
+        try {
+            const productId = reviewTargetItem.productId || reviewTargetItem.product?.id;
+            await submitReviewApi(productId, {
+                orderId: selectedOrder.id,
+                rating: reviewRating,
+                comment: reviewComment
+            });
+
+            message.success('Gửi đánh giá thành công. Bạn đã nhận thưởng điểm hoặc mã giảm giá.');
+            setReviewDrawerVisible(false);
+            await loadOrderDetail(selectedOrder.id);
+        } catch (error) {
+            message.error(error?.response?.data?.message || 'Không thể gửi đánh giá sản phẩm');
+        } finally {
+            setReviewSubmitting(false);
+        }
+    };
+
     const filteredOrders = filterStatus === 'all' 
         ? orders 
-        : filterStatus === 'pending'
-            ? orders.filter(order => ['new', 'pending', 'preparing'].includes(order.status))
+        : filterStatus === 'progress'
+            ? orders.filter(order => ['new', 'confirmed', 'preparing', 'shipping'].includes(order.status))
             : orders.filter(order => order.status === filterStatus);
 
     const stats = {
         total: orders.length,
-        pending: orders.filter(o => ['new', 'pending', 'preparing'].includes(o.status)).length,
+        progress: orders.filter(o => ['new', 'confirmed', 'preparing', 'shipping'].includes(o.status)).length,
         confirmed: orders.filter(o => o.status === 'confirmed').length,
+        shipping: orders.filter(o => o.status === 'shipping').length,
         delivered: orders.filter(o => o.status === 'delivered').length,
         cancelled: orders.filter(o => o.status === 'cancelled').length,
         cancel_request: orders.filter(o => o.status === 'cancel_request').length,
@@ -88,6 +185,17 @@ const OrderHistoryPage = () => {
 
     const formatPrice = (price) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) return '---';
+        return new Date(value).toLocaleString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     const FilterMenuItem = ({ id, label, icon, count, active, onClick }) => (
@@ -123,10 +231,7 @@ const OrderHistoryPage = () => {
                 {/* Hero Section */}
                 <Row justify="space-between" align="bottom" style={{ marginBottom: 40 }}>
                     <Col xs={24} md={12}>
-                        <Breadcrumb separator={<RightOutlined style={{ fontSize: 10 }}/>} style={{ marginBottom: 16, fontSize: 13, color: '#6b7280' }}>
-                            <Breadcrumb.Item href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</Breadcrumb.Item>
-                            <Breadcrumb.Item>My Orders</Breadcrumb.Item>
-                        </Breadcrumb>
+                        <Breadcrumb items={breadcrumbItems} style={{ marginBottom: 16, fontSize: 13, color: '#6b7280' }} />
                         <Title style={styles.heroTitle}>My Orders</Title>
                         <Text style={styles.heroSubtitle}>Track, manage and review all your purchases.</Text>
                     </Col>
@@ -168,17 +273,18 @@ const OrderHistoryPage = () => {
                                 </Button>
                             </div>
                         ) : (
-                            <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                            <Space orientation="vertical" size={24} style={{ width: '100%' }}>
                                 {filteredOrders.map(order => {
                                     const statusObj = STATUS_CONFIG[order.status] || { text: order.status, color: 'default', icon: null };
-                                    const isPending = ['new', 'pending', 'preparing'].includes(order.status);
+                                    const isPending = ['new', 'confirmed', 'preparing'].includes(order.status);
+                                    const showCancel = canCancelOrder(order);
                                     
                                     // Custom colors for status tags
                                     const tagBg = statusObj.color === 'blue' ? '#eff6ff' : statusObj.color === 'green' ? '#dcfce7' : statusObj.color === 'gold' ? '#fef3c7' : statusObj.color === 'orange' ? '#ffedd5' : '#fee2e2';
                                     const tagColor = statusObj.color === 'blue' ? '#1d4ed8' : statusObj.color === 'green' ? '#15803d' : statusObj.color === 'gold' ? '#b45309' : statusObj.color === 'orange' ? '#c2410c' : '#b91c1c';
 
                                     return (
-                                        <Card key={order.id} bordered={false} className="order-card" style={styles.card} bodyStyle={{ padding: 32 }}>
+                                        <Card key={order.id} variant="borderless" className="order-card" style={styles.card} styles={{ body: { padding: 32 } }}>
                                             {/* Order Header */}
                                             <Row justify="space-between" align="middle" style={{ paddingBottom: 20, borderBottom: '1px solid #f3f4f6', marginBottom: 24 }}>
                                                 <Space size="large">
@@ -235,9 +341,19 @@ const OrderHistoryPage = () => {
                                                                 Track Order
                                                             </Button>
                                                         )}
-                                                        <Button icon={<EyeOutlined />} style={styles.outlineBtn}>
+                                                        <Button icon={<EyeOutlined />} style={styles.outlineBtn} onClick={() => loadOrderDetail(order.id)}>
                                                             View Details
                                                         </Button>
+                                                        {showCancel && (
+                                                            <Button
+                                                                danger
+                                                                icon={<ExclamationCircleOutlined />}
+                                                                loading={actionLoadingId === order.id}
+                                                                onClick={() => handleCancelOrder(order.id)}
+                                                            >
+                                                                Hủy đơn
+                                                            </Button>
+                                                        )}
                                                         <Button type="primary" icon={<ReloadOutlined />} style={styles.primaryBtn} className="btn-buy-again">
                                                             Buy Again
                                                         </Button>
@@ -261,10 +377,11 @@ const OrderHistoryPage = () => {
                             </div>
                             
                             <div style={{ padding: 24 }}>
-                                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                                <Space orientation="vertical" style={{ width: '100%' }} size={8}>
                                     <FilterMenuItem id="all" label="All Orders" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
-                                    <FilterMenuItem id="pending" label="Processing" icon={<SyncOutlined />} count={stats.pending} active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} />
+                                    <FilterMenuItem id="progress" label="Processing" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'progress'} onClick={() => setFilterStatus('progress')} />
                                     <FilterMenuItem id="confirmed" label="Confirmed" icon={<CheckCircleOutlined />} count={stats.confirmed} active={filterStatus === 'confirmed'} onClick={() => setFilterStatus('confirmed')} />
+                                    <FilterMenuItem id="shipping" label="Shipping" icon={<CarOutlined />} count={stats.shipping} active={filterStatus === 'shipping'} onClick={() => setFilterStatus('shipping')} />
                                     <FilterMenuItem id="delivered" label="Delivered" icon={<CarOutlined />} count={stats.delivered} active={filterStatus === 'delivered'} onClick={() => setFilterStatus('delivered')} />
                                     <FilterMenuItem id="cancelled" label="Cancelled" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'cancelled'} onClick={() => setFilterStatus('cancelled')} />
                                 </Space>
@@ -301,6 +418,187 @@ const OrderHistoryPage = () => {
                     </Col>
                 </Row>
             </div>
+
+            <Modal
+                title={selectedOrder ? `Chi tiết đơn #${String(selectedOrder.id).substring(0, 8).toUpperCase()}` : 'Chi tiết đơn hàng'}
+                open={detailVisible}
+                onCancel={() => {
+                    setDetailVisible(false);
+                    setReviewDrawerVisible(false);
+                }}
+                footer={null}
+                width={920}
+                destroyOnHidden
+            >
+                {detailLoading || !selectedOrder ? (
+                    <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                        <Spin size="large" />
+                    </div>
+                ) : (
+                    <Space orientation="vertical" size={20} style={{ width: '100%' }}>
+                        <Descriptions bordered column={2} size="small">
+                            <Descriptions.Item label="Trạng thái">
+                                <Tag color={(STATUS_CONFIG[selectedOrder.status] || { color: 'default' }).color}>
+                                    {(STATUS_CONFIG[selectedOrder.status] || { text: selectedOrder.status }).text}
+                                </Tag>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Ngày đặt">{formatDateTime(selectedOrder.createdAt)}</Descriptions.Item>
+                            <Descriptions.Item label="Thanh toán">{selectedOrder.payment?.method || 'COD'}</Descriptions.Item>
+                            <Descriptions.Item label="Tổng tiền">{formatPrice(selectedOrder.totalPrice)}</Descriptions.Item>
+                            <Descriptions.Item label="Địa chỉ" span={2}>{selectedOrder.shippingAddress || '---'}</Descriptions.Item>
+                            <Descriptions.Item label="Số điện thoại">{selectedOrder.phoneNumber || '---'}</Descriptions.Item>
+                            <Descriptions.Item label="Ghi chú">{selectedOrder.note || '---'}</Descriptions.Item>
+                        </Descriptions>
+
+                        {selectedOrder.status === 'preparing' && (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                message="Đơn đang ở bước Shop đang chuẩn bị hàng"
+                                description="Nếu bạn muốn hủy, hệ thống sẽ gửi yêu cầu hủy cho shop/admin thay vì hủy ngay lập tức."
+                            />
+                        )}
+
+                        <div>
+                            <Title level={5}>Lịch sử trạng thái</Title>
+                            <Timeline
+                                items={(selectedOrder.statusHistory || []).map(history => {
+                                    const meta = STATUS_CONFIG[history.status] || { text: history.status, color: 'default' };
+                                    const actor = history.changedByUser
+                                        ? `${history.changedByUser.firstName || ''} ${history.changedByUser.lastName || ''}`.trim() || history.changedByUser.email
+                                        : 'Hệ thống';
+
+                                    return {
+                                        color: meta.color,
+                                        children: (
+                                            <div>
+                                                <Text strong>{meta.text}</Text>
+                                                <div><Text type="secondary">{history.note || '---'}</Text></div>
+                                                <div><Text type="secondary">Bởi: {actor}</Text></div>
+                                                <div><Text type="secondary">{formatDateTime(history.createdAt)}</Text></div>
+                                            </div>
+                                        )
+                                    };
+                                })}
+                            />
+                        </div>
+
+                        <div>
+                            <Title level={5}>Sản phẩm</Title>
+                            <Space orientation="vertical" style={{ width: '100%' }} size={12}>
+                                {(selectedOrder.items || []).map(item => (
+                                    <Card key={item.id} size="small" style={{ borderRadius: 16 }}>
+                                        <Row gutter={16} align="middle">
+                                            <Col>
+                                                <Image
+                                                    src={item.product?.thumbnail ? getImageUrl(item.product.thumbnail) : 'https://via.placeholder.com/64?text=P'}
+                                                    preview={false}
+                                                    width={64}
+                                                    height={64}
+                                                    style={{ objectFit: 'contain' }}
+                                                />
+                                            </Col>
+                                            <Col flex="auto">
+                                                <Text strong>{item.product?.name || 'Sản phẩm'}</Text>
+                                                <div><Text type="secondary">Số lượng: {item.quantity}</Text></div>
+                                                {selectedOrder.status === 'delivered' && (
+                                                    <div style={{ marginTop: 8 }}>
+                                                        <Button type="link" style={{ padding: 0 }} onClick={() => openReviewDrawer(item)}>
+                                                            Đánh giá sản phẩm
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </Col>
+                                            <Col>
+                                                <Text strong>{formatPrice(item.price * item.quantity)}</Text>
+                                            </Col>
+                                        </Row>
+                                    </Card>
+                                ))}
+                            </Space>
+                        </div>
+                    </Space>
+                )}
+            </Modal>
+
+            <Drawer
+                title="Submit Review"
+                placement="right"
+                open={reviewDrawerVisible}
+                onClose={() => setReviewDrawerVisible(false)}
+                size="default"
+                styles={{ body: { background: '#f8fafc', padding: 0 } }}
+            >
+                <div style={{ padding: 20 }}>
+                    <Card variant="borderless" styles={{ body: { padding: 12 } }} style={{ borderRadius: 14, marginBottom: 16 }}>
+                        <Space>
+                            <Image
+                                src={reviewTargetItem?.product?.thumbnail ? getImageUrl(reviewTargetItem.product.thumbnail) : 'https://via.placeholder.com/72?text=P'}
+                                preview={false}
+                                width={72}
+                                height={72}
+                                style={{ objectFit: 'contain', background: '#f1f5f9', borderRadius: 12 }}
+                            />
+                            <div>
+                                <Text strong>{reviewTargetItem?.product?.name || 'Sản phẩm'}</Text>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        Purchased {selectedOrder?.createdAt ? new Date(selectedOrder.createdAt).toLocaleDateString('vi-VN') : '---'}
+                                    </Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        #{selectedOrder ? String(selectedOrder.id).padStart(6, '0') : '------'}
+                                    </Text>
+                                </div>
+                            </div>
+                        </Space>
+                    </Card>
+
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>HOW WOULD YOU RATE THIS PRODUCT?</Text>
+                    <Rate value={reviewRating} onChange={setReviewRating} style={{ fontSize: 30, marginBottom: 16 }} />
+
+                    <div style={{ border: '1px dashed #cbd5e1', borderRadius: 14, padding: 18, textAlign: 'center', marginBottom: 16, color: '#64748b' }}>
+                        <CameraOutlined style={{ fontSize: 24, marginBottom: 8 }} />
+                        <div>Drag & drop media here</div>
+                        <div style={{ fontSize: 12 }}>Supports JPG, PNG and MP4 files</div>
+                    </div>
+
+                    <Input.TextArea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
+                        rows={4}
+                        style={{ borderRadius: 12, marginBottom: 16 }}
+                    />
+
+                    <Card size="small" style={{ borderRadius: 14, marginBottom: 16 }}>
+                        <Row justify="space-between" align="middle">
+                            <Space>
+                                <ShopOutlined style={{ color: '#2563eb' }} />
+                                <div>
+                                    <Text strong>Lumina Official</Text>
+                                    <div><Text type="secondary" style={{ fontSize: 12 }}>99.8% Approval</Text></div>
+                                </div>
+                            </Space>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Fast Response</Text>
+                        </Row>
+                    </Card>
+
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>RATING SHOP?</Text>
+                    <Rate value={shopRating} onChange={setShopRating} style={{ fontSize: 24, marginBottom: 20 }} />
+
+                    <Button
+                        type="primary"
+                        block
+                        loading={reviewSubmitting}
+                        onClick={handleSubmitReview}
+                        style={{ height: 46, borderRadius: 999, fontWeight: 600 }}
+                    >
+                        Submit Review
+                    </Button>
+                </div>
+            </Drawer>
         </div>
     );
 };

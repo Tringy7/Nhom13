@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       Order.hasMany(models.OrderItem, { foreignKey: 'orderId', as: 'items' });
       Order.hasOne(models.Payment, { foreignKey: 'orderId', as: 'payment' });
       Order.hasMany(models.OrderStatusHistory, { foreignKey: 'orderId', as: 'statusHistory' });
+      Order.hasMany(models.ProductReview, { foreignKey: 'orderId', as: 'reviews' });
     }
   }
   Order.init({
@@ -17,6 +18,25 @@ module.exports = (sequelize, DataTypes) => {
     totalPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false
+    },
+    originalTotalPrice: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    discountAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    couponCode: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    pointsRedeemed: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     },
     shippingAddress: {
       type: DataTypes.STRING,

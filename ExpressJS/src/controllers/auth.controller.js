@@ -92,23 +92,25 @@ let refresh = async (req, res) => {
       if (err) return res.sendStatus(403);
 
       const userId = decoded.id;
+      const user = await User.findByPk(userId);
+      if (!user) return res.sendStatus(403);
 
       await RefreshToken.update({ revoked: true }, { where: { token } });
 
       const newAccessToken = jwt.sign(
-        { id: userId },
+        { id: user.id, role: user.role, email: user.email },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "15m" }
       );
       const newRefreshToken = jwt.sign(
-        { id: userId },
+        { id: user.id, role: user.role, email: user.email },
         process.env.REFRESH_TOKEN_SECRET,
         { expiresIn: "7d" }
       );
 
       await RefreshToken.create({
         token: newRefreshToken,
-        userId,
+        userId: user.id,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revoked: false,
       });

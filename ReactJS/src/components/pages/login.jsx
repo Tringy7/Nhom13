@@ -19,7 +19,7 @@ const LoginPage = () => {
         if (res && res.token) {
             const role = res?.role || res?.user?.role || '';
             const redirectPath = role.toLowerCase() === 'admin'
-                ? '/admin/profile'
+                ? '/admin/orders'
                 : role.toLowerCase() === 'user'
                     ? '/user/profile'
                     : res.redirectURI || '/';

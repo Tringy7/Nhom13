@@ -10,7 +10,26 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // định nghĩa mối quan hệ
+      User.hasMany(models.Order, {
+        foreignKey: 'userId',
+        as: 'orders'
+      });
+      User.hasMany(models.ProductReview, {
+        foreignKey: 'userId',
+        as: 'reviews'
+      });
+      User.hasMany(models.ProductFavorite, {
+        foreignKey: 'userId',
+        as: 'favorites'
+      });
+      User.hasMany(models.ProductView, {
+        foreignKey: 'userId',
+        as: 'viewedProducts'
+      });
+      User.hasMany(models.Coupon, {
+        foreignKey: 'userId',
+        as: 'coupons'
+      });
     }
   }
   User.init({
@@ -24,7 +43,12 @@ module.exports = (sequelize, DataTypes) => {
     phoneNumber: DataTypes.STRING,
     gender: DataTypes.BOOLEAN,
     image: DataTypes.STRING,
-    positionId: DataTypes.STRING
+    positionId: DataTypes.STRING,
+    pointsBalance: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    }
   }, {
     sequelize,
     modelName: 'User',

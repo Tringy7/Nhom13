@@ -6,6 +6,7 @@ import UserProfile from "./components/pages/user-profile.jsx";
 import UserEditProfile from "./components/pages/user-edit-profile.jsx";
 import AdminProfile from "./components/pages/admin-profile.jsx";
 import AdminEditProfile from "./components/pages/admin-edit-profile.jsx";
+import AdminOrdersPage from "./components/pages/admin-orders.jsx";
 import ProductDetail from "./components/pages/product-detail.jsx";
 import Header from "./components/layout/hearder.jsx";
 import Footer from "./components/layout/footer.jsx";
@@ -47,6 +48,7 @@ function App() {
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/admin/profile" element={<AdminProfile />} />
+          <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/edit-profile" element={<AdminEditProfile />} />
           <Route path="/admin/edit-profile/:userId" element={<AdminEditProfile />} />
         </Route>

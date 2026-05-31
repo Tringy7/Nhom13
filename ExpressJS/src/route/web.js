@@ -14,6 +14,7 @@ import {
 import authRoutes from './auth.routes.js';
 import homeRoutes from './home.routes.js';
 import productRoutes from './product.routes.js';
+import productFeatureRoutes from './product-feature.routes.js';
 import cartRoutes from './cart.routes.js';
 import orderRoutes from './order.routes.js';
 
@@ -46,6 +47,7 @@ let initWebRoutes = (app) => {
     app.use('/', authRoutes);
     app.use('/', homeRoutes);
     app.use('/', productRoutes);
+    app.use('/', productFeatureRoutes);
     app.use('/', cartRoutes);
     app.use('/', orderRoutes)
 
