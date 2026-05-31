@@ -36,8 +36,12 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: true
       },
-      categoryId: {
-        type: Sequelize.INTEGER,
+      ram:{
+        type: DataTypes.INTEGER,
+        allowNull: true
+      },
+      category: {
+        type: Sequelize.STRING,
         allowNull: true
       },
       brandId: {

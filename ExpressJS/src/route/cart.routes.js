@@ -3,7 +3,6 @@ import express from 'express';
 import cartController from '../controllers/cart.controller.js';
 import {authorize, verifyToken } from "../middleware/auth.middleware.js";
 
-
 const router = express.Router();
 
 router.post(
@@ -17,12 +16,23 @@ router.delete(
   '/api/cart/:cartItemId',
   verifyToken,
   authorize("user", "admin"),
- cartController.deleteCartItem);
+  cartController.deleteCartItem
+);
+
+router.patch(
+  '/api/cart/items/:cartItemId',
+  verifyToken,
+  authorize("user", "admin"),
+  cartController.updateCartItem
+);
 
 router.get(
   '/api/cart',
   verifyToken,
   authorize("user", "admin"),
-  cartController.getCart);
+  cartController.getCart
+);
+
+
 
 export default router;

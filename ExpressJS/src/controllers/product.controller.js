@@ -26,17 +26,17 @@ const getProductDetail = async (req, res) => {
 
 const getProductsByCategory = async (req, res) => {
   try {
-    const categoryId = Number(req.params.categoryId);
-    if (!categoryId) {
-      return res.status(400).json({ message: 'Invalid category id' });
+    const { category } = req.params;
+    if (!category) {
+      return res.status(400).json({ message: 'Invalid category' });
     }
 
-    const products = await productService.getProductsByCategory(categoryId, 20);
+    const products = await productService.getProductsByCategory(category, 20);
 
     return res.json({
       message: 'Products by category loaded successfully',
       data: {
-        categoryId,
+        category,
         products
       }
     });

@@ -14,6 +14,7 @@ import Products from "./components/pages/products.jsx";
 import CartPage from "./components/pages/cart.jsx";
 import CheckoutPage from "./components/pages/checkout.jsx";
 import OrderHistoryPage from "./components/pages/orderHistory.jsx";
+import RewardsPage from "./components/pages/rewards.jsx";
 import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 
 import { Routes, Route, useLocation } from 'react-router-dom';
@@ -41,6 +42,7 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout/:orderId" element={<CheckoutPage />} />
           <Route path="/history" element={<OrderHistoryPage />} />
+          <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/user/edit-profile" element={<UserEditProfile />} />
         </Route>

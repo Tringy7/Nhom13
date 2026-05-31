@@ -37,7 +37,7 @@ console.log('ProductImage:', ProductImage);
       {
         model: Product,
         as: 'products',
-        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId'],
+        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
         include: productInclude,
         through: { attributes: [] }
       }
@@ -52,7 +52,7 @@ const getBestSellingProducts = async (options = {}) => {
     offset,
     limit,
     order: [['sold', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
     include: productInclude,
     distinct: true
   });
@@ -78,7 +78,7 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId', 'createdAt'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
     include: productInclude,
     distinct: true
   });

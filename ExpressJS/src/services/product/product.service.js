@@ -33,7 +33,7 @@ const getPromotions = async (limit = 5) => {
       {
         model: Product,
         as: 'products',
-        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId'],
+        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
         include: productInclude,
         through: { attributes: [] }
       }
@@ -45,7 +45,7 @@ const getNewestProducts = async (limit = 10) => {
   return Product.findAll({
     limit,
     order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId', 'createdAt'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
     include: productInclude
   });
 };
@@ -54,7 +54,7 @@ const getBestSellingProducts = async (limit = 10) => {
   return Product.findAll({
     limit,
     order: [['sold', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
     include: productInclude
   });
 };
@@ -68,7 +68,7 @@ const getProductDetail = async (productId) => {
       'thumbnail',
       'stock',
       'sold',
-      'categoryId',
+      'category',
       'brandId',
       'description',
       'createdAt',
@@ -78,14 +78,14 @@ const getProductDetail = async (productId) => {
   });
 };
 
-const getProductsByCategory = async (categoryId, limit = 20) => {
+const getProductsByCategory = async (category, limit = 20) => {
   return Product.findAll({
     where: {
-      categoryId
+      category
     },
     limit,
     order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
     include: productInclude
   });
 };

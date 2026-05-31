@@ -16,16 +16,16 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     totalPrice: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(15, 2),
       allowNull: false
     },
     originalTotalPrice: {
-      type: DataTypes.DECIMAL(12, 2),
+      type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0
     },
     discountAmount: {
-      type: DataTypes.DECIMAL(12, 2),
+      type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0
     },
@@ -60,6 +60,7 @@ module.exports = (sequelize, DataTypes) => {
         'cancelled',
         'cancel_request'
       ),
+      allowNull: false,
       defaultValue: 'new'
     },
     confirmedAt: {

@@ -146,6 +146,23 @@ const ProductDetail = () => {
         }
     };
 
+    const handleBuyNow = () => {
+        if (!product) return;
+        const itemToCheckout = {
+            // Tạo một object item tạm thời, cấu trúc giống item trong giỏ hàng
+            id: `buynow-${product.id}`,
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: quantity,
+            image: getImageUrl(product.thumbnail || product.images?.[0]?.imageUrl || ''),
+            brand: product.brand?.name,
+            category: product.category,
+            inStock: product.stock > 0
+        };
+        navigate('/checkout/new', { state: { selectedItems: [itemToCheckout] } });
+    };
+
     const handleToggleFavorite = async () => {
         try {
             const res = await toggleFavoriteApi(id);
@@ -373,7 +390,7 @@ const ProductDetail = () => {
                                     </Button>
                                 </Col>
                                 <Col span={8}>
-                                    <Button type="primary" size="large" block onClick={() => navigate('/cart')} disabled={product.stock <= 0} style={{ ...styles.actionButton, background: '#0f172a', borderColor: '#0f172a' }}>
+                                    <Button type="primary" size="large" block onClick={handleBuyNow} disabled={product.stock <= 0} style={{ ...styles.actionButton, background: '#0f172a', borderColor: '#0f172a' }}>
                                         Mua ngay
                                     </Button>
                                 </Col>

@@ -25,9 +25,12 @@ const createOrder = async (req, res) => {
       data: order
     });
   } catch (error) {
+    console.error(error);
+
     return res.status(400).json({
       success: false,
-      message: error.message
+      message: error.message,
+      stack: error.stack
     });
   }
 };
