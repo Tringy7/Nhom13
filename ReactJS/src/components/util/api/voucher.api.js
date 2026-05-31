@@ -5,6 +5,11 @@ export const getMyVouchersApi = () => {
     return api.get('/api/vouchers/my');
 };
 
+// Lấy danh sách voucher hợp lệ cho trang Checkout
+export const getCheckoutVouchersApi = (orderTotal) => {
+    return api.get(`/api/vouchers/checkout?orderTotal=${orderTotal}`);
+};
+
 // Lấy danh sách các voucher có sẵn mà user có thể nhận
 export const getAvailableVouchersApi = () => {
     return api.get('/api/vouchers/available');

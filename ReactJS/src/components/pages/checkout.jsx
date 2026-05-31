@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, message, Modal, Empty, Tag } from 'antd';
 import { ArrowLeftOutlined, DollarCircleOutlined, WalletOutlined, CheckCircleOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, CarOutlined, RocketOutlined, TagOutlined, StarOutlined, RightOutlined } from '@ant-design/icons';
 import { createOrder } from '../util/api/order.api';
-import { getMyVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
+import { getCheckoutVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Text, Paragraph } = Typography;
@@ -59,10 +59,10 @@ const CheckoutPage = () => {
     const fetchInitialData = async (currentSubtotal) => {
         try {
             const [vouchersRes, balanceRes] = await Promise.all([
-                getMyVouchersApi(),
+                getCheckoutVouchersApi(currentSubtotal),
                 getRewardBalanceApi()
             ]);
-            setMyVouchers(vouchersRes.data?.data || []);
+            setMyVouchers(vouchersRes.data || []);
             setUserPoints(balanceRes.data?.points || 0);
         } catch (error) {
             message.error('Lỗi khi tải dữ liệu ưu đãi.');
@@ -85,13 +85,14 @@ const CheckoutPage = () => {
     const handleSelectVoucher = async (userVoucher) => {
         try {
             const res = await applyVoucherApi(userVoucher.rewardCode, subtotal);
-            const { discountAmount } = res.data.data;
+            const { discountAmount } = res.data;
             
             setSelectedVoucher(userVoucher);
             setVoucherDiscount(discountAmount);
             setIsVoucherModalVisible(false);
             message.success(`Áp dụng voucher "${userVoucher.voucher.code}" thành công!`);
-        } catch (error) {
+        } catch (error)
+ {
             message.error(error.response?.data?.message || 'Không thể áp dụng voucher này.');
         }
     };

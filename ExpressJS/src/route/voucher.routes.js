@@ -17,6 +17,13 @@ router.get(
     voucherController.getAvailableVouchers
 );
 
+// Lấy danh sách voucher hợp lệ cho trang Checkout
+router.get(
+    '/api/vouchers/checkout',
+    verifyToken,
+    voucherController.getCheckoutVouchers
+);
+
 // User "lưu" một voucher vào ví
 router.post(
     '/api/vouchers/receive/:voucherId',
