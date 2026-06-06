@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 import db from '../../models/index.js';
 import voucherService from '../voucher/voucher.service.js';
 
-const { Order, OrderItem, OrderStatusHistory, Payment, Cart, CartItem, Product, User, UserVoucher, RewardTransaction, sequelize } = db;
+const { Order, OrderItem, OrderStatusHistory, Payment, Cart, CartItem, Product, User, UserVoucher, RewardTransaction, Voucher, sequelize } = db;
 
 const ORDER_STATUS = {
   NEW: 'new',
