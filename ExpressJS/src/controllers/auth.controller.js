@@ -165,11 +165,10 @@ let forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
+    await sendPasswordResetEmail(email, otp, user.firstName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
-
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
 
     const tempTokenSecret = process.env.TEMP_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET;
     const tempToken = jwt.sign(
@@ -246,11 +245,10 @@ let resendOtp = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
+    await sendPasswordResetEmail(email, otp, user.firstName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
-
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
 
     return res.json({ message: "OTP resent" });
   } catch (error) {
@@ -265,7 +263,6 @@ let resendOtp = async (req, res) => {
 let register = async (req, res) => {
   try {
     const { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
-    const isMockEmail = String(process.env.EMAIL_MOCK || "").toLowerCase() === "true";
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -279,24 +276,21 @@ let register = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
 
+    try {
+      await sendOtpEmail(email, otp);
+    } catch (mailError) {
+      console.error("Send OTP email failed:", mailError);
+      return res.status(502).json({
+        success: false,
+        message: mailError?.message || "Không thể gửi OTP qua email. Vui lòng kiểm tra cấu hình email và thử lại."
+      });
+    }
+
     otpStore.set(email, {
       otp,
       otpExpiry,
       userData: { email, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
     });
-
-    console.log(`\n=============================`);
-    console.log(`📧 OTP cho ${email}: ${otp}`);
-    console.log(`=============================\n`);
-
-    // Trong môi trường test/dev, nếu gửi email lỗi thì vẫn cho phép tiếp tục verify OTP.
-    if (!isMockEmail && typeof sendOtpEmail === 'function') {
-      try {
-        await sendOtpEmail(email, otp);
-      } catch (mailError) {
-        console.warn('Send OTP email failed, fallback to console OTP only:', mailError.message || mailError);
-      }
-    }
 
     return res.status(200).json({
       success: true,
@@ -386,13 +380,17 @@ let resendRegistrationOtp = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
+    try {
+      await sendOtpEmail(email, otp);
+    } catch (mailError) {
+      console.error("Resend OTP email failed:", mailError);
+      return res.status(502).json({
+        success: false,
+        message: mailError?.message || "Không thể gửi lại OTP qua email. Vui lòng thử lại sau."
+      });
+    }
 
     otpStore.set(email, { ...record, otp, otpExpiry });
-
-    if (typeof sendOtpEmail === 'function') {
-      await sendOtpEmail(email, otp);
-    }
-    console.log(`📧 Resend OTP cho ${email}: ${otp}`);
 
     return res.status(200).json({
       success: true,

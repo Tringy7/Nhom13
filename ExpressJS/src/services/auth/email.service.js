@@ -1,16 +1,32 @@
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-    }
-});
+dotenv.config();
+
+const transporter = nodemailer.createTransport(
+    process.env.EMAIL_SERVICE
+        ? {
+              service: process.env.EMAIL_SERVICE,
+              auth: {
+                  user: process.env.EMAIL_USER,
+                  pass: process.env.EMAIL_PASSWORD,
+              },
+          }
+        : {
+              host: process.env.EMAIL_HOST,
+              port: Number(process.env.EMAIL_PORT || 587),
+              secure: String(process.env.EMAIL_SECURE || 'false').toLowerCase() === 'true',
+              auth: {
+                  user: process.env.EMAIL_USER,
+                  pass: process.env.EMAIL_PASSWORD,
+              },
+          }
+);
 
 export const sendOtpEmail = async (email, otp) => {
     const mailOptions = {
-        from: `"Xác thực tài khoản" <${process.env.EMAIL_FROM}>`,
+        from: process.env.EMAIL_USER,
+        replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to: email,
         subject: 'Mã OTP xác thực đăng ký tài khoản',
         html: `
