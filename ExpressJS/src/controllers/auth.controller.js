@@ -263,8 +263,9 @@ let resendOtp = async (req, res) => {
 let register = async (req, res) => {
   try {
     const { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
 
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -276,25 +277,23 @@ let register = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
 
-    try {
-      await sendOtpEmail(email, otp);
-    } catch (mailError) {
+    // Gửi email bất đồng bộ
+    sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
       console.error("Send OTP email failed:", mailError);
-      return res.status(502).json({
-        success: false,
-        message: mailError?.message || "Không thể gửi OTP qua email. Vui lòng kiểm tra cấu hình email và thử lại."
-      });
-    }
+      // Ghi log lỗi nhưng không block response trả về cho user
+    });
 
-    otpStore.set(email, {
+    otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry,
-      userData: { email, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
+      userData: { email: lowerCaseEmail, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
     });
+
+    console.log(lowerCaseEmail, otp)
 
     return res.status(200).json({
       success: true,
-      message: `Mã OTP đã được gửi tới ${email}. Vui lòng kiểm tra hộp thư.`
+      message: `Mã OTP đã được gửi tới ${lowerCaseEmail}. Vui lòng kiểm tra hộp thư.`
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -311,8 +310,11 @@ let register = async (req, res) => {
 let verifyRegistrationOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
+    console.log(lowerCaseEmail, otp)
 
-    const record = otpStore.get(email);
+    const record = otpStore.get(lowerCaseEmail);
+    console.log(record)
     if (!record) {
       return res.status(400).json({
         success: false,
@@ -321,7 +323,7 @@ let verifyRegistrationOtp = async (req, res) => {
     }
 
     if (Date.now() > record.otpExpiry) {
-      otpStore.delete(email);
+      otpStore.delete(lowerCaseEmail);
       return res.status(400).json({
         success: false,
         message: 'Mã OTP đã hết hạn. Vui lòng đăng ký lại.'
@@ -342,7 +344,7 @@ let verifyRegistrationOtp = async (req, res) => {
       role: 'user'       // nếu dùng role string
     });
 
-    otpStore.delete(email);
+    otpStore.delete(lowerCaseEmail);
 
     return res.status(201).json({
       success: true,
@@ -369,8 +371,9 @@ let verifyRegistrationOtp = async (req, res) => {
 let resendRegistrationOtp = async (req, res) => {
   try {
     const { email } = req.body;
+    const lowerCaseEmail = email.toLowerCase();
 
-    const record = otpStore.get(email);
+    const record = otpStore.get(lowerCaseEmail);
     if (!record) {
       return res.status(400).json({
         success: false,
@@ -380,17 +383,14 @@ let resendRegistrationOtp = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
-    try {
-      await sendOtpEmail(email, otp);
-    } catch (mailError) {
+    
+    // Gửi email bất đồng bộ
+    sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
       console.error("Resend OTP email failed:", mailError);
-      return res.status(502).json({
-        success: false,
-        message: mailError?.message || "Không thể gửi lại OTP qua email. Vui lòng thử lại sau."
-      });
-    }
+      // Ghi log lỗi nhưng không block response trả về cho user
+    });
 
-    otpStore.set(email, { ...record, otp, otpExpiry });
+    otpStore.set(lowerCaseEmail, { ...record, otp, otpExpiry });
 
     return res.status(200).json({
       success: true,
