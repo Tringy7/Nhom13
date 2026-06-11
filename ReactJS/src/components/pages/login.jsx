@@ -13,39 +13,47 @@ const LoginPage = () => {
 
     const onFinish = async (values) => {
         const { email, password } = values;
+        try {
+            const res = await loginApi(email, password);
 
-        const res = await loginApi(email, password);
+            if (res && res.token) {
+                const role = res?.role || res?.user?.role || '';
+                const redirectPath = role.toLowerCase() === 'admin'
+                    ? '/admin/orders'
+                    : role.toLowerCase() === 'user'
+                        ? '/user/profile'
+                        : res.redirectURI || '/';
 
-        if (res && res.token) {
-            const role = res?.role || res?.user?.role || '';
-            const redirectPath = role.toLowerCase() === 'admin'
-                ? '/admin/orders'
-                : role.toLowerCase() === 'user'
-                    ? '/user/profile'
-                    : res.redirectURI || '/';
-
-            dispatch({
-                type: 'LOGIN',
-                payload: {
-                    user: {
-                        email,
-                        name: res?.name || '',
-                        role,
+                dispatch({
+                    type: 'LOGIN',
+                    payload: {
+                        user: {
+                            email,
+                            name: res?.name || '',
+                            role,
+                        },
                     },
-                },
-            });
+                });
 
-            notification.success({
-                message: "Đăng nhập thành công",
-                description: "Bạn đã đăng nhập vào hệ thống.",
-                placement: "topRight"
-            });
+                notification.success({
+                    message: "Đăng nhập thành công",
+                    description: "Bạn đã đăng nhập vào hệ thống.",
+                    placement: "topRight"
+                });
 
-            navigate(redirectPath);
-        } else {
+                navigate(redirectPath);
+                return;
+            }
+
             notification.error({
                 message: "Đăng nhập thất bại",
                 description: res?.message || 'Sai email hoặc mật khẩu',
+                placement: "topRight"
+            });
+        } catch (error) {
+            notification.error({
+                message: "Đăng nhập thất bại",
+                description: error?.response?.data?.message || error?.message || 'Sai email hoặc mật khẩu',
                 placement: "topRight"
             });
         }

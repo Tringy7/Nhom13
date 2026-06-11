@@ -19,6 +19,17 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
+const PUBLIC_AUTH_PATHS = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/verify-otp',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/auth/resend-otp'
+];
+
+const isPublicAuthRequest = (url = '') => PUBLIC_AUTH_PATHS.some(path => url.includes(path));
+
 instance.interceptors.response.use(
     function (response) {
         if (response && response.data) {
@@ -28,9 +39,13 @@ instance.interceptors.response.use(
     },
     async function (error) {
         const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
+
+        if (error?.response?.status === 401 && isPublicAuthRequest(requestUrl)) {
+            return Promise.reject(error);
+        }
 
         if (error?.response?.status === 401 && !originalRequest._retry) {
-            
             if (originalRequest.url.includes('/api/auth/refresh')) {
                 // Nếu API refresh token thất bại, phát ra event để logout
                 window.dispatchEvent(new Event('force_logout'));

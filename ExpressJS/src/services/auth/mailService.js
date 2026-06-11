@@ -3,12 +3,10 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-const isMockEmail = String(process.env.EMAIL_MOCK || "").toLowerCase() === "true";
-
 const transporter = nodemailer.createTransport({
 	host: process.env.EMAIL_HOST,
 	port: Number(process.env.EMAIL_PORT || 587),
-	secure: false,
+	secure: String(process.env.EMAIL_SECURE || "false").toLowerCase() === "true",
 	auth: {
 		user: process.env.EMAIL_USER,
 		pass: process.env.EMAIL_PASSWORD
@@ -16,11 +14,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
-	if (isMockEmail) {
-		console.log(`[MOCK EMAIL] To: ${email} | OTP: ${otp} | Name: ${firstName}`);
-		return;
-	}
-
 	const htmlContent = `
 		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 			<h2 style="color: #333;">Dat lai mat khau</h2>
@@ -37,7 +30,8 @@ const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
 	`;
 
 	await transporter.sendMail({
-		from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+		from: process.env.EMAIL_USER,
+		replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
 		to: email,
 		subject: "[OTP] Dat lai mat khau",
 		html: htmlContent
@@ -45,10 +39,6 @@ const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
 };
 
 const testEmailConnection = async () => {
-	if (isMockEmail) {
-		return true;
-	}
-
 	try {
 		await transporter.verify();
 		return true;
