@@ -64,59 +64,59 @@ router.post(
   validate,
   authController.resendOtp
 );
-
-// ==================== USER PROFILE (authenticated) ====================
-router.get(
-  "/api/user/profile",
-  verifyToken,
-  authorize("user", "admin"),
-  (req, res) => {
-    res.json({ user: req.user });
-  }
-);
-
-router.patch(
-  "/api/user/profile",
-  verifyToken,
-  authorize("user", "admin"),
-  editProfileLimiter,
-  editProfileValidationRules,
-  validate,
-  authController.editUserProfile
-);
-
-// ==================== ADMIN PROFILE ROUTES ====================
-// Admin xem thông tin riêng (không cần userId)
-router.get(
-  "/api/admin/profile",
-  verifyToken,
-  authorize("admin"),
-  (req, res) => {
-    res.json({ message: "Admin only", user: req.user });
-  }
-);
-
-// Admin chỉnh sửa profile của chính mình
-router.patch(
-  "/api/admin/profile",
-  verifyToken,
-  authorize("admin"),
-  editProfileLimiter,
-  editProfileValidationRules,
-  validate,
-  authController.editAdminProfile
-);
-
-// Admin chỉnh sửa profile của user khác (bắt buộc userId)
-router.patch(
-  "/api/admin/profile/:userId",
-  verifyToken,
-  authorize("admin"),
-  editProfileLimiter,
-  editProfileValidationRules,
-  validate,
-  authController.editAdminProfile
-);
+//
+// // ==================== USER PROFILE (authenticated) ====================
+// router.get(
+//   "/api/user/profile",
+//   verifyToken,
+//   authorize("user", "admin"),
+//   (req, res) => {
+//     res.json({ user: req.user });
+//   }
+// );
+//
+// router.patch(
+//   "/api/user/profile",
+//   verifyToken,
+//   authorize("user", "admin"),
+//   editProfileLimiter,
+//   editProfileValidationRules,
+//   validate,
+//   authController.editUserProfile
+// );
+//
+// // ==================== ADMIN PROFILE ROUTES ====================
+// // Admin xem thông tin riêng (không cần userId)
+// router.get(
+//   "/api/admin/profile",
+//   verifyToken,
+//   authorize("admin"),
+//   (req, res) => {
+//     res.json({ message: "Admin only", user: req.user });
+//   }
+// );
+//
+// // Admin chỉnh sửa profile của chính mình
+// router.patch(
+//   "/api/admin/profile",
+//   verifyToken,
+//   authorize("admin"),
+//   editProfileLimiter,
+//   editProfileValidationRules,
+//   validate,
+//   authController.editAdminProfile
+// );
+//
+// // Admin chỉnh sửa profile của user khác (bắt buộc userId)
+// router.patch(
+//   "/api/admin/profile/:userId",
+//   verifyToken,
+//   authorize("admin"),
+//   editProfileLimiter,
+//   editProfileValidationRules,
+//   validate,
+//   authController.editAdminProfile
+// );
 
 // (Tuỳ chọn) Route protected cơ bản lấy thông tin user từ token
 router.get("/api/auth/profile", verifyToken, (req, res) => {

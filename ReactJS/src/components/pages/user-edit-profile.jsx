@@ -11,7 +11,8 @@ import {
     CheckCircleOutlined,
     CrownOutlined
 } from '@ant-design/icons';
-import { updateUserProfile, fetchUserProfile, clearSuccess, clearError } from '../../redux/profileSlice';
+import { updateUserProfile, clearSuccess, clearError } from '../../redux/profileSlice';
+import { getUser } from '../../components/util/api/user.api.js';
 import styles from '../../components/styles/profile.module.css';
 
 const { Dragger } = Upload;
@@ -20,13 +21,27 @@ const UserEditProfile = () => {
     const [form] = Form.useForm();
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { profile, loading, error, success } = useSelector(state => state.profile);
+    const { loading, error, success } = useSelector(state => state.profile);
+    const [profile, setProfile] = useState({});
     const [imageFile, setImageFile] = useState(null);
-    const [previewImage, setPreviewImage] = useState(profile.image || '');
+    const [previewImage, setPreviewImage] = useState('');
 
     useEffect(() => {
-        dispatch(fetchUserProfile());
-    }, [dispatch]);
+        const fetchProfile = async () => {
+            try {
+                const response = await getUser();
+                let data = response?.data?.user || response?.user || response?.data || response || {};
+                if (data.user) {
+                    data = data.user;
+                }
+                setProfile(data);
+            } catch (error) {
+                console.error('Fetch profile failed:', error);
+                message.error('Không thể tải thông tin người dùng.');
+            }
+        };
+        fetchProfile();
+    }, []);
 
     useEffect(() => {
         if (profile && profile.email) {
@@ -46,9 +61,9 @@ const UserEditProfile = () => {
         if (success) {
             message.success('Cập nhật thông tin thành công!');
             dispatch(clearSuccess());
-            dispatch(fetchUserProfile());
+            navigate('/user/profile');
         }
-    }, [success, dispatch]);
+    }, [success, dispatch, navigate]);
 
     useEffect(() => {
         if (error) {
@@ -58,7 +73,6 @@ const UserEditProfile = () => {
     }, [error, dispatch]);
 
     const handleImageChange = (info) => {
-        // Handle local preview
         const file = info.file.originFileObj || info.file;
         if (file) {
             const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
@@ -75,7 +89,7 @@ const UserEditProfile = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 setPreviewImage(e.target.result);
-                setImageFile(e.target.result); // Keep it as data url or use the file depending on API
+                setImageFile(e.target.result);
             };
             reader.readAsDataURL(file);
         }
@@ -93,7 +107,7 @@ const UserEditProfile = () => {
         navigate('/user/profile');
     };
 
-    if (loading && !profile.email) {
+    if (!profile.email) {
         return (
             <div className={styles.pageContainer}>
                 <Skeleton active avatar={{ size: 120, shape: 'circle' }} paragraph={{ rows: 6 }} />
