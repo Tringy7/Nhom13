@@ -1,4 +1,4 @@
- import express from "express";
+import express from "express";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
@@ -27,12 +27,15 @@ app.use(bodyParser.urlencoded({
 
 app.use(cookieParser());
 
+// Serve static files from the 'uploads' directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use((req, res, next) => {
     const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.header('Access-Control-Allow-Origin', allowedOrigin);
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
@@ -54,5 +57,3 @@ app.listen(port, () => {
         `Backend Nodejs is running on port: ${port}`
     );
 });
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

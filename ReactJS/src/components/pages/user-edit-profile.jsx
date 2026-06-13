@@ -14,6 +14,7 @@ import {
 import { updateUserProfile, clearSuccess, clearError } from '../../redux/profileSlice';
 import { getUser } from '../../components/util/api/user.api.js';
 import styles from '../../components/styles/profile.module.css';
+import { getImageUrl } from '../util/helpers.js'; // IMPORT HELPER
 
 const { Dragger } = Upload;
 
@@ -53,7 +54,7 @@ const UserEditProfile = () => {
                 address: profile.address || '',
                 gender: profile.gender || 'male'
             });
-            setPreviewImage(profile.image || '');
+            setPreviewImage(getImageUrl(profile.image) || ''); // SỬ DỤNG HELPER
         }
     }, [profile, form]);
 

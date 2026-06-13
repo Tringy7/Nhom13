@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { getUser } from '../../components/util/api/user.api.js';
 import styles from '../../components/styles/profile.module.css';
+import { getImageUrl } from '../util/helpers.js'; // IMPORT HELPER
 
 const UserProfile = () => {
     const navigate = useNavigate();
@@ -130,7 +131,7 @@ const UserProfile = () => {
                             <Avatar
                                 size={120}
                                 icon={<UserOutlined />}
-                                src={profile.image}
+                                src={getImageUrl(profile.image)} // SỬ DỤNG HELPER
                                 className={styles.avatar}
                             />
                             <div className={styles.badgeVerified}>
