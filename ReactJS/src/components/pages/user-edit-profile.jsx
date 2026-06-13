@@ -86,21 +86,38 @@ const UserEditProfile = () => {
                 return;
             }
 
+            // Store the raw file
+            setImageFile(file);
+
+            // Create a local URL for preview
             const reader = new FileReader();
             reader.onload = (e) => {
                 setPreviewImage(e.target.result);
-                setImageFile(e.target.result);
             };
             reader.readAsDataURL(file);
         }
     };
 
     const onFinish = (values) => {
-        const updateData = {
-            ...values,
-            image: imageFile || profile.image
-        };
-        dispatch(updateUserProfile(updateData));
+        console.log("FORM VALUES:", values);
+        const formData = new FormData();
+
+        // Append all form values
+        Object.keys(values).forEach(key => {
+            formData.append(key, values[key]);
+        });
+
+        // Append the image file if it exists
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        console.log("FORM DATA:");
+        for (const pair of formData.entries()) {
+            console.log(pair[0], pair[1]);
+        }
+
+        dispatch(updateUserProfile(formData));
     };
 
     const handleCancel = () => {
@@ -247,9 +264,9 @@ const UserEditProfile = () => {
                                 <Segmented
                                     className={styles.customSegmented}
                                     options={[
-                                        { label: 'Nam', value: 'male' },
-                                        { label: 'Nữ', value: 'female' },
-                                        { label: 'Khác', value: 'other' }
+                                        { label: 'Nam', value: 'MALE' },
+                                        { label: 'Nữ', value: 'FEMALE' },
+                                        { label: 'Khác', value: 'OTHER' }
                                     ]}
                                     block
                                 />

@@ -1,5 +1,7 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
+const { USER_ROLE, USER_GENDER } = require('../constants/user.constants.js');
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('users', {
@@ -16,7 +18,12 @@ module.exports = {
         type: Sequelize.STRING
       },
       role: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false,
+        defaultValue: USER_ROLE.USER,
+        validate: {
+          isIn: [Object.values(USER_ROLE)]
+        }
       },
       refreshToken: {
         type: Sequelize.STRING
@@ -34,7 +41,10 @@ module.exports = {
         type: Sequelize.STRING
       },
       gender: {
-        type: Sequelize.BOOLEAN
+        type: Sequelize.STRING,
+        validate: {
+          isIn: [Object.values(USER_GENDER)]
+        }
       },
       image: {
         type: Sequelize.STRING

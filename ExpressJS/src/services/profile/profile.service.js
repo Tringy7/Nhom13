@@ -36,8 +36,14 @@ const updateUserProfile = async (userId, updateData) => {
             }
         }
 
+        console.log("=== SERVICE UPDATE USER PROFILE ===");
+        console.log("Service Received Data:", updateData.gender);
+        console.log("Before Save, User Gender was:", user.gender);
+
         // Update user with new data
         await user.update(updateData);
+
+        console.log("After Save, User Gender is:", user.gender);
 
         // Return the updated user without the password
         const updatedUser = await User.findByPk(userId, {
@@ -84,8 +90,14 @@ const updateAdminProfile = async (adminId, targetUserId, updateData) => {
             userToUpdate.role = updateData.role;
         }
 
+        console.log("=== SERVICE UPDATE ADMIN PROFILE ===");
+        console.log("Service Received Data Gender:", updateData.gender);
+        console.log("Before Save, User Gender was:", userToUpdate.gender);
+
         // Update the user
         await userToUpdate.update(updateData);
+
+        console.log("After Save, User Gender is:", userToUpdate.gender);
 
         const updatedUser = await User.findByPk(targetUserId, {
             attributes: { exclude: ['password'] }

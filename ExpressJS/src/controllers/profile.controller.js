@@ -51,18 +51,28 @@ const getAdminProfile = async (req, res) => {
 const editUserProfile = async (req, res) => {
     try {
         const userId = req.user.id;
+        console.log("=== EDIT USER PROFILE ===");
+        console.log("Request Body Gender:", req.body.gender);
+        
+        let imageUrl = req.body.image;
+        if (req.file) {
+            imageUrl = `/uploads/user/${req.file.filename}`;
+        }
+
         const updateData = {
             email: req.body.email,
             firstName: req.body.firstName,
             lastName: req.body.lastName,
             phoneNumber: req.body.phoneNumber,
             address: req.body.address,
-            gender: req.body.gender,
-            image: req.body.image,
+            gender: req.body.gender, // Không convert, giữ nguyên chuỗi
+            image: imageUrl, // Cập nhật imageUrl mới nếu có upload
         };
 
         // Remove undefined fields so they aren't updated
         Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+        console.log("Data to Service:", updateData);
 
         const updatedUser = await profileService.updateUserProfile(userId, updateData);
 
@@ -92,19 +102,29 @@ const editAdminProfile = async (req, res) => {
         const { userId } = req.params;
         const targetUserId = userId ? parseInt(userId) : adminId;
 
+        console.log("=== EDIT ADMIN PROFILE ===");
+        console.log("Request Body Gender:", req.body.gender);
+
+        let imageUrl = req.body.image;
+        if (req.file) {
+            imageUrl = `/uploads/user/${req.file.filename}`;
+        }
+
         const updateData = {
             email: req.body.email,
             firstName: req.body.firstName,
             lastName: req.body.lastName,
             phoneNumber: req.body.phoneNumber,
             address: req.body.address,
-            gender: req.body.gender,
-            image: req.body.image,
+            gender: req.body.gender, // Không convert, giữ nguyên chuỗi
+            image: imageUrl,
             role: req.body.role,
         };
 
         // Remove undefined fields so they aren't updated
         Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+        console.log("Data to Service:", updateData);
 
         const updatedUser = await profileService.updateAdminProfile(adminId, targetUserId, updateData);
 

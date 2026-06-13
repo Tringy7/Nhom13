@@ -59,15 +59,21 @@ const UserProfile = () => {
 
     const getGenderInfo = (gender) => {
         switch (gender) {
-            case 'male':
+            case 'MALE':
                 return {
                     text: 'Nam',
                     icon: <ManOutlined />,
                     color: 'blue'
                 };
-            case 'female':
+            case 'FEMALE':
                 return {
                     text: 'Nữ',
+                    icon: <WomanOutlined />,
+                    color: 'purple'
+                };
+            case 'ORTHER':
+                return {
+                    text: 'Khac',
                     icon: <WomanOutlined />,
                     color: 'purple'
                 };

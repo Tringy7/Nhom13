@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { USER_GENDER } from "../constants/user.constants.js";
 
 export const loginValidationRules = [
   body("email")
@@ -96,8 +97,8 @@ export const editProfileValidationRules = [
 
   body("gender")
     .optional()
-    .isBoolean()
-    .withMessage("Giới tính phải là true hoặc false"),
+    .isIn(Object.values(USER_GENDER))
+    .withMessage(`Giới tính phải là một trong các giá trị: ${Object.values(USER_GENDER).join(", ")}`),
 
   body("image")
     .optional()

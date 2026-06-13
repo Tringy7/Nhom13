@@ -2,6 +2,7 @@ import express from "express";
 import profileController from "../controllers/profile.controller.js";
 import { validate, authorize, verifyToken } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
+import { uploadProfileImage } from "../middleware/upload.middleware.js";
 
 import {
   editProfileValidationRules
@@ -28,6 +29,7 @@ router.patch(
   verifyToken,
   authorize("user", "admin"),
   editProfileLimiter,
+  uploadProfileImage.single("image"), // <-- Thêm middleware upload ở đây
   editProfileValidationRules,
   validate,
   profileController.editUserProfile
@@ -46,6 +48,7 @@ router.patch(
   verifyToken,
   authorize("admin"),
   editProfileLimiter,
+  uploadProfileImage.single("image"), // <-- Cho phép admin upload ảnh
   editProfileValidationRules,
   validate,
   profileController.editAdminProfile
@@ -56,6 +59,7 @@ router.patch(
   verifyToken,
   authorize("admin"),
   editProfileLimiter,
+  uploadProfileImage.single("image"), // <-- Cho phép admin upload ảnh cho user khác
   editProfileValidationRules,
   validate,
   profileController.editAdminProfile
