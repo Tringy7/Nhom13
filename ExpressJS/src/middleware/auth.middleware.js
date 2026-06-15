@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
+import { USER_ROLE } from "../constants/user.constants.js";
 
 export const verifyToken = (req, res, next) => {
   let token = req.cookies.accessToken;
@@ -26,8 +27,11 @@ export const verifyToken = (req, res, next) => {
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    const userRole = String(req.user?.role || '').toLowerCase();
-    const allowedRoles = roles.map(role => String(role).toLowerCase());
+    // Không chuyển thành chữ thường nữa để đồng nhất với định dạng enum
+    const userRole = req.user?.role;
+    
+    // Đảm bảo roles truyền vào cũng chuẩn
+    const allowedRoles = roles;
 
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({ message: "Forbidden" });
@@ -35,7 +39,6 @@ export const authorize = (...roles) => {
     next();
   };
 };
-
 
 export const validate = (req, res, next) => {
   const errors = validationResult(req);

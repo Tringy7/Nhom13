@@ -115,7 +115,7 @@ const ProductDetail = () => {
 
             const orderRows = ordersRes?.data || ordersRes || [];
             const available = orderRows.filter((order) => {
-                if (order.status !== 'delivered') return false;
+                if (order.status !== 'DELIVERED') return false;
                 return (order.items || []).some((item) => Number(item.productId) === Number(id));
             });
             setDeliveredOrders(available);

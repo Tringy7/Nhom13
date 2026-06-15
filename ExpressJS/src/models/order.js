@@ -1,5 +1,7 @@
 'use strict';
 const { Model } = require('sequelize');
+const { ORDER_STATUS } = require('../constants/order.constants');
+
 module.exports = (sequelize, DataTypes) => {
   class Order extends Model {
     static associate(models) {
@@ -51,17 +53,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     status: {
-      type: DataTypes.ENUM(
-        'new',
-        'confirmed',
-        'preparing',
-        'shipping',
-        'delivered',
-        'cancelled',
-        'cancel_request'
-      ),
+      type: DataTypes.ENUM(...Object.values(ORDER_STATUS)),
       allowNull: false,
-      defaultValue: 'new'
+      defaultValue: ORDER_STATUS.NEW
     },
     confirmedAt: {
       type: DataTypes.DATE,

@@ -19,6 +19,7 @@ import cartRoutes from './cart.routes.js';
 import orderRoutes from './order.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import profileRoutes from './profile.routes.js';
+import paymentRoutes from './payment.routes.js';
 
 let router = express.Router();
 
@@ -52,7 +53,8 @@ let initWebRoutes = (app) => {
     app.use('/', cartRoutes);
     app.use('/', orderRoutes);
     app.use('/', voucherRoutes);
-    app.use('/', profileRoutes)// Sử dụng route mới
+    app.use('/', profileRoutes);
+    app.use('/', paymentRoutes); // Sử dụng payment routes
 
 
     return app.use('/', router);

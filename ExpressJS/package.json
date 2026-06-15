@@ -27,7 +27,8 @@
     "mysql2": "^3.22.3",
     "nodemailer": "^8.0.7",
     "sequelize": "^6.37.8",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "vnpay": "^2.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

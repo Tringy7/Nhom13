@@ -16,13 +16,15 @@ import CheckoutPage from "./components/pages/checkout.jsx";
 import OrderHistoryPage from "./components/pages/orderHistory.jsx";
 import RewardsPage from "./components/pages/rewards.jsx";
 import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
+import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
+import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 
 function App() {
   const location = useLocation();
   const authRoutes = ['/login', '/register', '/forgot-password'];
-  const showHeaderFooter = !authRoutes.includes(location.pathname);
+  const showHeaderFooter = !authRoutes.includes(location.pathname) && !location.pathname.startsWith('/payment');
 
   return (
     <>
@@ -36,11 +38,17 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment-succes" element={<PaymentSuccessPage />} />
+        <Route path="/payment-success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/failed" element={<PaymentFailedPage />} />
+        <Route path="/payment-failed" element={<PaymentFailedPage />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout/:orderId" element={<CheckoutPage />} />
+          <Route path="/orders" element={<OrderHistoryPage />} />
           <Route path="/history" element={<OrderHistoryPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/user/profile" element={<UserProfile />} />
@@ -48,7 +56,7 @@ function App() {
         </Route>
         
         {/* Admin Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin/profile" element={<AdminProfile />} />
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/edit-profile" element={<AdminEditProfile />} />

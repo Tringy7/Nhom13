@@ -1,4 +1,5 @@
 import orderService from '../services/order/order.service.js';
+import { PAYMENT_METHOD } from '../constants/payment.constants.js';
 
 const createOrder = async (req, res) => {
   try {
@@ -17,7 +18,19 @@ const createOrder = async (req, res) => {
       items,
       couponCode,
       pointsToUse
-    });
+    }, req);
+
+    // Xử lý chuyển hướng cho VNPAY
+    if (paymentMethod === PAYMENT_METHOD.VNPAY && order.paymentUrl) {
+        return res.status(200).json({
+            success: true,
+            message: 'Đơn hàng đã được tạo, đang chuyển hướng đến VNPAY...',
+            data: {
+              ...order,
+              paymentUrl: order.paymentUrl
+            }
+        });
+    }
 
     return res.status(201).json({
       success: true,

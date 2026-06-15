@@ -1,5 +1,7 @@
 'use strict';
 const { Model } = require('sequelize');
+const { PAYMENT_METHOD, PAYMENT_STATUS } = require('../constants/payment.constants');
+
 module.exports = (sequelize, DataTypes) => {
   class Payment extends Model {
     static associate(models) {
@@ -12,12 +14,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     method: {
-      type: DataTypes.ENUM('COD', 'MOMO', 'VNPAY', 'ZALOPAY'),
-      defaultValue: 'COD'
+      type: DataTypes.ENUM(...Object.values(PAYMENT_METHOD)),
+      defaultValue: PAYMENT_METHOD.COD
     },
     status: {
-      type: DataTypes.ENUM('pending', 'paid', 'failed', 'refunded'),
-      defaultValue: 'pending'
+      type: DataTypes.ENUM(...Object.values(PAYMENT_STATUS)),
+      defaultValue: PAYMENT_STATUS.PENDING
     },
     amount: {
       type: DataTypes.DECIMAL(15, 2),
