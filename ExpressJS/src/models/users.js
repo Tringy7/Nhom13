@@ -10,6 +10,14 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
+      User.hasOne(models.Shop, {
+        foreignKey: 'userId',
+        as: 'shop'
+      });
+      User.hasOne(models.ShipperWallet, {
+        foreignKey: 'shipperId',
+        as: 'shipperWallet'
+      });
       User.hasMany(models.Order, {
         foreignKey: 'userId',
         as: 'orders'
@@ -30,6 +38,16 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         as: 'coupons'
       });
+      User.hasMany(models.ChatMessage, {
+        foreignKey: 'senderId',
+        as: 'sentMessages'
+      });
+      User.belongsToMany(models.ChatRoom, {
+        through: 'ChatRoomParticipants',
+        foreignKey: 'userId',
+        otherKey: 'roomId',
+        as: 'chatRooms'
+      });
     }
   }
   User.init({
@@ -48,6 +66,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     }
   }, {
     sequelize,

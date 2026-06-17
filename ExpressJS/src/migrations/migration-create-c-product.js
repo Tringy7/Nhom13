@@ -37,7 +37,7 @@ module.exports = {
         allowNull: true
       },
       ram:{
-        type: DataTypes.INTEGER,
+        type: Sequelize.INTEGER,
         allowNull: true
       },
       category: {

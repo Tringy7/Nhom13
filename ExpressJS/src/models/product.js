@@ -74,6 +74,10 @@ module.exports = (sequelize, DataTypes) => {
         model: 'brands',
         key: 'id'
       }
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     }
   }, {
     sequelize,
