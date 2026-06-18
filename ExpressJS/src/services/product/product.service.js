@@ -1,5 +1,5 @@
 'use strict';
-import db from '../../models/index.js';
+import db from '../../entities/index.js';
 
 const { Promotion, Product, Brand, ProductImage } = db;
 

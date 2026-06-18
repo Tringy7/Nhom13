@@ -1,5 +1,5 @@
 import paymentService from '../services/payment/payment.service.js';
-import db from '../models/index.js';
+import db from '../entities/index.js';
 import { PAYMENT_METHOD, PAYMENT_STATUS } from '../constants/payment.constants.js';
 import { ORDER_STATUS } from '../constants/order.constants.js';
 import qs from 'qs';

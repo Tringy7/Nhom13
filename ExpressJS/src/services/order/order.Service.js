@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import db from '../../models/index.js';
+import db from '../../entities/index.js';
 import voucherService from '../voucher/voucher.service.js';
 import paymentService from '../payment/payment.service.js';
 import { ORDER_STATUS } from '../../constants/order.constants.js';

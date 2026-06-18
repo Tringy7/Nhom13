@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import qs from 'qs';
 import moment from 'moment';
 import vnpayConfig from '../../config/vnpay.js';
-import db from '../../models/index.js';
+import db from '../../entities/index.js';
 
 const { Order, Payment } = db;
 

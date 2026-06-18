@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import db from "../models/index.js";
+import db from "../entities/index.js";
 import { sendOtpEmail } from '../services/auth/email.service.js';
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
 import {
