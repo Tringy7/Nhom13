@@ -1,4 +1,4 @@
-import db from '../../models/index.js';
+import db from '../../entities/index.js';
 
 const { Cart, CartItem, Product } = db;
 

@@ -82,8 +82,8 @@ const AdminProfile = () => {
         return () => { mounted = false; };
     }, []);
 
-    const pendingOrders = orders.filter(order => order.status === 'new');
-    const cancelRequests = orders.filter(order => order.status === 'cancel_request');
+    const pendingOrders = orders.filter(order => order.status === 'NEW');
+    const cancelRequests = orders.filter(order => order.status === 'CANCEL_REQUEST');
 
     const orderColumns = [
         {
@@ -102,8 +102,8 @@ const AdminProfile = () => {
             dataIndex: 'status',
             key: 'status',
             render: (status) => {
-                const color = status === 'new' ? 'blue' : 'volcano';
-                const text = status === 'new' ? 'Chờ xác nhận' : 'Yêu cầu hủy';
+                const color = status === 'NEW' ? 'blue' : 'volcano';
+                const text = status === 'NEW' ? 'Chờ xác nhận' : 'Yêu cầu hủy';
                 return <Tag color={color}>{text}</Tag>;
             }
         },

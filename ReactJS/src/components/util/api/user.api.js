@@ -13,6 +13,11 @@ export const updateUserProfileApi = (profileData) => {
     return axios.patch(URL_API, profileData);
 };
 
+export const getUser = () => {
+    const URL_API = "/api/user/profile";
+    return axios.get(URL_API);
+};
+
 export const updateAdminProfileApi = (userId, profileData) => {
     const URL_API = userId ? `/api/admin/profile/${userId}` : "/api/admin/profile";
     return axios.patch(URL_API, profileData);

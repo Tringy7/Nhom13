@@ -9,13 +9,13 @@ import { getImageUrl } from '../util/helpers';
 const { Title, Text } = Typography;
 
 const STATUS_CONFIG = {
-    'new': { text: 'Đơn hàng mới', color: 'blue', icon: <SyncOutlined spin /> },
-    'confirmed': { text: 'Đã xác nhận', color: 'geekblue', icon: <CheckCircleOutlined /> },
-    'preparing': { text: 'Shop đang chuẩn bị hàng', color: 'orange', icon: <ShoppingOutlined /> },
-    'shipping': { text: 'Đang giao hàng', color: 'gold', icon: <CarOutlined /> },
-    'delivered': { text: 'Đã giao thành công', color: 'green', icon: <CarOutlined /> },
-    'cancelled': { text: 'Đã hủy', color: 'red', icon: <CloseCircleOutlined /> },
-    'cancel_request': { text: 'Yêu cầu hủy đơn', color: 'volcano', icon: <SyncOutlined spin /> },
+    'NEW': { text: 'Đơn hàng mới', color: 'blue', icon: <SyncOutlined spin /> },
+    'CONFIRMED': { text: 'Đã xác nhận', color: 'geekblue', icon: <CheckCircleOutlined /> },
+    'PREPARING': { text: 'Shop đang chuẩn bị hàng', color: 'orange', icon: <ShoppingOutlined /> },
+    'SHIPPING': { text: 'Đang giao hàng', color: 'gold', icon: <CarOutlined /> },
+    'DELIVERED': { text: 'Đã giao thành công', color: 'green', icon: <CarOutlined /> },
+    'CANCELLED': { text: 'Đã hủy', color: 'red', icon: <CloseCircleOutlined /> },
+    'CANCEL_REQUEST': { text: 'Yêu cầu hủy đơn', color: 'volcano', icon: <SyncOutlined spin /> },
 };
 
 const styles = {
@@ -34,7 +34,7 @@ const styles = {
 
 const OrderHistoryPage = () => {
     const navigate = useNavigate();
-    const [filterStatus, setFilterStatus] = useState('all');
+    const [filterStatus, setFilterStatus] = useState('ALL');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailVisible, setDetailVisible] = useState(false);
@@ -109,7 +109,7 @@ const OrderHistoryPage = () => {
 
     const canCancelOrder = (order) => {
         if (!order) return false;
-        if (!['new', 'confirmed', 'preparing'].includes(order.status)) return false;
+        if (!['NEW', 'CONFIRMED', 'PREPARING'].includes(order.status)) return false;
 
         const createdAt = new Date(order.createdAt);
         const diffMinutes = (Date.now() - createdAt.getTime()) / 1000 / 60;
@@ -166,21 +166,21 @@ const OrderHistoryPage = () => {
         }
     };
 
-    const filteredOrders = filterStatus === 'all' 
+    const filteredOrders = filterStatus === 'ALL' 
         ? orders 
-        : filterStatus === 'progress'
-            ? orders.filter(order => ['new', 'confirmed', 'preparing', 'shipping'].includes(order.status))
+        : filterStatus === 'PROGRESS'
+            ? orders.filter(order => ['NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(order.status))
             : orders.filter(order => order.status === filterStatus);
 
     const stats = {
         total: orders.length,
-        progress: orders.filter(o => ['new', 'confirmed', 'preparing', 'shipping'].includes(o.status)).length,
-        confirmed: orders.filter(o => o.status === 'confirmed').length,
-        shipping: orders.filter(o => o.status === 'shipping').length,
-        delivered: orders.filter(o => o.status === 'delivered').length,
-        cancelled: orders.filter(o => o.status === 'cancelled').length,
-        cancel_request: orders.filter(o => o.status === 'cancel_request').length,
-        totalSpent: orders.filter(o => o.status === 'delivered').reduce((acc, curr) => acc + curr.totalPrice, 0)
+        progress: orders.filter(o => ['NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(o.status)).length,
+        confirmed: orders.filter(o => o.status === 'CONFIRMED').length,
+        shipping: orders.filter(o => o.status === 'SHIPPING').length,
+        delivered: orders.filter(o => o.status === 'DELIVERED').length,
+        cancelled: orders.filter(o => o.status === 'CANCELLED').length,
+        cancel_request: orders.filter(o => o.status === 'CANCEL_REQUEST').length,
+        totalSpent: orders.filter(o => o.status === 'DELIVERED').reduce((acc, curr) => acc + curr.totalPrice, 0)
     };
 
     const formatPrice = (price) => {
@@ -276,7 +276,7 @@ const OrderHistoryPage = () => {
                             <Space orientation="vertical" size={24} style={{ width: '100%' }}>
                                 {filteredOrders.map(order => {
                                     const statusObj = STATUS_CONFIG[order.status] || { text: order.status, color: 'default', icon: null };
-                                    const isPending = ['new', 'confirmed', 'preparing'].includes(order.status);
+                                    const isPending = ['NEW', 'CONFIRMED', 'PREPARING'].includes(order.status);
                                     const showCancel = canCancelOrder(order);
                                     
                                     // Custom colors for status tags
@@ -378,12 +378,12 @@ const OrderHistoryPage = () => {
                             
                             <div style={{ padding: 24 }}>
                                 <Space orientation="vertical" style={{ width: '100%' }} size={8}>
-                                    <FilterMenuItem id="all" label="All Orders" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
-                                    <FilterMenuItem id="progress" label="Processing" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'progress'} onClick={() => setFilterStatus('progress')} />
-                                    <FilterMenuItem id="confirmed" label="Confirmed" icon={<CheckCircleOutlined />} count={stats.confirmed} active={filterStatus === 'confirmed'} onClick={() => setFilterStatus('confirmed')} />
-                                    <FilterMenuItem id="shipping" label="Shipping" icon={<CarOutlined />} count={stats.shipping} active={filterStatus === 'shipping'} onClick={() => setFilterStatus('shipping')} />
-                                    <FilterMenuItem id="delivered" label="Delivered" icon={<CarOutlined />} count={stats.delivered} active={filterStatus === 'delivered'} onClick={() => setFilterStatus('delivered')} />
-                                    <FilterMenuItem id="cancelled" label="Cancelled" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'cancelled'} onClick={() => setFilterStatus('cancelled')} />
+                                    <FilterMenuItem id="ALL" label="All Orders" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'ALL'} onClick={() => setFilterStatus('ALL')} />
+                                    <FilterMenuItem id="PROGRESS" label="Processing" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'PROGRESS'} onClick={() => setFilterStatus('PROGRESS')} />
+                                    <FilterMenuItem id="CONFIRMED" label="Confirmed" icon={<CheckCircleOutlined />} count={stats.confirmed} active={filterStatus === 'CONFIRMED'} onClick={() => setFilterStatus('CONFIRMED')} />
+                                    <FilterMenuItem id="SHIPPING" label="Shipping" icon={<CarOutlined />} count={stats.shipping} active={filterStatus === 'SHIPPING'} onClick={() => setFilterStatus('SHIPPING')} />
+                                    <FilterMenuItem id="DELIVERED" label="Delivered" icon={<CarOutlined />} count={stats.delivered} active={filterStatus === 'DELIVERED'} onClick={() => setFilterStatus('DELIVERED')} />
+                                    <FilterMenuItem id="CANCELLED" label="Cancelled" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'CANCELLED'} onClick={() => setFilterStatus('CANCELLED')} />
                                 </Space>
                             </div>
 
@@ -450,7 +450,7 @@ const OrderHistoryPage = () => {
                             <Descriptions.Item label="Ghi chú">{selectedOrder.note || '---'}</Descriptions.Item>
                         </Descriptions>
 
-                        {selectedOrder.status === 'preparing' && (
+                        {selectedOrder.status === 'PREPARING' && (
                             <Alert
                                 type="warning"
                                 showIcon
@@ -501,7 +501,7 @@ const OrderHistoryPage = () => {
                                             <Col flex="auto">
                                                 <Text strong>{item.product?.name || 'Sản phẩm'}</Text>
                                                 <div><Text type="secondary">Số lượng: {item.quantity}</Text></div>
-                                                {selectedOrder.status === 'delivered' && (
+                                                {selectedOrder.status === 'DELIVERED' && (
                                                     <div style={{ marginTop: 8 }}>
                                                         <Button type="link" style={{ padding: 0 }} onClick={() => openReviewDrawer(item)}>
                                                             Đánh giá sản phẩm

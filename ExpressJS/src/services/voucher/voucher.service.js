@@ -1,6 +1,6 @@
 'use strict';
 import { Op } from 'sequelize';
-import db from '../../models/index.js';
+import db from '../../entities/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const { User, Voucher, UserVoucher, RewardTransaction } = db;

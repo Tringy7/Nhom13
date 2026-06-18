@@ -7,13 +7,13 @@ import { getImageUrl } from '../util/helpers';
 const { Title, Text } = Typography;
 
 const STATUS_META = {
-    new: { text: 'Đơn hàng mới', color: 'blue' },
-    confirmed: { text: 'Đã xác nhận', color: 'geekblue' },
-    preparing: { text: 'Shop đang chuẩn bị hàng', color: 'orange' },
-    shipping: { text: 'Đang giao hàng', color: 'gold' },
-    delivered: { text: 'Đã giao thành công', color: 'green' },
-    cancelled: { text: 'Đã hủy', color: 'red' },
-    cancel_request: { text: 'Yêu cầu hủy đơn', color: 'volcano' }
+    NEW: { text: 'Đơn hàng mới', color: 'blue' },
+    CONFIRMED: { text: 'Đã xác nhận', color: 'geekblue' },
+    PREPARING: { text: 'Shop đang chuẩn bị hàng', color: 'orange' },
+    SHIPPING: { text: 'Đang giao hàng', color: 'gold' },
+    DELIVERED: { text: 'Đã giao thành công', color: 'green' },
+    CANCELLED: { text: 'Đã hủy', color: 'red' },
+    CANCEL_REQUEST: { text: 'Yêu cầu hủy đơn', color: 'volcano' }
 };
 
 const PAYMENT_META = {
@@ -37,15 +37,15 @@ const formatDateTime = (value) => {
 
 const getActionConfig = (status) => {
     switch (status) {
-        case 'new':
-            return { label: 'Xác nhận đơn', nextStatus: 'confirmed', icon: <CheckOutlined /> };
-        case 'confirmed':
-            return { label: 'Chuyển chuẩn bị', nextStatus: 'preparing', icon: <ShoppingOutlined /> };
-        case 'preparing':
-            return { label: 'Chuyển giao hàng', nextStatus: 'shipping', icon: <TruckOutlined /> };
-        case 'shipping':
-            return { label: 'Đánh dấu đã giao', nextStatus: 'delivered', icon: <RocketOutlined /> };
-        case 'cancel_request':
+        case 'NEW':
+            return { label: 'Xác nhận đơn', nextStatus: 'CONFIRMED', icon: <CheckOutlined /> };
+        case 'CONFIRMED':
+            return { label: 'Chuyển chuẩn bị', nextStatus: 'PREPARING', icon: <ShoppingOutlined /> };
+        case 'PREPARING':
+            return { label: 'Chuyển giao hàng', nextStatus: 'SHIPPING', icon: <TruckOutlined /> };
+        case 'SHIPPING':
+            return { label: 'Đánh dấu đã giao', nextStatus: 'DELIVERED', icon: <RocketOutlined /> };
+        case 'CANCEL_REQUEST':
             return { label: 'Duyệt hủy', approveCancel: true, icon: <CloseOutlined /> };
         default:
             return null;
@@ -174,7 +174,7 @@ const AdminOrdersPage = () => {
                                 {actionConfig.label}
                             </Button>
                         )}
-                        {record.status === 'cancel_request' && (
+                        {record.status === 'CANCEL_REQUEST' && (
                             <Button
                                 danger
                                 loading={statusLoadingId === record.id}
@@ -197,7 +197,7 @@ const AdminOrdersPage = () => {
     ]), [selectedOrder, statusLoadingId]);
 
     const totalRevenue = orders
-        .filter(order => order.status === 'delivered')
+        .filter(order => order.status === 'DELIVERED')
         .reduce((sum, order) => sum + Number(order.totalPrice || 0), 0);
 
     return (
