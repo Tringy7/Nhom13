@@ -13,10 +13,6 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'shopId',
         as: 'products'
       });
-      Shop.hasMany(entities.Order, {
-        foreignKey: 'shopId',
-        as: 'orders'
-      });
       Shop.hasMany(entities.Promotion, {
         foreignKey: 'shopId',
         as: 'promotions'
