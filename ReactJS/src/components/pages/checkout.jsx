@@ -132,12 +132,12 @@ const CheckoutPage = () => {
                     throw new Error('Không thể tạo link thanh toán VNPay.');
                 }
             } else {
-                message.success('Đặt hàng thành công!');
-                navigate('/history');
+                navigate('/payment/success');
             }
         } catch (error) {
             message.error(error.response?.data?.message || 'Có lỗi xảy ra khi đặt hàng.');
             setSubmitting(false);
+            navigate('/payment/failed');
         }
     };
 

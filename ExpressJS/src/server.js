@@ -7,6 +7,7 @@ import path from "path";
 import viewEngine from "./config/viewEngine.js";
 import initWebRoutes from "./route/web.js";
 import connectDB from "./config/configdb.js";
+import db from "./entities/index.js"; // Import db
 
 // config dotenv
 dotenv.config();
@@ -14,9 +15,6 @@ dotenv.config();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// connect database
-connectDB();
 
 // middleware
 app.use(bodyParser.json());
@@ -52,8 +50,17 @@ initWebRoutes(app);
 const port = process.env.PORT || 8080;
 
 // start server
-app.listen(port, () => {
-    console.log(
-        `Backend Nodejs is running on port: ${port}`
-    );
-});
+const startServer = async () => {
+    try {
+        await connectDB();
+        app.listen(port, () => {
+            console.log(
+                `Backend Nodejs is running on port: ${port}`
+            );
+        });
+    } catch (error) {
+        console.error("Failed to start the server:", error);
+    }
+};
+
+startServer();
