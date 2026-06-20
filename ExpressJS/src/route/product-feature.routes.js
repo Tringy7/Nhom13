@@ -4,7 +4,7 @@ import { authorize, verifyToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-router.get('/api/products/:id/insights', verifyToken, authorize('user', 'admin'), productFeatureController.getProductInsights);
+router.get('/api/products/:id/insights', productFeatureController.getProductInsights);
 router.get('/api/products/:id/similar', productFeatureController.getSimilarProducts);
 
 router.post('/api/products/:id/reviews', verifyToken, authorize('user', 'admin'), productFeatureController.submitReview);

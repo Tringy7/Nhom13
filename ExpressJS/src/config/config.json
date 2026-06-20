@@ -2,7 +2,7 @@
   "development": {
     "username": "root",
     "password": "171005",
-    "database": "uteshop",
+    "database": "uteshop_1",
     "host": "127.0.0.1",
     "dialect": "mysql"
   },

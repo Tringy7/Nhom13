@@ -8,6 +8,6 @@ export const getPaymentStatusApi = (orderId) => {
     return axios.get(`/api/payment/order/${orderId}/status`);
 };
 
-export const verifyPaymentApi = (params) => {
+export const verifyVNPayReturn = (params) => {
     return axios.get('/api/payment/verify-return', { params });
 };

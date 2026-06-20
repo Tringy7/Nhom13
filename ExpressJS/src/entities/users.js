@@ -14,10 +14,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         as: 'shop'
       });
-      User.hasOne(entities.ShipperWallet, {
-        foreignKey: 'shipperId',
-        as: 'shipperWallet'
-      });
+      // User.hasOne(entities.ShipperWallet, {  // TẠM THỜI VÔ HIỆU HÓA
+      //   foreignKey: 'shipperId',
+      //   as: 'shipperWallet'
+      // });
       User.hasMany(entities.Order, {
         foreignKey: 'userId',
         as: 'orders'

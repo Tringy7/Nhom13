@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createVNPayPaymentApi, getPaymentStatusApi, verifyPaymentApi } from '../components/util/api/payment.api';
+import { createVNPayPaymentApi, getPaymentStatusApi, verifyVNPayReturn } from '../components/util/api/payment.api';
 
 export const createVNPayPayment = createAsyncThunk(
     'payment/createVNPayPayment',
@@ -29,7 +29,7 @@ export const verifyPayment = createAsyncThunk(
     'payment/verifyPayment',
     async (params, { rejectWithValue }) => {
         try {
-            const response = await verifyPaymentApi(params);
+            const response = await verifyVNPayReturn(params);
             return response?.data ?? response;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || 'Không thể xác thực giao dịch');

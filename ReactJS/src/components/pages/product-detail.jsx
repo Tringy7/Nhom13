@@ -42,7 +42,7 @@ import {
 } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import { addToCart } from '../util/api/cart.api';
-import { getOrders } from '../util/api/order.api';
+import { getOrders } from '../util/api/order.api'; // Sẽ được sử dụng trong hàm mới
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -88,17 +88,18 @@ const ProductDetail = () => {
     const [reviewOrderId, setReviewOrderId] = useState(null);
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
     const [deliveredOrders, setDeliveredOrders] = useState([]);
+    const [loadingOrders, setLoadingOrders] = useState(false); // State mới để quản lý loading orders
 
     const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const [productRes, insightsRes, similarRes, ordersRes] = await Promise.all([
+            // === SỬA LỖI: Xóa getOrders() khỏi Promise.all ban đầu ===
+            const [productRes, insightsRes, similarRes] = await Promise.all([
                 getProductDetailApi(id),
                 getProductInsightsApi(id),
-                getSimilarProductsApi(id),
-                getOrders()
+                getSimilarProductsApi(id)
             ]);
 
             const productData = productRes?.data?.product || productRes?.product || (productRes?.id ? productRes : null);
@@ -113,14 +114,6 @@ const ProductDetail = () => {
             setInsights(insightsRes?.data || insightsRes || null);
             setSimilarProducts(similarRes?.data || similarRes || []);
 
-            const orderRows = ordersRes?.data || ordersRes || [];
-            const available = orderRows.filter((order) => {
-                if (order.status !== 'DELIVERED') return false;
-                return (order.items || []).some((item) => Number(item.productId) === Number(id));
-            });
-            setDeliveredOrders(available);
-            if (available.length > 0) setReviewOrderId(available[0].id);
-
             await addViewedProductApi(id).catch(() => {});
         } catch (error) {
             message.error(error?.response?.data?.message || 'Lỗi khi tải chi tiết sản phẩm');
@@ -132,6 +125,28 @@ const ProductDetail = () => {
     useEffect(() => {
         if (id) loadData();
     }, [id]);
+
+    // === SỬA LỖI: Tạo hàm mới để xử lý việc mở drawer và fetch orders ===
+    const handleOpenReviewDrawer = async () => {
+        setReviewDrawerOpen(true);
+        setLoadingOrders(true);
+        try {
+            const ordersRes = await getOrders();
+            const orderRows = ordersRes?.data || ordersRes || [];
+            const available = orderRows.filter((order) => {
+                if (order.status !== 'DELIVERED') return false;
+                return (order.items || []).some((item) => Number(item.productId) === Number(id));
+            });
+            setDeliveredOrders(available);
+            if (available.length > 0) {
+                setReviewOrderId(available[0].id);
+            }
+        } catch (error) {
+            message.error('Không thể tải lịch sử mua hàng của bạn.');
+        } finally {
+            setLoadingOrders(false);
+        }
+    };
 
     const handleAddToCart = async () => {
         try {
@@ -149,7 +164,6 @@ const ProductDetail = () => {
     const handleBuyNow = () => {
         if (!product) return;
         const itemToCheckout = {
-            // Tạo một object item tạm thời, cấu trúc giống item trong giỏ hàng
             id: `buynow-${product.id}`,
             productId: product.id,
             name: product.name,
@@ -208,6 +222,7 @@ const ProductDetail = () => {
     };
 
     const reviewItems = useMemo(() => insights?.reviews || [], [insights]);
+    const productImages = useMemo(() => product?.images || [], [product]);
 
     const tabItems = [
         {
@@ -318,9 +333,9 @@ const ProductDetail = () => {
                                 <Image src={getImageUrl(selectedImage)} alt={product.name} style={styles.mainImage} />
                             </div>
 
-                            {product.images && product.images.length > 1 && (
+                            {productImages.length > 1 && (
                                 <div style={styles.thumbnailContainer}>
-                                    {product.images.map((img, idx) => (
+                                    {productImages.map((img, idx) => (
                                         <div
                                             key={idx}
                                             style={styles.thumbnail(selectedImage === img.imageUrl)}
@@ -395,7 +410,8 @@ const ProductDetail = () => {
                                     </Button>
                                 </Col>
                                 <Col span={8}>
-                                    <Button size="large" block icon={<StarOutlined />} onClick={() => setReviewDrawerOpen(true)} style={{ ...styles.actionButton, color: '#4338ca', borderColor: '#c7d2fe', background: '#eef2ff' }}>
+                                    {/* === SỬA LỖI: Cập nhật onClick để gọi hàm mới === */}
+                                    <Button size="large" block icon={<StarOutlined />} onClick={handleOpenReviewDrawer} style={{ ...styles.actionButton, color: '#4338ca', borderColor: '#c7d2fe', background: '#eef2ff' }}>
                                         Đánh giá
                                     </Button>
                                 </Col>
@@ -446,7 +462,7 @@ const ProductDetail = () => {
                 <div style={{ padding: 20, background: '#f8fafc', minHeight: '100%' }}>
                     <Card variant="borderless" styles={{ body: { padding: 14 } }} style={{ borderRadius: 14, marginBottom: 16 }}>
                         <Space>
-                            <Image src={getImageUrl(product.thumbnail || product.images?.[0]?.imageUrl)} preview={false} width={70} height={70} style={{ borderRadius: 10, objectFit: 'contain', background: '#f1f5f9' }} />
+                            <Image src={getImageUrl(product.thumbnail || productImages?.[0]?.imageUrl)} preview={false} width={70} height={70} style={{ borderRadius: 10, objectFit: 'contain', background: '#f1f5f9' }} />
                             <div>
                                 <Text strong>{product.name}</Text>
                                 <div><Text type="secondary">Đã mua thành công mới được đánh giá</Text></div>
@@ -467,8 +483,9 @@ const ProductDetail = () => {
                     />
 
                     <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Chọn đơn hàng đã mua</Text>
-                    {deliveredOrders.length === 0 ? (
-                        <Empty description="Chưa có đơn đã giao cho sản phẩm này" />
+                    {/* === SỬA LỖI: Thêm trạng thái loading cho orders === */}
+                    {loadingOrders ? <Spin /> : deliveredOrders.length === 0 ? (
+                        <Empty description="Bạn chưa mua sản phẩm này" />
                     ) : (
                         <Space direction="vertical" style={{ width: '100%', marginBottom: 20 }}>
                             {deliveredOrders.map((od) => (

@@ -18,6 +18,7 @@ import RewardsPage from "./components/pages/rewards.jsx";
 import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
+import VnPayReturn from "./components/pages/VnPayReturn.jsx";
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 
@@ -39,15 +40,13 @@ function App() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/products" element={<Products />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
-        <Route path="/payment-succes" element={<PaymentSuccessPage />} />
-        <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route path="/payment/failed" element={<PaymentFailedPage />} />
-        <Route path="/payment-failed" element={<PaymentFailedPage />} />
+        <Route path="/payment/vnpay-return" element={<VnPayReturn />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout/:orderId" element={<CheckoutPage />} />
+          <Route path="/checkout/new" element={<CheckoutPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
           <Route path="/history" element={<OrderHistoryPage />} />
           <Route path="/rewards" element={<RewardsPage />} />

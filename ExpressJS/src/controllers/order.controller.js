@@ -1,5 +1,6 @@
 import orderService from '../services/order/order.service.js';
 import { PAYMENT_METHOD } from '../constants/payment.constants.js';
+import { sendOrderSuccessEmail } from '../services/auth/email.service.js';
 
 const createOrder = async (req, res) => {
   try {
@@ -22,14 +23,21 @@ const createOrder = async (req, res) => {
 
     // Xử lý chuyển hướng cho VNPAY
     if (paymentMethod === PAYMENT_METHOD.VNPAY && order.paymentUrl) {
-        return res.status(200).json({
-            success: true,
-            message: 'Đơn hàng đã được tạo, đang chuyển hướng đến VNPAY...',
-            data: {
-              ...order,
-              paymentUrl: order.paymentUrl
-            }
-        });
+      return res.status(200).json({
+        success: true,
+        message: 'Đơn hàng đã được tạo, đang chuyển hướng đến VNPAY...',
+        data: {
+          ...order,
+          paymentUrl: order.paymentUrl
+        }
+      });
+    }
+
+    // Gửi email xác nhận đơn hàng bất đồng bộ, không chặn response trả về cho client
+    if (req.user?.email) {
+      sendOrderSuccessEmail(req.user.email, order).catch((error) => {
+        console.error('Gửi email xác nhận đơn hàng thất bại:', error);
+      });
     }
 
     return res.status(201).json({
