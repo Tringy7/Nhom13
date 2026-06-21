@@ -1,65 +1,43 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Promotion, Product, Brand, ProductImage } = db;
+const { Product, Brand } = db;
 
+// Simplified include for product queries
 const productInclude = [
   {
     model: Brand,
     as: 'brand',
-    attributes: ['id', 'name', 'logo']
-  },
-  {
-    model: ProductImage,
-    as: 'images',
-    attributes: ['id', 'imageUrl']
+    attributes: ['id', 'name']
   }
 ];
 
-const getPromotions = async (options = {}) => {
-  const { page = 1, limit = 10 } = options;
-  const offset = (page - 1) * limit;
-  console.log(db);
-console.log('Promotion:', Promotion);
-console.log('Product:', Product);
-console.log('Brand:', Brand);
-console.log('ProductImage:', ProductImage);
-
-  return Promotion.findAll({
-     where: {
-      isActive: true
-    },
-    offset,
-    limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'title', 'discountPercent', 'image', 'createdAt'],
-    include: [
-      {
-        model: Product,
-        as: 'products',
-        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-        include: productInclude,
-        through: { attributes: [] }
-      }
-    ]
-  });
+// This function is no longer relevant as Promotion model is removed.
+// It can be replaced with fetching banners or other featured content if needed.
+const getFeaturedContent = async () => {
+  // Placeholder for future implementation (e.g., fetching banners)
+  return [];
 };
 
 const getBestSellingProducts = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
+  
+  // The concept of "best-selling" (sold field) was removed for simplification.
+  // We will order by creation date as a substitute.
+  // A more advanced implementation could calculate sales from the OrderDetail table.
   return Product.findAndCountAll({
     offset,
     limit,
-    order: [['sold', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
+    order: [['createdAt', 'DESC']],
+    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getAllProducts = async (options = {}) => {
-  const { page = 1, limit = 12, search = '', sort = 'default' } = options;
+  const { page = 1, limit = 12, search = '', sort = 'default', categoryId, brandId } = options;
   const offset = (page - 1) * limit;
 
   let order = [['createdAt', 'DESC']];
@@ -69,8 +47,14 @@ const getAllProducts = async (options = {}) => {
   let whereClause = {};
   if (search) {
     whereClause.name = {
-      [db.Sequelize.Op.like]: `%${search}%`
+      [db.Sequelize.Op.iLike]: `%${search}%` // Use iLike for case-insensitive search
     };
+  }
+  if (categoryId) {
+    whereClause.categoryId = categoryId;
+  }
+  if (brandId) {
+    whereClause.brandId = brandId;
   }
 
   return Product.findAndCountAll({
@@ -78,27 +62,26 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
+    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getHomePageData = async () => {
-  const [promotions, bestSellingProducts] = await Promise.all([
-    getPromotions({ limit: 5 }),
+  // Fetch best-selling (or newest) products for the home page
+  const [bestProducts] = await Promise.all([
     getBestSellingProducts({ page: 1, limit: 10 })
   ]);
 
   return {
-    promotions,
-    bestSellingProducts
+    // promotions field is removed
+    bestSellingProducts: bestProducts
   };
 };
 
 export default {
   getHomePageData,
-  getPromotions,
   getBestSellingProducts,
   getAllProducts
 };

@@ -2,49 +2,29 @@ import db from '../../entities/index.js';
 
 const {
   Product,
-  ProductImage,
   Brand,
-  ProductReview,
-  ProductFavorite,
-  ProductView,
+  Review,      // Updated from ProductReview
+  Wishlist,    // Updated from ProductFavorite
   Order,
-  OrderItem,
+  OrderDetail, // Updated from OrderItem
   User,
-  Coupon
+  Voucher      // Updated from Coupon
 } = db;
 
 const { Op } = db.Sequelize;
 
-const normalizeDecimal = (value) => Number(value || 0);
-
-const getRewardForReview = () => {
-  const roll = Math.random();
-  if (roll < 0.5) {
-    return {
-      type: 'points',
-      value: 50
-    };
-  }
-
-  const code = `RVW${Date.now().toString().slice(-6)}`;
-  return {
-    type: 'coupon',
-    value: 10,
-    token: code
-  };
-};
-
+// Helper to ensure an order was delivered before allowing a review
 const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
   const order = await Order.findOne({
     where: {
       id: orderId,
       userId,
-      status: 'delivered'
+      orderStatus: 'DELIVERED' // Use the correct status from the Order model
     },
     include: [
       {
-        model: OrderItem,
-        as: 'items',
+        model: OrderDetail,
+        as: 'details', // Use the correct alias from the Order model association
         where: {
           productId
         },
@@ -60,6 +40,7 @@ const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
   return order;
 };
 
+// Simplified review submission
 const submitReview = async (userId, productId, { orderId, rating, comment = '' }) => {
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Điểm đánh giá phải từ 1 đến 5');
@@ -67,7 +48,7 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
 
   await ensureOrderDeliveredForProduct(userId, orderId, productId);
 
-  const existed = await ProductReview.findOne({
+  const existed = await Review.findOne({
     where: {
       userId,
       productId,
@@ -79,139 +60,55 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
     throw new Error('Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi');
   }
 
-  const reward = getRewardForReview();
-
-  return db.sequelize.transaction(async (t) => {
-    const review = await ProductReview.create({
-      userId,
-      productId,
-      orderId,
-      rating,
-      comment,
-      rewardType: reward.type,
-      rewardValue: reward.value,
-      rewardToken: reward.token || null
-    }, { transaction: t });
-
-    if (reward.type === 'points') {
-      const user = await User.findByPk(userId, { transaction: t, lock: t.LOCK.UPDATE });
-      const newBalance = Number(user.pointsBalance || 0) + Number(reward.value || 0);
-      await user.update({ pointsBalance: newBalance }, { transaction: t });
-    }
-
-    if (reward.type === 'coupon') {
-      await Coupon.create({
-        code: reward.token,
-        title: 'Ưu đãi đánh giá sản phẩm',
-        description: 'Mã giảm giá nhận từ đánh giá sản phẩm đã mua',
-        discountType: 'percent',
-        discountValue: reward.value,
-        minOrderAmount: 0,
-        maxDiscount: 200000,
-        usageLimit: 1,
-        usedCount: 0,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        isActive: true,
-        userId
-      }, { transaction: t });
-    }
-
-    return {
-      review,
-      reward
-    };
+  const review = await Review.create({
+    userId,
+    productId,
+    orderId,
+    rating,
+    comment
   });
+
+  return { review };
 };
 
+// Updated favorite/wishlist toggle
 const toggleFavorite = async (userId, productId) => {
-  const existed = await ProductFavorite.findOne({ where: { userId, productId } });
+  const existed = await Wishlist.findOne({ where: { userId, productId } });
   if (existed) {
     await existed.destroy();
     return { favorite: false };
   }
 
-  await ProductFavorite.create({ userId, productId });
+  await Wishlist.create({ userId, productId });
   return { favorite: true };
 };
 
-const addViewedProduct = async (userId, productId) => {
-  await ProductView.create({ userId, productId, viewedAt: new Date() });
-
-  const recent = await ProductView.findAll({
-    where: { userId },
-    include: [{
-      model: Product,
-      as: 'product',
-      attributes: ['id', 'name', 'price', 'thumbnail', 'sold'],
-      include: [
-        { model: ProductImage, as: 'images', attributes: ['id', 'imageUrl'] },
-        { model: Brand, as: 'brand', attributes: ['id', 'name'] }
-      ]
-    }],
-    order: [['viewedAt', 'DESC']],
-    limit: 12
-  });
-
-  const unique = [];
-  const seen = new Set();
-  for (const item of recent) {
-    if (item.product && !seen.has(item.product.id)) {
-      seen.add(item.product.id);
-      unique.push(item.product);
-    }
-  }
-
-  return unique;
-};
-
+// Updated wishlist retrieval
 const getWishlist = async (userId) => {
-  const rows = await ProductFavorite.findAll({
+  const wishlistItems = await Wishlist.findAll({
     where: { userId },
     include: [{
       model: Product,
       as: 'product',
-      attributes: ['id', 'name', 'price', 'thumbnail', 'sold', 'stock', 'category'],
+      attributes: ['id', 'name', 'price', 'images', 'stock', 'status'], // Use 'images' instead of 'thumbnail'
       include: [
-        { model: ProductImage, as: 'images', attributes: ['id', 'imageUrl'] },
         { model: Brand, as: 'brand', attributes: ['id', 'name'] }
       ]
     }],
     order: [['createdAt', 'DESC']]
   });
 
-  return rows.map((row) => row.product).filter(Boolean);
+  return wishlistItems.map((item) => item.product).filter(Boolean);
 };
 
-const getSimilarProducts = async (productId, limit = 8) => {
-  const product = await Product.findByPk(productId);
-  if (!product) return [];
-
-  const products = await Product.findAll({
-    where: {
-      id: { [Op.ne]: product.id },
-      [Op.or]: [
-        { category: product.category },
-        { brandId: product.brandId }
-      ]
-    },
-    limit,
-    order: [['sold', 'DESC']],
-    include: [
-      { model: ProductImage, as: 'images', attributes: ['id', 'imageUrl'] },
-      { model: Brand, as: 'brand', attributes: ['id', 'name'] }
-    ]
-  });
-
-  return products;
-};
-
+// Updated review retrieval
 const getReviewsByProduct = async (productId) => {
-  const reviews = await ProductReview.findAll({
+  const reviews = await Review.findAll({
     where: { productId },
     include: [{
       model: User,
       as: 'user',
-      attributes: ['id', 'firstName', 'lastName', 'image']
+      attributes: ['id', 'fullName', 'avatar'] // Use 'fullName' and 'avatar'
     }],
     order: [['createdAt', 'DESC']],
     limit: 30
@@ -223,137 +120,59 @@ const getReviewsByProduct = async (productId) => {
     : 0;
 
   return {
-    avgRating,
+    avgRating: avgRating.toFixed(1),
     reviewCount,
     reviews
   };
 };
 
+// Simplified product insights
 const getProductInsights = async (productId, userId = null) => {
-  const [reviewData, favoriteCount, buyerCount, commentCount, favoriteRow] = await Promise.all([
+  const [reviewData, favoriteCount, isFavorite] = await Promise.all([
     getReviewsByProduct(productId),
-    ProductFavorite.count({ where: { productId } }),
-    OrderItem.count({
-      where: { productId },
-      include: [{ model: Order, as: 'order', where: { status: 'delivered' }, required: true }],
-      distinct: true,
-      col: 'orderId'
-    }),
-    ProductReview.count({ where: { productId } }),
-    userId ? ProductFavorite.findOne({ where: { userId, productId } }) : null
+    Wishlist.count({ where: { productId } }),
+    userId ? Wishlist.findOne({ where: { userId, productId } }) : null
   ]);
 
   return {
     avgRating: reviewData.avgRating,
     reviewCount: reviewData.reviewCount,
     favoriteCount,
-    buyerCount,
-    commentCount,
-    isFavorite: Boolean(favoriteRow),
+    isFavorite: Boolean(isFavorite),
     reviews: reviewData.reviews
   };
 };
 
-const getUserCoupons = async (userId) => {
-  const now = new Date();
-  return Coupon.findAll({
-    where: {
-      userId,
-      isActive: true,
-      [Op.or]: [
-        { expiresAt: null },
-        { expiresAt: { [Op.gt]: now } }
-      ]
-    },
-    order: [['createdAt', 'DESC']]
-  });
+// This function needs to be adapted based on how you want to handle similar products
+const getSimilarProducts = async (productId, limit = 8) => {
+    const product = await Product.findByPk(productId);
+    if (!product) return [];
+
+    const products = await Product.findAll({
+        where: {
+            id: { [Op.ne]: product.id },
+            [Op.or]: [
+                { categoryId: product.categoryId },
+                { brandId: product.brandId }
+            ]
+        },
+        limit,
+        order: db.sequelize.random(), // A simple way to get varied similar products
+        include: [
+            { model: Brand, as: 'brand', attributes: ['id', 'name'] }
+        ]
+    });
+
+    return products;
 };
 
-const previewDiscount = async (userId, { subtotal = 0, couponCode = null, pointsToUse = 0 }) => {
-  const user = await User.findByPk(userId);
-  if (!user) throw new Error('Người dùng không tồn tại');
-
-  const rawSubtotal = normalizeDecimal(subtotal);
-  let discountAmount = 0;
-  let couponApplied = null;
-
-  if (couponCode) {
-    const coupon = await Coupon.findOne({ where: { code: couponCode, isActive: true, userId } });
-    if (!coupon) throw new Error('Mã giảm giá không hợp lệ');
-
-    if (coupon.expiresAt && new Date(coupon.expiresAt) <= new Date()) {
-      throw new Error('Mã giảm giá đã hết hạn');
-    }
-
-    if (coupon.usageLimit && Number(coupon.usedCount || 0) >= Number(coupon.usageLimit)) {
-      throw new Error('Mã giảm giá đã hết lượt sử dụng');
-    }
-
-    if (rawSubtotal < normalizeDecimal(coupon.minOrderAmount)) {
-      throw new Error('Đơn hàng chưa đạt mức tối thiểu để áp mã giảm giá');
-    }
-
-    if (coupon.discountType === 'percent') {
-      discountAmount = (rawSubtotal * normalizeDecimal(coupon.discountValue)) / 100;
-    } else {
-      discountAmount = normalizeDecimal(coupon.discountValue);
-    }
-
-    if (coupon.maxDiscount) {
-      discountAmount = Math.min(discountAmount, normalizeDecimal(coupon.maxDiscount));
-    }
-
-    couponApplied = coupon;
-  }
-
-  let pointsRedeemed = Math.max(0, Number(pointsToUse || 0));
-  pointsRedeemed = Math.min(pointsRedeemed, Number(user.pointsBalance || 0));
-
-  const pointsDiscount = pointsRedeemed * 1000;
-  const totalDiscount = Math.min(rawSubtotal, discountAmount + pointsDiscount);
-  const finalTotal = Math.max(0, rawSubtotal - totalDiscount);
-
-  return {
-    originalTotal: rawSubtotal,
-    discountAmount: totalDiscount,
-    finalTotal,
-    pointsRedeemed,
-    pointsDiscount,
-    couponCode: couponApplied?.code || null,
-    couponDiscount: discountAmount
-  };
-};
-
-const consumeCouponIfNeeded = async (couponCode, transaction) => {
-  if (!couponCode) return;
-  const coupon = await Coupon.findOne({ where: { code: couponCode }, transaction, lock: transaction.LOCK.UPDATE });
-  if (!coupon) return;
-
-  await coupon.update({
-    usedCount: Number(coupon.usedCount || 0) + 1,
-    isActive: coupon.usageLimit ? Number(coupon.usedCount || 0) + 1 < Number(coupon.usageLimit) : coupon.isActive
-  }, { transaction });
-};
-
-const consumePoints = async (userId, pointsRedeemed, transaction) => {
-  if (!pointsRedeemed) return;
-  const user = await User.findByPk(userId, { transaction, lock: transaction.LOCK.UPDATE });
-  if (!user) return;
-
-  const nextBalance = Math.max(0, Number(user.pointsBalance || 0) - Number(pointsRedeemed || 0));
-  await user.update({ pointsBalance: nextBalance }, { transaction });
-};
 
 export default {
   submitReview,
   toggleFavorite,
-  addViewedProduct,
   getWishlist,
-  getSimilarProducts,
   getReviewsByProduct,
   getProductInsights,
-  getUserCoupons,
-  previewDiscount,
-  consumeCouponIfNeeded,
-  consumePoints
+  getSimilarProducts
+  // Removed functions related to ProductView, Coupon, and Points
 };

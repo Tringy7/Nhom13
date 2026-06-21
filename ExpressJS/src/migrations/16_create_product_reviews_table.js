@@ -1,7 +1,7 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('product_views', {
+    await queryInterface.createTable('product_reviews', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -20,14 +20,38 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'products',
+          model: 'Products',
           key: 'id'
         }
       },
-      viewedAt: {
-        type: Sequelize.DATE,
+      orderId: {
+        type: Sequelize.INTEGER,
         allowNull: false,
-        defaultValue: Sequelize.NOW
+        references: {
+          model: 'Orders',
+          key: 'id'
+        }
+      },
+      rating: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
+      comment: {
+        type: Sequelize.TEXT,
+        allowNull: true
+      },
+      rewardType: {
+        type: Sequelize.ENUM('points', 'coupon'),
+        allowNull: false,
+        defaultValue: 'points'
+      },
+      rewardValue: {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      },
+      rewardToken: {
+        type: Sequelize.STRING,
+        allowNull: true
       },
       createdAt: {
         allowNull: false,
@@ -40,6 +64,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('product_views');
+    await queryInterface.dropTable('product_reviews');
   }
 };

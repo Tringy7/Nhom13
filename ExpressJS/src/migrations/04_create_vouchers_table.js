@@ -1,20 +1,18 @@
 'use strict';
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('vouchers', {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('Vouchers', {
       id: {
-        type: Sequelize.UUID,
-        defaultValue: Sequelize.UUIDV4,
-        primaryKey: true
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
       },
       code: {
         type: Sequelize.STRING,
         unique: true,
         allowNull: false
       },
-      title: Sequelize.STRING,
-      description: Sequelize.TEXT,
       discountType: {
         type: Sequelize.ENUM('PERCENT', 'FIXED'),
         allowNull: false
@@ -27,15 +25,23 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 0
       },
-      maxDiscount: {
-        type: Sequelize.INTEGER,
-        allowNull: true
+      startDate: {
+        type: Sequelize.DATE,
+        allowNull: false
       },
-      startDate: Sequelize.DATE,
-      endDate: Sequelize.DATE,
-      isActive: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: true
+      endDate: {
+        type: Sequelize.DATE,
+        allowNull: false
+      },
+      quantity: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+      },
+      status: {
+        type: Sequelize.ENUM('ACTIVE', 'INACTIVE', 'EXPIRED'),
+        allowNull: false,
+        defaultValue: 'ACTIVE'
       },
       createdAt: {
         allowNull: false,
@@ -47,7 +53,7 @@ module.exports = {
       }
     });
   },
-  async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('vouchers');
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('Vouchers');
   }
 };

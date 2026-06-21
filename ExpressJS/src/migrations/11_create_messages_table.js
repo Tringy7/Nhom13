@@ -1,30 +1,37 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('promotions', {
+    await queryInterface.createTable('Messages', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      title: {
-        type: Sequelize.STRING,
+      conversationId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Conversations',
+          key: 'id'
+        }
+      },
+      senderId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Users',
+          key: 'id'
+        }
+      },
+      content: {
+        type: Sequelize.TEXT,
         allowNull: false
       },
-      discountPercent: {
-        type: Sequelize.DECIMAL(5, 2),
-        allowNull: false,
-        defaultValue: 0
-      },
-      image: {
-        type: Sequelize.STRING,
-        allowNull: true
-      },
-      isActive: {
+      isRead: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
-        defaultValue: true
+        defaultValue: false
       },
       createdAt: {
         allowNull: false,
@@ -37,6 +44,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('promotions');
+    await queryInterface.dropTable('Messages');
   }
 };
