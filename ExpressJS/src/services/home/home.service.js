@@ -1,36 +1,33 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Product, Brand } = db;
+const { Product, Brand, ProductImage } = db;
 
-// Simplified include for product queries
+// Update include for product queries
 const productInclude = [
   {
     model: Brand,
     as: 'brand',
     attributes: ['id', 'name']
+  },
+  {
+    model: ProductImage,
+    as: 'images',
+    attributes: ['imageUrl']
   }
 ];
-
-// This function is no longer relevant as Promotion model is removed.
-// It can be replaced with fetching banners or other featured content if needed.
-const getFeaturedContent = async () => {
-  // Placeholder for future implementation (e.g., fetching banners)
-  return [];
-};
 
 const getBestSellingProducts = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
   
-  // The concept of "best-selling" (sold field) was removed for simplification.
-  // We will order by creation date as a substitute.
-  // A more advanced implementation could calculate sales from the OrderDetail table.
+  // Use the 'sold' field for "best-selling"
   return Product.findAndCountAll({
     offset,
     limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'brandId'],
+    order: [['sold', 'DESC']],
+    where: { isActive: true },
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId'],
     include: productInclude,
     distinct: true
   });
@@ -43,11 +40,12 @@ const getAllProducts = async (options = {}) => {
   let order = [['createdAt', 'DESC']];
   if (sort === 'price-asc') order = [['price', 'ASC']];
   if (sort === 'price-desc') order = [['price', 'DESC']];
+  if (sort === 'best-selling') order = [['sold', 'DESC']];
 
-  let whereClause = {};
+  let whereClause = { isActive: true };
   if (search) {
     whereClause.name = {
-      [db.Sequelize.Op.iLike]: `%${search}%` // Use iLike for case-insensitive search
+      [db.Sequelize.Op.iLike]: `%${search}%`
     };
   }
   if (brandId) {
@@ -59,21 +57,19 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'brandId'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getHomePageData = async () => {
-  // Fetch best-selling (or newest) products for the home page
-  const [bestProducts] = await Promise.all([
+  const [bestSellingProducts] = await Promise.all([
     getBestSellingProducts({ page: 1, limit: 10 })
   ]);
 
   return {
-    // promotions field is removed
-    bestSellingProducts: bestProducts
+    bestSellingProducts
   };
 };
 

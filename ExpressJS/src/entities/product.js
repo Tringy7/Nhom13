@@ -3,12 +3,33 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
     static associate(entities) {
-      // Product.belongsTo(entities.Category, { foreignKey: 'categoryId', as: 'category' }); // Removed
-      Product.belongsTo(entities.Brand, { foreignKey: 'brandId', as: 'brand' });
-      Product.hasMany(entities.CartItem, { foreignKey: 'productId', as: 'cartItems' });
-      Product.hasMany(entities.OrderDetail, { foreignKey: 'productId', as: 'orderDetails' });
-      Product.hasMany(entities.Review, { foreignKey: 'productId', as: 'reviews' });
-      Product.hasMany(entities.Wishlist, { foreignKey: 'productId', as: 'wishlistItems' });
+      Product.belongsTo(entities.Brand, {
+        foreignKey: 'brandId',
+        as: 'brand'
+      });
+      Product.hasMany(entities.ProductImage, {
+        foreignKey: 'productId',
+        as: 'images'
+      });
+      // Vô hiệu hóa các mối quan hệ không hợp lệ
+      // Product.belongsToMany(entities.Promotion, {
+      //   through: entities.PromotionProduct,
+      //   foreignKey: 'productId',
+      //   otherKey: 'promotionId',
+      //   as: 'promotions'
+      // });
+      // Product.hasMany(entities.ProductReview, {
+      //   foreignKey: 'productId',
+      //   as: 'reviews'
+      // });
+      // Product.hasMany(entities.ProductFavorite, {
+      //   foreignKey: 'productId',
+      //   as: 'favorites'
+      // });
+      // Product.hasMany(entities.ProductView, {
+      //   foreignKey: 'productId',
+      //   as: 'views'
+      // });
     }
   }
   Product.init({
@@ -16,41 +37,53 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false
     },
+    price: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
     description: {
       type: DataTypes.TEXT,
       allowNull: true
-    },
-    price: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false
     },
     stock: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
-    images: {
-      type: DataTypes.JSON,
+    sold: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    thumbnail: {
+      type: DataTypes.STRING,
       allowNull: true
     },
-    status: {
-      type: DataTypes.ENUM('ACTIVE', 'INACTIVE'),
-      allowNull: false,
-      defaultValue: 'ACTIVE'
+    ram:{
+      type: DataTypes.INTEGER,
+      allowNull: true
     },
-    // categoryId field removed
+    category: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     brandId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Brands',
+        model: 'brands',
         key: 'id'
       }
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     }
   }, {
     sequelize,
     modelName: 'Product',
-    tableName: 'Products'
+    tableName: 'products'
   });
   return Product;
 };
