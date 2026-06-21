@@ -30,14 +30,14 @@ const getBestSellingProducts = async (options = {}) => {
     offset,
     limit,
     order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'brandId'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getAllProducts = async (options = {}) => {
-  const { page = 1, limit = 12, search = '', sort = 'default', categoryId, brandId } = options;
+  const { page = 1, limit = 12, search = '', sort = 'default', brandId } = options;
   const offset = (page - 1) * limit;
 
   let order = [['createdAt', 'DESC']];
@@ -50,9 +50,6 @@ const getAllProducts = async (options = {}) => {
       [db.Sequelize.Op.iLike]: `%${search}%` // Use iLike for case-insensitive search
     };
   }
-  if (categoryId) {
-    whereClause.categoryId = categoryId;
-  }
   if (brandId) {
     whereClause.brandId = brandId;
   }
@@ -62,7 +59,7 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'brandId'],
     include: productInclude,
     distinct: true
   });
