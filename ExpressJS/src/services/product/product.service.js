@@ -1,97 +1,50 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Promotion, Product, Brand, ProductImage } = db;
-
-const productInclude = [
-  {
-    model: Brand,
-    as: 'brand',
-    attributes: ['id', 'name', 'logo']
-  },
-  {
-    model: ProductImage,
-    as: 'images',
-    attributes: ['id', 'imageUrl']
-  }
-];
-
-const getProductById = async (options = {}) => {
-  const productId = options;
-  return Product.findByPk(productId);
-}
-
-const getPromotions = async (limit = 5) => {
-  return Promotion.findAll({
-     where: {
-      isActive: true
-    },
-    limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'title', 'discountPercent', 'image', 'createdAt'],
-    include: [
-      {
-        model: Product,
-        as: 'products',
-        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-        include: productInclude,
-        through: { attributes: [] }
-      }
-    ]
-  });
-};
-
-const getNewestProducts = async (limit = 10) => {
-  return Product.findAll({
-    limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
-    include: productInclude
-  });
-};
-
-const getBestSellingProducts = async (limit = 10) => {
-  return Product.findAll({
-    limit,
-    order: [['sold', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-    include: productInclude
-  });
-};
+// Updated imports to use the new models
+const { Product, Brand, Category } = db;
 
 const getProductDetail = async (productId) => {
-  return Product.findByPk(productId, {
+  const product = await Product.findByPk(productId, {
+    // Select the correct, simplified attributes
     attributes: [
       'id',
       'name',
       'price',
-      'thumbnail',
+      'images', // Use 'images' instead of 'thumbnail'
       'stock',
-      'sold',
-      'category',
-      'brandId',
+      'status',
       'description',
+      'categoryId',
+      'brandId',
       'createdAt',
       'updatedAt'
     ],
-    include: productInclude
+    include: [
+      {
+        model: Brand,
+        as: 'brand',
+        attributes: ['id', 'name']
+      },
+      {
+        model: Category,
+        as: 'category',
+        attributes: ['id', 'name']
+      }
+    ]
   });
+
+  if (!product) {
+    throw new Error('Sản phẩm không tồn tại');
+  }
+
+  return product;
 };
 
-const getProductsByCategory = async (category, limit = 20) => {
-  return Product.findAll({
-    where: {
-      category
-    },
-    limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-    include: productInclude
-  });
-};
+// The other functions (getPromotions, getNewestProducts, getBestSellingProducts, getProductsByCategory)
+// were removed as they were either obsolete due to model changes (Promotion) or redundant
+// with the more advanced filtering in `home.service.js`.
 
 export default {
-  getProductDetail,
-  getProductsByCategory,
-  getProductById
+  getProductDetail
 };

@@ -1,74 +1,69 @@
 'use strict';
 const { Model } = require('sequelize');
-const { ORDER_STATUS } = require('../constants/order.constants');
-
 module.exports = (sequelize, DataTypes) => {
   class Order extends Model {
     static associate(entities) {
-      Order.belongsTo(entities.User, { foreignKey: 'userId', as: 'user' });
-      Order.hasMany(entities.OrderItem, { foreignKey: 'orderId', as: 'items' });
+      Order.belongsTo(entities.User, { foreignKey: 'userId', as: 'customer' });
+      Order.belongsTo(entities.User, { foreignKey: 'shipperId', as: 'shipper' });
+      Order.belongsTo(entities.Voucher, { foreignKey: 'voucherId', as: 'voucher' });
+      Order.hasMany(entities.OrderDetail, { foreignKey: 'orderId', as: 'details' });
+      Order.hasMany(entities.Review, { foreignKey: 'orderId', as: 'reviews' });
+      Order.hasOne(entities.OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
+
+      // Establishes the one-to-one relationship with Payment
       Order.hasOne(entities.Payment, { foreignKey: 'orderId', as: 'payment' });
-      Order.hasMany(entities.OrderStatusHistory, { foreignKey: 'orderId', as: 'statusHistory' });
-      Order.hasMany(entities.ProductReview, { foreignKey: 'orderId', as: 'reviews' });
     }
   }
   Order.init({
     userId: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      references: { model: 'Users', key: 'id' }
     },
-    totalPrice: {
+    voucherId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'Vouchers', key: 'id' }
+    },
+    shipperId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'Users', key: 'id' }
+    },
+    totalAmount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false
     },
-    originalTotalPrice: {
-      type: DataTypes.DECIMAL(15, 2),
+    shippingFee: {
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0
     },
-    discountAmount: {
-      type: DataTypes.DECIMAL(15, 2),
-      allowNull: false,
-      defaultValue: 0
+    shipperFee: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true
     },
-    couponCode: {
+    shippingMethod: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    pointsRedeemed: {
-      type: DataTypes.INTEGER,
+    orderStatus: {
+      type: DataTypes.ENUM('NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'CANCEL_REQUEST', 'DELIVERY_FAILED'),
       allowNull: false,
-      defaultValue: 0
+      defaultValue: 'NEW'
     },
     shippingAddress: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    phoneNumber: {
       type: DataTypes.STRING,
       allowNull: false
     },
     note: {
       type: DataTypes.TEXT,
       allowNull: true
-    },
-    status: {
-      type: DataTypes.ENUM(...Object.values(ORDER_STATUS)),
-      allowNull: false,
-      defaultValue: ORDER_STATUS.NEW
-    },
-    confirmedAt: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    cancelRequestedAt: {
-      type: DataTypes.DATE,
-      allowNull: true
     }
   }, {
     sequelize,
     modelName: 'Order',
-    tableName: 'orders'
+    tableName: 'Orders'
   });
   return Order;
 };

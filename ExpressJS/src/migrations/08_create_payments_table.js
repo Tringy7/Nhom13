@@ -1,7 +1,8 @@
 'use strict';
+const { PAYMENT_METHOD, PAYMENT_STATUS } = require('../constants/payment.constants');
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('order_status_histories', {
+    await queryInterface.createTable('payments', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -12,25 +13,29 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'orders',
+          model: 'Orders',
           key: 'id'
         }
+      },
+      method: {
+        type: Sequelize.ENUM(...Object.values(PAYMENT_METHOD)),
+        defaultValue: PAYMENT_METHOD.COD
       },
       status: {
-        type: Sequelize.STRING,
+        type: Sequelize.ENUM(...Object.values(PAYMENT_STATUS)),
+        defaultValue: PAYMENT_STATUS.PENDING
+      },
+      amount: {
+        type: Sequelize.DECIMAL(15, 2),
         allowNull: false
       },
-      note: {
-        type: Sequelize.TEXT,
+      transactionId: {
+        type: Sequelize.STRING,
         allowNull: true
       },
-      changedBy: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-          model: 'Users',
-          key: 'id'
-        }
+      paidAt: {
+        type: Sequelize.DATE,
+        allowNull: true
       },
       createdAt: {
         allowNull: false,
@@ -43,6 +48,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('order_status_histories');
+    await queryInterface.dropTable('payments');
   }
 };

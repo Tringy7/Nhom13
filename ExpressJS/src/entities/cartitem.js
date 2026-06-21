@@ -11,18 +11,17 @@ module.exports = (sequelize, DataTypes) => {
     cartId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: { model: 'carts', key: 'id' }
+      references: { model: 'Carts', key: 'id' }
     },
     productId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: { model: 'products', key: 'id' }
+      references: { model: 'Products', key: 'id' }
     },
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 1,
-      validate: { min: 1 }
+      defaultValue: 1
     },
     price: {
       type: DataTypes.DECIMAL(12, 2),
@@ -31,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'CartItem',
-    tableName: 'cartitems'
+    tableName: 'CartItems'
   });
   return CartItem;
 };

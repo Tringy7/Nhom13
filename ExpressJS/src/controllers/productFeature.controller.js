@@ -6,6 +6,7 @@ const submitReview = async (req, res) => {
     const productId = Number(req.params.id);
     const { orderId, rating, comment } = req.body;
 
+    // The service was updated to return { review }
     const data = await productFeatureService.submitReview(userId, productId, {
       orderId,
       rating,
@@ -31,18 +32,6 @@ const toggleFavorite = async (req, res) => {
     const productId = Number(req.params.id);
 
     const data = await productFeatureService.toggleFavorite(userId, productId);
-    return res.status(200).json({ success: true, data });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const addViewedProduct = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const productId = Number(req.params.id);
-
-    const data = await productFeatureService.addViewedProduct(userId, productId);
     return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -81,33 +70,13 @@ const getProductInsights = async (req, res) => {
   }
 };
 
-const getUserCoupons = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const data = await productFeatureService.getUserCoupons(userId);
-    return res.status(200).json({ success: true, data });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const previewDiscount = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const data = await productFeatureService.previewDiscount(userId, req.body || {});
-    return res.status(200).json({ success: true, data });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-};
+// The functions 'addViewedProduct', 'getUserCoupons', and 'previewDiscount' were removed
+// as their corresponding services and models (ProductView, Coupon) were deleted for simplification.
 
 export default {
   submitReview,
   toggleFavorite,
-  addViewedProduct,
   getWishlist,
   getSimilarProducts,
-  getProductInsights,
-  getUserCoupons,
-  previewDiscount
+  getProductInsights
 };

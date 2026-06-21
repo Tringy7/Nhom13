@@ -1,38 +1,28 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('shipments', {
+    await queryInterface.createTable('RefreshTokens', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      orderId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        unique: true,
-        references: {
-          model: 'orders',
-          key: 'id'
-        }
+      token: {
+        type: Sequelize.STRING
       },
-      shipperId: {
+      userId: {
         type: Sequelize.INTEGER,
-        allowNull: true,
         references: {
           model: 'Users',
           key: 'id'
         }
       },
-      status: {
-        type: Sequelize.ENUM('PREPARING', 'PICKING_UP', 'DELIVERING', 'DELIVERED', 'FAILED'),
-        allowNull: false,
-        defaultValue: 'PREPARING'
+      expiresAt: {
+        type: Sequelize.DATE
       },
-      shippingFee: {
-        type: Sequelize.DECIMAL(10, 2),
-        allowNull: true
+      revoked: {
+        type: Sequelize.BOOLEAN
       },
       createdAt: {
         allowNull: false,
@@ -45,6 +35,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('shipments');
+    await queryInterface.dropTable('RefreshTokens');
   }
 };

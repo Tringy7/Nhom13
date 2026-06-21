@@ -1,23 +1,14 @@
 'use strict';
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('chat_messages', {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('reviews', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      roomId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'chat_rooms',
-          key: 'id'
-        }
-      },
-      senderId: {
+      userId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
@@ -25,9 +16,21 @@ module.exports = {
           key: 'id'
         }
       },
-      content: {
-        type: Sequelize.TEXT,
+      targetType: {
+        type: Sequelize.ENUM('PRODUCT', 'ORDER', 'SHOP'),
         allowNull: false
+      },
+      targetId: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
+      rating: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
+      comment: {
+        type: Sequelize.TEXT,
+        allowNull: true
       },
       createdAt: {
         allowNull: false,
@@ -39,7 +42,7 @@ module.exports = {
       }
     });
   },
-  async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('chat_messages');
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('reviews');
   }
 };

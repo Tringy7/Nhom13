@@ -1,24 +1,28 @@
 'use strict';
 const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class ChatRoom extends Model {
+  class Conversation extends Model {
     static associate(entities) {
-      ChatRoom.belongsToMany(entities.User, {
-        through: 'ChatRoomParticipants',
-        foreignKey: 'roomId',
-        otherKey: 'userId',
-        as: 'participants'
-      });
-      ChatRoom.hasMany(entities.ChatMessage, {
-        foreignKey: 'roomId',
-        as: 'messages'
-      });
+      Conversation.belongsTo(entities.User, { foreignKey: 'userId', as: 'user' });
+      Conversation.belongsTo(entities.User, { foreignKey: 'adminId', as: 'admin' });
+      Conversation.hasMany(entities.Message, { foreignKey: 'conversationId', as: 'messages' });
     }
   }
-  ChatRoom.init({}, {
+  Conversation.init({
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: { model: 'Users', key: 'id' }
+    },
+    adminId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: { model: 'Users', key: 'id' }
+    }
+  }, {
     sequelize,
-    modelName: 'ChatRoom',
-    tableName: 'chat_rooms'
+    modelName: 'Conversation',
+    tableName: 'Conversations'
   });
-  return ChatRoom;
+  return Conversation;
 };

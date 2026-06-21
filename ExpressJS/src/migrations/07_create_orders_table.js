@@ -1,7 +1,7 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('orders', {
+    await queryInterface.createTable('Orders', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -16,52 +16,50 @@ module.exports = {
           key: 'id'
         }
       },
-      totalPrice: {
+      voucherId: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'Vouchers',
+          key: 'id'
+        }
+      },
+      shipperId: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'Users',
+          key: 'id'
+        }
+      },
+      totalAmount: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false
       },
-      originalTotalPrice: {
-        type: Sequelize.DECIMAL(15, 2),
+      shippingFee: {
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0
       },
-      discountAmount: {
-        type: Sequelize.DECIMAL(15, 2),
-        allowNull: false,
-        defaultValue: 0
+      shipperFee: {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: true
       },
-      couponCode: {
+      shippingMethod: {
         type: Sequelize.STRING,
         allowNull: true
       },
-      pointsRedeemed: {
-        type: Sequelize.INTEGER,
+      orderStatus: {
+        type: Sequelize.ENUM('NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'CANCEL_REQUEST', 'DELIVERY_FAILED'),
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 'NEW'
       },
       shippingAddress: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      phoneNumber: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
       note: {
         type: Sequelize.TEXT,
-        allowNull: true
-      },
-      status: {
-        type: Sequelize.ENUM('NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'CANCEL_REQUEST'),
-        allowNull: false,
-        defaultValue: 'NEW'
-      },
-      confirmedAt: {
-        type: Sequelize.DATE,
-        allowNull: true
-      },
-      cancelRequestedAt: {
-        type: Sequelize.DATE,
         allowNull: true
       },
       createdAt: {
@@ -75,6 +73,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('orders');
+    await queryInterface.dropTable('Orders');
   }
 };

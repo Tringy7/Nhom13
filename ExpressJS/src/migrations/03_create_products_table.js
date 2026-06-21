@@ -1,7 +1,7 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('shops', {
+    await queryInterface.createTable('Products', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -16,23 +16,31 @@ module.exports = {
         type: Sequelize.TEXT,
         allowNull: true
       },
-      logoUrl: {
-        type: Sequelize.STRING,
-        allowNull: true
+      price: {
+        type: Sequelize.DECIMAL(12, 2),
+        allowNull: false
       },
-      userId: {
+      stock: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        unique: true,
-        references: {
-          model: 'Users',
-          key: 'id'
-        }
+        defaultValue: 0
+      },
+      images: {
+        type: Sequelize.JSON,
+        allowNull: true
       },
       status: {
-        type: Sequelize.ENUM('PENDING', 'ACTIVE', 'REJECTED', 'LOCKED'),
+        type: Sequelize.ENUM('ACTIVE', 'INACTIVE'),
         allowNull: false,
-        defaultValue: 'PENDING'
+        defaultValue: 'ACTIVE'
+      },
+      brandId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'brands',
+          key: 'id'
+        }
       },
       createdAt: {
         allowNull: false,
@@ -45,6 +53,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('shops');
+    await queryInterface.dropTable('Products');
   }
 };

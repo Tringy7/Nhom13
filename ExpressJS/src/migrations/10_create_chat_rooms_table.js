@@ -1,37 +1,28 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('cartitems', {
+    await queryInterface.createTable('Conversations', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      cartId: {
+      userId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'carts',
+          model: 'Users',
           key: 'id'
         }
       },
-      productId: {
+      adminId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'products',
+          model: 'Users',
           key: 'id'
         }
-      },
-      quantity: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        defaultValue: 1
-      },
-      price: {
-        type: Sequelize.DECIMAL(12, 2),
-        allowNull: false
       },
       createdAt: {
         allowNull: false,
@@ -44,6 +35,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('cartitems');
+    await queryInterface.dropTable('Conversations');
   }
 };

@@ -10,7 +10,10 @@ module.exports = {
       userId: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        references: { model: 'Users', key: 'id' }
+        references: {
+          model: 'Users',
+          key: 'id'
+        }
       },
       type: {
         type: Sequelize.ENUM('EARN', 'SPEND'),
@@ -20,11 +23,16 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false
       },
-      description: Sequelize.STRING,
+      description: {
+        type: Sequelize.STRING
+      },
       orderId: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        references: { model: 'orders', key: 'id' }
+        references: {
+          model: 'Orders',
+          key: 'id'
+        }
       },
       createdAt: {
         allowNull: false,
