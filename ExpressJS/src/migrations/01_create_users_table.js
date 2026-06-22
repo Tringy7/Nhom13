@@ -10,7 +10,7 @@ module.exports = {
       },
       fullName: {
         type: Sequelize.STRING,
-        allowNull: false
+        allowNull: true
       },
       email: {
         type: Sequelize.STRING,
@@ -22,15 +22,28 @@ module.exports = {
         allowNull: false
       },
       phone: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(11),
         allowNull: true
       },
       avatar: {
         type: Sequelize.STRING,
         allowNull: true
       },
+      address: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
+      gender: {
+        type: Sequelize.ENUM('MALE', 'FEMALE', 'OTHER'),
+        allowNull: true
+      },
+      points: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+      },
       role: {
-        type: Sequelize.ENUM('ADMIN', 'MANAGER', 'SHIPPER', 'USER'),
+        type: Sequelize.ENUM('admin', 'manager', 'shipper', 'user'),
         allowNull: false,
         defaultValue: 'USER'
       },
