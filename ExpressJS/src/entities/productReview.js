@@ -11,10 +11,6 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'productId',
         as: 'product'
       });
-      ProductReview.belongsTo(entities.Order, {
-        foreignKey: 'orderId',
-        as: 'order'
-      });
     }
   }
 
@@ -24,10 +20,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     productId: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
-    orderId: {
       type: DataTypes.INTEGER,
       allowNull: false
     },

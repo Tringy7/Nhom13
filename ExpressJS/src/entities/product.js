@@ -11,17 +11,16 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'productId',
         as: 'images'
       });
-      // Vô hiệu hóa các mối quan hệ không hợp lệ
-      // Product.belongsToMany(entities.Promotion, {
-      //   through: entities.PromotionProduct,
-      //   foreignKey: 'productId',
-      //   otherKey: 'promotionId',
-      //   as: 'promotions'
-      // });
-      // Product.hasMany(entities.ProductReview, {
-      //   foreignKey: 'productId',
-      //   as: 'reviews'
-      // });
+      Product.belongsToMany(entities.Promotion, {
+        through: entities.PromotionProduct,
+        foreignKey: 'productId',
+        otherKey: 'promotionId',
+        as: 'promotions'
+      });
+      Product.hasMany(entities.ProductReview, {
+        foreignKey: 'productId',
+        as: 'reviews'
+      });
       // Product.hasMany(entities.ProductFavorite, {
       //   foreignKey: 'productId',
       //   as: 'favorites'

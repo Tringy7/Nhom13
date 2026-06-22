@@ -24,29 +24,6 @@ const getProductDetail = async (req, res) => {
   }
 };
 
-const getProductsByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    if (!category) {
-      return res.status(400).json({ message: 'Invalid category' });
-    }
-
-    const products = await productService.getProductsByCategory(category, 20);
-
-    return res.json({
-      message: 'Products by category loaded successfully',
-      data: {
-        category,
-        products
-      }
-    });
-  } catch (error) {
-    console.error('Product controller error:', error);
-    return res.status(500).json({ message: 'Server error while loading products by category' });
-  }
-};
-
 export default {
-  getProductDetail,
-  getProductsByCategory
+  getProductDetail
 };
