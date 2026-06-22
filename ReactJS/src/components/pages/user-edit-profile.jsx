@@ -8,13 +8,12 @@ import {
     MailOutlined,
     PhoneOutlined,
     EnvironmentOutlined,
-    CheckCircleOutlined,
-    CrownOutlined
+    CheckCircleOutlined
 } from '@ant-design/icons';
 import { updateUserProfile, clearSuccess, clearError } from '../../redux/profileSlice';
 import { getUser } from '../../components/util/api/user.api.js';
 import styles from '../../components/styles/profile.module.css';
-import { getImageUrl } from '../util/helpers.js'; // IMPORT HELPER
+import { getImageUrl } from '../util/helpers.js';
 
 const { Dragger } = Upload;
 
@@ -47,14 +46,13 @@ const UserEditProfile = () => {
     useEffect(() => {
         if (profile && profile.email) {
             form.setFieldsValue({
+                fullName: profile.fullName || '',
                 email: profile.email,
-                firstName: profile.firstName || '',
-                lastName: profile.lastName || '',
-                phoneNumber: profile.phoneNumber || '',
+                phone: profile.phone || '',
                 address: profile.address || '',
-                gender: profile.gender || 'male'
+                gender: profile.gender || 'MALE'
             });
-            setPreviewImage(getImageUrl(profile.image) || ''); // SỬ DỤNG HELPER
+            setPreviewImage(getImageUrl(profile.avatar) || '');
         }
     }, [profile, form]);
 
@@ -86,38 +84,24 @@ const UserEditProfile = () => {
                 message.error('Hình ảnh phải nhỏ hơn 5MB!');
                 return;
             }
-
-            // Store the raw file
             setImageFile(file);
-
-            // Create a local URL for preview
             const reader = new FileReader();
-            reader.onload = (e) => {
-                setPreviewImage(e.target.result);
-            };
+            reader.onload = (e) => setPreviewImage(e.target.result);
             reader.readAsDataURL(file);
         }
     };
 
     const onFinish = (values) => {
-        console.log("FORM VALUES:", values);
         const formData = new FormData();
-
-        // Append all form values
         Object.keys(values).forEach(key => {
-            formData.append(key, values[key]);
+            if (values[key]) {
+                formData.append(key, values[key]);
+            }
         });
-
-        // Append the image file if it exists
         if (imageFile) {
-            formData.append('image', imageFile);
+            // API mong muốn trường 'avatar', không phải 'image'
+            formData.append('avatar', imageFile);
         }
-
-        console.log("FORM DATA:");
-        for (const pair of formData.entries()) {
-            console.log(pair[0], pair[1]);
-        }
-
         dispatch(updateUserProfile(formData));
     };
 
@@ -145,7 +129,6 @@ const UserEditProfile = () => {
                                 src={previewImage}
                                 className={styles.avatar}
                             />
-
                             <div style={{ width: '100%', marginBottom: '24px' }}>
                                 <Dragger
                                     className={styles.uploadDragger}
@@ -162,25 +145,9 @@ const UserEditProfile = () => {
                                     <p className={styles.uploadHint}>JPG hoặc PNG<br/>Tối đa 5MB</p>
                                 </Dragger>
                             </div>
-
                             <div className={styles.badgeVerified} style={{ width: '100%', marginBottom: '16px', display: profile.isVerified ? 'flex' : 'none' }}>
                                 <CheckCircleOutlined /> Đã xác thực
-                                <br />
-                                <span style={{ fontSize: 12, fontWeight: 'normal' }}>
-                                    Cập nhật lần cuối: {profile.updatedAt ? new Date(profile.updatedAt).toLocaleDateString() : 'N/A'}
-                                </span>
                             </div>
-
-                            {profile.role !== 'vendor' && profile.role !== 'admin' && (
-                                <Button
-                                    type="primary"
-                                    icon={<CrownOutlined />}
-                                    className={styles.gradientButton}
-                                    style={{ marginTop: 'auto' }}
-                                >
-                                    Đăng ký trở thành Vendor
-                                </Button>
-                            )}
                         </div>
                     </Card>
                 </Col>
@@ -197,26 +164,13 @@ const UserEditProfile = () => {
                             autoComplete="off"
                             className={styles.formLabel}
                         >
-                            <Row gutter={24}>
-                                <Col xs={24} sm={12}>
-                                    <Form.Item
-                                        label="First Name"
-                                        name="firstName"
-                                        rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
-                                    >
-                                        <Input className={styles.formInput} placeholder="Nhập tên của bạn" />
-                                    </Form.Item>
-                                </Col>
-                                <Col xs={24} sm={12}>
-                                    <Form.Item
-                                        label="Last Name"
-                                        name="lastName"
-                                        rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
-                                    >
-                                        <Input className={styles.formInput} placeholder="Nhập họ của bạn" />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                            <Form.Item
+                                label="Họ và tên"
+                                name="fullName"
+                                rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+                            >
+                                <Input className={styles.formInput} placeholder="Nhập họ và tên đầy đủ" />
+                            </Form.Item>
 
                             <Form.Item
                                 label="Email"
@@ -230,12 +184,13 @@ const UserEditProfile = () => {
                                     className={styles.formInput}
                                     prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
                                     placeholder="Địa chỉ email"
+                                    disabled
                                 />
                             </Form.Item>
 
                             <Form.Item
-                                label="Phone Number"
-                                name="phoneNumber"
+                                label="Số điện thoại"
+                                name="phone"
                                 rules={[
                                     { pattern: /^[0-9]{10,}$/, message: 'Số điện thoại không hợp lệ' }
                                 ]}
@@ -248,7 +203,7 @@ const UserEditProfile = () => {
                             </Form.Item>
 
                             <Form.Item
-                                label="Address"
+                                label="Địa chỉ"
                                 name="address"
                             >
                                 <Input
@@ -259,7 +214,7 @@ const UserEditProfile = () => {
                             </Form.Item>
 
                             <Form.Item
-                                label="Gender"
+                                label="Giới tính"
                                 name="gender"
                             >
                                 <Segmented
