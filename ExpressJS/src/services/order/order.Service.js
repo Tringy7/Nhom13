@@ -120,7 +120,16 @@ const getOrders = async (userId) => {
     return Order.findAll({
       where: { userId },
       include: [
-        { model: OrderDetail, as: 'details', attributes: ['productName', 'quantity', 'price'] },
+        {
+          model: OrderDetail,
+          as: 'details',
+          attributes: ['id', 'quantity', 'price'],
+          include: [{
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'name', 'price', 'thumbnail', 'stock']
+          }]
+        },
         { model: Payment, as: 'payment', attributes: ['method', 'status'] }
       ],
       order: [['createdAt', 'DESC']]
@@ -131,8 +140,35 @@ const getOrderById = async (userId, orderId) => {
   const order = await Order.findOne({
     where: { id: orderId, userId },
     include: [
-      { model: OrderDetail, as: 'details' },
-      { model: Payment, as: 'payment' },
+      { 
+        model: OrderDetail, 
+        as: 'details',
+        attributes: [
+          'id',
+          'orderId',
+          'productId',
+          'productName',
+          'quantity',
+          'price',
+          'createdAt',
+          'updatedAt'
+        ]
+      },
+      { 
+        model: Payment, 
+        as: 'payment',
+        attributes: [
+          'id',
+          'orderId',
+          'method',
+          'status',
+          'amount',
+          'transactionId',
+          'paidAt',
+          'createdAt',
+          'updatedAt'
+        ]
+      },
       { model: User, as: 'shipper', attributes: ['fullName', 'phone'] }
     ]
   });
