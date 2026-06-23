@@ -36,6 +36,10 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false
       },
+      status: {
+        type: DataTypes.BOOLEAN_TYPE,
+        allowNull: false
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

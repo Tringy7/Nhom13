@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert } from 'antd';
 import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { getOrderById, cancelOrderApi } from '../util/api/order.api';
+import { getOrderById, cancelOrderItemApi } from '../util/api/order.api';
 import { submitReviewApi } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import styled, { keyframes } from 'styled-components';
@@ -19,6 +19,11 @@ const ORDER_STATUS = Object.freeze({
     DELIVERED: 'DELIVERED',
     CANCELLED: 'CANCELLED',
     CANCEL_REQUEST: 'CANCEL_REQUEST'
+});
+
+const ORDER_DETAIL_STATUS = Object.freeze({
+    EXISTED: 'EXISTED',
+    CANCELLED: 'CANCELLED'
 });
 
 const STATUS_STEPS = [
@@ -215,9 +220,7 @@ const OrderStatusTracker = ({ status }) => {
     );
 };
 
-const OrderHeader = ({ order, onCancel }) => {
-    const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.orderStatus);
-
+const OrderHeader = ({ order }) => {
     return (
         <CardBase>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -226,7 +229,6 @@ const OrderHeader = ({ order, onCancel }) => {
                     <Text style={{ color: '#595959' }}>Placed on {formatDateTime(order.createdAt)} • ID: {order.id}</Text>
                 </div>
                 <Space>
-                    {canCancel && <Button danger onClick={onCancel}>Cancel Order</Button>}
                     <Button icon={<DownloadOutlined />}>Download Invoice</Button>
                     <Button type="primary" icon={<CustomerServiceOutlined />}>Get Support</Button>
                 </Space>
@@ -243,32 +245,43 @@ const OrderHeader = ({ order, onCancel }) => {
     );
 };
 
-const ProductItem = ({ item, orderStatus, onReview }) => (
-    <>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0' }}>
-            <Image width={64} height={64} src={getImageUrl(item.product?.thumbnail) || null} style={{ borderRadius: 8, objectFit: 'cover' }} />
-            <div style={{ flex: 1 }}>
-                <Text strong>{item.productName}</Text>
-                <br />
-                <Text style={{ color: '#595959' }}>Qty: {item.quantity}</Text>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-                <Text style={{ fontWeight: 700, fontSize: 16 }}>{formatPrice(Number(item.price) * item.quantity)}</Text>
-                {orderStatus === ORDER_STATUS.DELIVERED && (
+const ProductItem = ({ item, orderStatus, onReview, onCancelItem }) => {
+    const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus);
+    const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
+
+    const itemStyle = isCancelled ? { opacity: 0.5, textDecoration: 'line-through' } : {};
+
+    return (
+        <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0', ...itemStyle }}>
+                <Image width={64} height={64} src={getImageUrl(item.product?.thumbnail) || null} style={{ borderRadius: 8, objectFit: 'cover' }} />
+                <div style={{ flex: 1 }}>
+                    <Text strong>{item.productName}</Text>
+                    <br />
+                    <Text style={{ color: '#595959' }}>Qty: {item.quantity}</Text>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <Text style={{ fontSize: 16 }}>{formatPrice(Number(item.price) * item.quantity)}</Text>
                     <div style={{ marginTop: 8 }}>
                         <Space>
-                            <Button size="small" icon={<StarOutlined />} onClick={onReview}>Review Product</Button>
-                            <Button size="small" icon={<ShoppingCartOutlined />} type="default">Buy Again</Button>
+                            {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && (
+                                <>
+                                    <Button size="small" icon={<StarOutlined />} onClick={onReview}>Review Product</Button>
+                                    <Button size="small" icon={<ShoppingCartOutlined />} type="default">Buy Again</Button>
+                                </>
+                            )}
+                            {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Cancel</Button>}
+                            {isCancelled && <Tag color="red">Cancelled</Tag>}
                         </Space>
                     </div>
-                )}
+                </div>
             </div>
-        </div>
-        <Divider style={{ margin: 0 }} />
-    </>
-);
+            <Divider style={{ margin: 0 }} />
+        </>
+    );
+};
 
-const ProductListCard = ({ details, orderStatus, onReview }) => {
+const ProductListCard = ({ details, orderStatus, onReview, onCancelItem }) => {
     const [isCollapsed, setIsCollapsed] = useState(details.length > 3);
     const itemsToShow = isCollapsed ? details.slice(0, 3) : details;
 
@@ -278,7 +291,7 @@ const ProductListCard = ({ details, orderStatus, onReview }) => {
             <div style={{ margin: '0 -24px' }}>
                 {itemsToShow.map(item => (
                     <div key={item.id} style={{ padding: '0 24px' }}>
-                        <ProductItem item={item} orderStatus={orderStatus} onReview={() => onReview(item)} />
+                        <ProductItem item={item} orderStatus={orderStatus} onReview={() => onReview(item)} onCancelItem={() => onCancelItem(item.id)} />
                     </div>
                 ))}
             </div>
@@ -354,25 +367,33 @@ const FeedbackShipperCard = () => {
     );
 };
 
-const OrderSummary = ({ subtotal, shippingFee, discount, total }) => (
-    <CardBase>
-        <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Order Summary</Title>
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            <Row justify="space-between"><Text style={{ color: '#595959' }}>Subtotal</Text><Text strong>{formatPrice(subtotal)}</Text></Row>
-            <Row justify="space-between"><Text style={{ color: '#595959' }}>Shipping Fee</Text><Text strong>{shippingFee > 0 ? formatPrice(shippingFee) : 'FREE'}</Text></Row>
-            {discount > 0 && <Row justify="space-between"><Text style={{ color: 'red' }}>Holiday Promo</Text><Text strong style={{ color: 'red' }}>-{formatPrice(discount)}</Text></Row>}
-            <Row justify="space-between"><Text style={{ color: '#595959' }}>Tax (inc.)</Text><Text strong>{formatPrice(0)}</Text></Row>
-        </Space>
-        <Divider style={{ margin: '24px 0' }} />
-        <Row justify="space-between" align="middle">
-            <Title level={4} style={{ margin: 0 }}>Total</Title>
-            <Title level={2} style={{ margin: 0, color: '#1677ff', fontWeight: 'bold', fontSize: 28 }}>{formatPrice(total)}</Title>
-        </Row>
-        <Button type="primary" size="large" style={{ width: '100%', height: 48, borderRadius: 8, marginTop: 24, fontWeight: 600 }}>
-            Reorder All Items
-        </Button>
-    </CardBase>
-);
+const OrderSummary = ({ order }) => {
+    const activeItems = order.details.filter(item => item.status !== ORDER_DETAIL_STATUS.CANCELLED);
+    const subtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+    const shippingFee = Number(order.shippingFee || 0);
+    const total = Number(order.totalAmount);
+    const discount = subtotal + shippingFee - total;
+
+    return (
+        <CardBase>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Order Summary</Title>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Subtotal</Text><Text strong>{formatPrice(subtotal)}</Text></Row>
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Shipping Fee</Text><Text strong>{shippingFee > 0 ? formatPrice(shippingFee) : 'FREE'}</Text></Row>
+                {discount > 0 && <Row justify="space-between"><Text style={{ color: 'red' }}>Voucher Discount</Text><Text strong style={{ color: 'red' }}>-{formatPrice(discount)}</Text></Row>}
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Tax (inc.)</Text><Text strong>{formatPrice(0)}</Text></Row>
+            </Space>
+            <Divider style={{ margin: '24px 0' }} />
+            <Row justify="space-between" align="middle">
+                <Title level={4} style={{ margin: 0 }}>Total</Title>
+                <Title level={2} style={{ margin: 0, color: '#1677ff', fontWeight: 'bold', fontSize: 28 }}>{formatPrice(total)}</Title>
+            </Row>
+            <Button type="primary" size="large" style={{ width: '100%', height: 48, borderRadius: 8, marginTop: 24, fontWeight: 600 }}>
+                Reorder All Items
+            </Button>
+        </CardBase>
+    );
+};
 
 const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit }) => {
     const [rating, setRating] = useState(0);
@@ -447,7 +468,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                                 flexShrink: 0
                             }}
                             preview={true}
-                            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOqmgzKDRv3zXbAq1eaGPvVkFsTdsskCImLsZWUTjD0MAXI4fOHS0uIIsAUblC4uPq5uPV5GkGDBsAFQzQWNoLhAwWHN51pAGEn5sEzGNgUGENsgCzN7pLSBqEOYV4C4gNhQGZgYpsIOgcIMGUOAoYOpBYWlgSkRxBioInCGLQJMoJLo0aSBHVRMA+wiuDR9CFAx909hH6+A0jTMAyM2S15PF5pYVNSq1isd9F2dgIBAwYgBigwIccAhYwRCgIsRvsCRgJHBGMMAs2IChgQjB2pAl8EZg1iDGZfaGNwI3BicGRA1jB2YIBA5gAlPAA4X2h0wAAAABJRU5ErkJggg=="
+                            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOqmgzKDRv3zXbAq1eaGPvVkFsTdsskCImLsZWUTjD0MAXI4fOHS0uIIsAUblC4uPq5uPV5GkGDBsAFQzQWNoLhAwWHN51pAGEn5sEzGNgUGENsgCzN7pLSBqEOYV4C4gNhQGZgYpsIOgcIMGUOAoYOpBYWlgSkRxBioInCGLQJMoJLo0aSBHVRMA+wiuDR9CFAx909hH6+A0jTMAyM2S1zPF5pYVNSq1isd9F2dgIBAwYgBigwIccAhYwRCgIsRvsCRgJHBGMMAs2IChgQjB2pAl8EZg1iDGZfaGNwI3BicGRA1jB2YIBA5gAlPAA4X2h0wAAAABJRU5ErkJggg=="
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <Text strong style={{
@@ -528,13 +549,13 @@ const OrderDetailPage = () => {
         }
     };
 
-    const handleCancelOrder = async () => {
+    const handleCancelItem = async (itemId) => {
         try {
-            await cancelOrderApi(id);
-            message.success('Order has been cancelled.');
+            await cancelOrderItemApi(id, itemId);
+            message.success('Item has been cancelled.');
             fetchOrder(); // Refresh order details
         } catch (error) {
-            message.error('Failed to cancel order.');
+            message.error('Failed to cancel item.');
         }
     };
 
@@ -545,11 +566,6 @@ const OrderDetailPage = () => {
     if (!order) {
         return <PageWrapper><Container><Empty description="Order not found." /></Container></PageWrapper>;
     }
-
-    const subtotal = order.details.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
-    const shippingFee = Number(order.shippingFee || 0);
-    const discount = Number(order.voucherDiscount || 0);
-    const total = subtotal + shippingFee - discount;
 
     return (
         <PageWrapper>
@@ -562,8 +578,8 @@ const OrderDetailPage = () => {
 
                 <MainGrid>
                     <LeftColumn>
-                        <OrderHeader order={order} onCancel={handleCancelOrder} />
-                        <ProductListCard details={order.details} orderStatus={order.orderStatus} onReview={handleOpenReview} />
+                        <OrderHeader order={order} />
+                        <ProductListCard details={order.details} orderStatus={order.orderStatus} onReview={handleOpenReview} onCancelItem={handleCancelItem} />
                         {order.orderStatus === ORDER_STATUS.DELIVERED && (
                             <>
                                 <FeedbackSystemCard />
@@ -573,7 +589,7 @@ const OrderDetailPage = () => {
                     </LeftColumn>
 
                     <RightColumn>
-                        <OrderSummary subtotal={subtotal} shippingFee={shippingFee} discount={discount} total={total} />
+                        <OrderSummary order={order} />
                         <ShippingAddressCard order={order} />
                     </RightColumn>
                 </MainGrid>

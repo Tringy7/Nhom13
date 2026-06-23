@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import db from '../../entities/index.js';
 import paymentService from '../payment/payment.service.js';
-import { ORDER_STATUS } from '../../constants/order.constants.js';
+import { ORDER_STATUS, ORDER_DETAIL_STATUS } from '../../constants/order.constants.js';
 import { PAYMENT_METHOD } from '../../constants/payment.constants.js';
 
 const { 
@@ -76,7 +76,8 @@ const createOrder = async (userId, { shippingAddress, phoneNumber, note, payment
       productId: item.productId,
       productName: item.productName,
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      status: ORDER_DETAIL_STATUS.EXISTED,
     }));
     await OrderDetail.bulkCreate(orderDetailsData, { transaction: t });
 
@@ -116,6 +117,62 @@ const createOrder = async (userId, { shippingAddress, phoneNumber, note, payment
   }
 };
 
+const cancelOrderItem = async (userId, orderId, orderItemId) => {
+  const t = await sequelize.transaction();
+  try {
+    const order = await Order.findOne({ 
+      where: { id: orderId, userId }, 
+      include: [{ model: OrderDetail, as: 'details' }],
+      transaction: t 
+    });
+
+    if (!order) throw new Error('Không tìm thấy đơn hàng.');
+    if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.orderStatus)) {
+      throw new Error('Chỉ có thể hủy sản phẩm khi đơn hàng ở trạng thái "Mới" hoặc "Đã xác nhận".');
+    }
+
+    const itemToCancel = order.details.find(item => item.id === orderItemId);
+    if (!itemToCancel) throw new Error('Sản phẩm không tồn tại trong đơn hàng.');
+    if (itemToCancel.status === ORDER_DETAIL_STATUS.CANCELLED) {
+      throw new Error('Sản phẩm này đã được hủy trước đó.');
+    }
+
+    await itemToCancel.update({ status: ORDER_DETAIL_STATUS.CANCELLED }, { transaction: t });
+    await Product.increment('stock', { by: itemToCancel.quantity, where: { id: itemToCancel.productId }, transaction: t });
+
+    const remainingItems = order.details.filter(item => item.id !== orderItemId && item.status === ORDER_DETAIL_STATUS.EXISTED);
+    const newSubtotal = remainingItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Re-evaluate voucher
+    let newVoucherDiscount = 0;
+    if (order.voucherId) {
+      const voucher = await Voucher.findByPk(order.voucherId, { transaction: t });
+      if (voucher && newSubtotal >= voucher.minOrderValue) {
+        if (voucher.discountType === 'FIXED') {
+          newVoucherDiscount = voucher.discountValue;
+        } else {
+          newVoucherDiscount = (newSubtotal * voucher.discountValue) / 100;
+        }
+      }
+    }
+
+    const newFinalTotal = Math.max(0, newSubtotal - newVoucherDiscount);
+    await order.update({ totalAmount: newFinalTotal }, { transaction: t });
+
+    const allItemsCancelled = order.details.every(item => item.status === ORDER_DETAIL_STATUS.CANCELLED);
+    if (allItemsCancelled) {
+      await order.update({ orderStatus: ORDER_STATUS.CANCELLED }, { transaction: t });
+    }
+
+    await t.commit();
+    return order;
+  } catch (error) {
+    await t.rollback();
+    console.error('Lỗi khi hủy sản phẩm trong đơn hàng:', error);
+    throw error;
+  }
+};
+
 const getOrders = async (userId) => {
     return Order.findAll({
       where: { userId },
@@ -123,7 +180,7 @@ const getOrders = async (userId) => {
         {
           model: OrderDetail,
           as: 'details',
-          attributes: ['id', 'quantity', 'price'],
+          attributes: ['id', 'quantity', 'price', 'status'],
           include: [{
             model: Product,
             as: 'product',
@@ -145,9 +202,11 @@ const getOrderById = async (userId, orderId) => {
         as: 'details',
         attributes: [
           'id',
+          'productId',
           'productName',
           'quantity',
           'price',
+          'status',
           'createdAt',
           'updatedAt'
         ],
@@ -241,7 +300,6 @@ const updateOrderStatus = async (adminId, orderId, { status, shipperId = null })
   return order;
 };
 
-// Updated to handle new fields
 const handleCancelRequest = async (adminId, requestId, { approve, adminNotes = '' }) => {
     const request = await OrderCancellationRequest.findByPk(requestId, { include: [Order] });
     if (!request) throw new Error('Không tìm thấy yêu cầu hủy.');
@@ -268,7 +326,6 @@ const handleCancelRequest = async (adminId, requestId, { approve, adminNotes = '
           adminNotes,
           processedAt: now
         });
-        // Revert order status to what it was before the request, e.g., CONFIRMED
         await order.update({ orderStatus: ORDER_STATUS.CONFIRMED }); 
     }
     return request;
@@ -278,6 +335,7 @@ export default {
   createOrder,
   getOrders,
   getOrderById,
+  cancelOrderItem,
   requestCancelOrder,
   getAdminOrders,
   getAdminOrderById,

@@ -90,6 +90,24 @@ const getOrderById = async (req, res) => {
   }
 };
 
+const cancelOrderItem = async (req, res) => {
+  try {
+    const userId = req.user?.id ?? req.user?.userId;
+    const { orderId, itemId } = req.params;
+    const updatedOrder = await orderService.cancelOrderItem(userId, orderId, parseInt(itemId, 10));
+    return res.status(200).json({
+      success: true,
+      message: 'Hủy sản phẩm thành công.',
+      data: updatedOrder
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 const cancelOrder = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
@@ -188,6 +206,7 @@ export default {
   createOrder,
   getOrders,
   getOrderById,
+  cancelOrderItem,
   cancelOrder,
   getAdminOrders,
   getAdminOrderById,

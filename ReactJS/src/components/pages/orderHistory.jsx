@@ -17,6 +17,11 @@ const STATUS_CONFIG = {
     'CANCEL_REQUEST': { text: 'Yêu cầu hủy đơn', color: 'volcano', icon: <SyncOutlined spin /> },
 };
 
+const ORDER_DETAIL_STATUS = Object.freeze({
+    EXISTED: 'EXISTED',
+    CANCELLED: 'CANCELLED'
+});
+
 const styles = {
     pageWrapper: { background: '#f5f7fb', minHeight: '100vh', padding: '40px 0', fontFamily: 'Inter, sans-serif' },
     container: { maxWidth: 1440, margin: '0 auto', padding: '0 24px' },
@@ -69,7 +74,8 @@ const OrderHistoryPage = () => {
                         name: item.product.name,
                         quantity: Number(item.quantity),
                         price: Number(item.price),
-                        image: getImageUrl(item.product.thumbnail) // Sử dụng getImageUrl
+                        status: item.status,
+                        image: getImageUrl(item.product.thumbnail)
                     }))
                 }));
                 
@@ -187,27 +193,31 @@ const OrderHistoryPage = () => {
                                             </Row>
                                             
                                             <div style={{ padding: '0 32px', margin: '24px 0' }}>
-                                                {order.items.slice(0, 3).map((item) => (
-                                                    <Row key={item.id} gutter={20} align="middle" style={{ marginBottom: 16 }}>
-                                                        <Col>
-                                                            <Image 
-                                                                src={item.image} 
-                                                                width={64} 
-                                                                height={64} 
-                                                                preview={false} 
-                                                                style={{ objectFit: 'contain', borderRadius: 8, border: '1px solid #e5e7eb' }}
-                                                                fallback="/placeholder-product.png" // Thêm fallback
-                                                            />
-                                                        </Col>
-                                                        <Col flex="auto">
-                                                            <Text strong className="product-name">{item.name}</Text>
-                                                            <Text type="secondary" style={{ display: 'block' }}>Qty: {item.quantity}</Text>
-                                                        </Col>
-                                                        <Col>
-                                                            <Text strong>{formatPrice(item.price)}</Text>
-                                                        </Col>
-                                                    </Row>
-                                                ))}
+                                                {order.items.slice(0, 3).map((item) => {
+                                                    const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
+                                                    const itemStyle = isCancelled ? { opacity: 0.5, textDecoration: 'line-through' } : {};
+                                                    return (
+                                                        <Row key={item.id} gutter={20} align="middle" style={{ marginBottom: 16, ...itemStyle }}>
+                                                            <Col>
+                                                                <Image 
+                                                                    src={item.image} 
+                                                                    width={64} 
+                                                                    height={64} 
+                                                                    preview={false} 
+                                                                    style={{ objectFit: 'contain', borderRadius: 8, border: '1px solid #e5e7eb' }}
+                                                                    fallback="/placeholder-product.png"
+                                                                />
+                                                            </Col>
+                                                            <Col flex="auto">
+                                                                <Text strong className="product-name">{item.name}</Text>
+                                                                <Text type="secondary" style={{ display: 'block' }}>Qty: {item.quantity}</Text>
+                                                            </Col>
+                                                            <Col>
+                                                                <Text strong>{formatPrice(item.price)}</Text>
+                                                            </Col>
+                                                        </Row>
+                                                    );
+                                                })}
                                                 {order.items.length > 3 && (
                                                     <Text type="secondary" style={{ paddingLeft: 84 }}>+ {order.items.length - 3} more items</Text>
                                                 )}
@@ -222,9 +232,6 @@ const OrderHistoryPage = () => {
                                                     <Space size={12}>
                                                         <Button icon={<EyeOutlined />} style={styles.outlineBtn} onClick={() => navigate(`/orders/${order.id}`)}>
                                                             View Details
-                                                        </Button>
-                                                        <Button type="primary" icon={<ReloadOutlined />} style={styles.primaryBtn} className="btn-buy-again">
-                                                            Buy Again
                                                         </Button>
                                                     </Space>
                                                 </Col>

@@ -19,9 +19,15 @@ export const getOrderById = (orderId) => {
 };
 
 // Huỷ đơn hàng
-export const cancelOrder = (orderId) => {
+export const cancelOrderApi = (orderId) => {
     const URL_API = `/api/order/${orderId}/cancel`;
     return axios.delete(URL_API);
+};
+
+// Hủy một item trong đơn hàng
+export const cancelOrderItemApi = (orderId, itemId) => {
+    const URL_API = `/api/orders/${orderId}/items/${itemId}`;
+    return axios.post(URL_API);
 };
 
 export const getAdminOrders = () => {
