@@ -1,111 +1,82 @@
-import React, { createContext, useReducer, useEffect, useState } from 'react';
-import instance from '../util/axios.customize';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useReducer, useState, useEffect } from 'react';
+import { getUserProfileApi } from '../util/api/user.api';
 
-const initialState = {
+const initialAuthState = {
     isAuthenticated: false,
-    user: null,
-    accessToken: null,
+    user: {
+        email: "",
+        name: "",
+        role: ""
+    }
 };
-
-const AuthContext = createContext();
 
 const authReducer = (state, action) => {
     switch (action.type) {
-        case 'LOGIN_SUCCESS':
-            localStorage.setItem('access_token', action.payload.accessToken);
+        case 'LOGIN':
             return {
-                ...state,
                 isAuthenticated: true,
                 user: action.payload.user,
-                accessToken: action.payload.accessToken,
             };
         case 'LOGOUT':
-            localStorage.removeItem('access_token');
-            delete instance.defaults.headers.common['Authorization'];
-            return {
-                ...initialState,
-            };
+            return initialAuthState;
         default:
             return state;
     }
 };
 
-// Component con để xử lý chuyển hướng an toàn
-const AuthNavigator = () => {
-    const navigate = useNavigate();
-    useEffect(() => {
-        const handleLogoutNavigation = () => {
-            navigate('/login');
-        };
-        window.addEventListener('force_logout_navigation', handleLogoutNavigation);
-        return () => window.removeEventListener('force_logout_navigation', handleLogoutNavigation);
-    }, [navigate]);
-    return null;
-};
+export const AuthContext = createContext({
+    auth: initialAuthState,
+    dispatch: () => {},
+    appLoading: true,
+});
 
-const AuthProvider = ({ children }) => {
-    const [state, dispatch] = useReducer(authReducer, initialState);
-    const [isLoading, setIsLoading] = useState(true);
+export const AuthWrapper = (props) => {
+    const [auth, dispatch] = useReducer(authReducer, initialAuthState);
+    const [appLoading, setAppLoading] = useState(true);
 
     useEffect(() => {
-        const initializeApp = async () => {
-            const token = localStorage.getItem('access_token');
-
-            if (!token) {
-                try {
-                    const res = await instance.post('/api/auth/refresh');
-                    const newAccessToken = res.data.token;
-                    const profileRes = await instance.get('/api/auth/profile', {
-                        headers: { 'Authorization': `Bearer ${newAccessToken}` }
-                    });
+        const checkAuthOnLoad = async () => {
+            try {
+                const res = await getUserProfileApi();
+                if (res && res.user) {
                     dispatch({
-                        type: 'LOGIN_SUCCESS',
-                        payload: { accessToken: newAccessToken, user: profileRes.data },
+                        type: 'LOGIN',
+                        payload: {
+                            user: {
+                                email: res.user.email,
+                                name: res.user.firstName || res.user.name,
+                                role: res.user.role,
+                            }
+                        }
                     });
-                } catch (error) {
-                    // Ignore, user is not logged in
                 }
-            } else {
-                try {
-                    const profileRes = await instance.get('/api/auth/profile');
-                    dispatch({
-                        type: 'LOGIN_SUCCESS',
-                        payload: { accessToken: token, user: profileRes.data },
-                    });
-                } catch (error) {
-                    // Interceptor will handle 401, if it fails for other reasons, we logout
-                    if (error.response?.status !== 401) {
-                         dispatch({ type: 'LOGOUT' });
-                    }
-                }
+            } catch (error) {
+                dispatch({ type: 'LOGOUT' });
+            } finally {
+                setAppLoading(false);
             }
-            setIsLoading(false);
         };
 
-        initializeApp();
-
-        const handleForceLogout = () => {
-            dispatch({ type: 'LOGOUT' });
-            window.dispatchEvent(new Event('force_logout_navigation'));
-        };
-        window.addEventListener('force_logout', handleForceLogout);
-
-        return () => {
-            window.removeEventListener('force_logout', handleForceLogout);
-        };
+        checkAuthOnLoad();
     }, []);
 
-    if (isLoading) {
-        return <div>Loading application...</div>;
-    }
+    useEffect(() => {
+        const handleForceLogout = () => {
+            dispatch({ type: 'LOGOUT' });
+        };
+
+        window.addEventListener('force_logout', handleForceLogout);
+        return () => window.removeEventListener('force_logout', handleForceLogout);
+    }, []);
 
     return (
-        <AuthContext.Provider value={{ auth: state, dispatch }}>
-            <AuthNavigator />
-            {children}
+        <AuthContext.Provider value={{
+            auth,
+            dispatch,
+            appLoading,
+            setAppLoading,
+        }}>
+            {props.children}
         </AuthContext.Provider>
     );
 };
-
-export { AuthContext, AuthProvider };
