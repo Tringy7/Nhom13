@@ -38,7 +38,7 @@ let login = async (req, res) => {
       lastLoginAt: new Date(),
     });
 
-    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
+    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
     res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     const role = user.role.toLowerCase();

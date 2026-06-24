@@ -239,9 +239,9 @@ const applyVoucher = async (userId, rewardCode, orderTotal) => {
 
 const getRewardBalance = async (userId) => {
   const user = await User.findByPk(userId, {
-    attributes: ['pointsBalance']
+    attributes: ['points']
   });
-  return user ? user.pointsBalance : 0;
+  return user ? user.points : 0;
 };
 
 const getRewardHistory = async (userId) => {

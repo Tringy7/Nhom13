@@ -1,8 +1,14 @@
-import axios from "axios";
-import { message } from "antd";
+import axios from 'axios';
 
+// Tạo một instance axios riêng để không bị vòng lặp interceptor khi refresh
+const refreshInstance = axios.create({
+    baseURL: 'http://localhost:8080',
+    withCredentials: true,
+});
+
+// Instance chính cho các API khác
 const instance = axios.create({
-    baseURL: import.meta.env.VITE_BACKEND_URL,
+    baseURL: 'http://localhost:8080',
     withCredentials: true,
 });
 
@@ -20,107 +26,70 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-const PUBLIC_AUTH_PATHS = [
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/auth/verify-otp',
-    '/api/auth/forgot-password',
-    '/api/auth/reset-password',
-    '/api/auth/resend-otp'
-];
-
-const isPublicAuthRequest = (url = '') => PUBLIC_AUTH_PATHS.some(path => url.includes(path));
-
-// === SỬA LỖI: Thêm interceptor cho request để tự động đính kèm token ===
-// Điều này giúp đồng bộ hóa việc lấy token, thay vì để mỗi nơi tự quản lý
+// Interceptor cho các request gửi đi
 instance.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('accessToken');
+    config => {
+        const token = localStorage.getItem('access_token');
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
         return config;
     },
-    (error) => {
+    error => {
         return Promise.reject(error);
     }
 );
 
-
+// Interceptor cho các response trả về
 instance.interceptors.response.use(
-    function (response) {
-        if (response && response.data) {
-            return response.data;
-        }
+    response => {
         return response;
     },
-    async function (error) {
+    async (error) => {
         const originalRequest = error.config;
-        const requestUrl = originalRequest?.url || '';
 
-        // Bỏ qua lỗi 401 từ các API xác thực công khai
-        if (error?.response?.status === 401 && isPublicAuthRequest(requestUrl)) {
-            return Promise.reject(error);
-        }
-        
-        // Nếu API refresh token thất bại, chuyển thẳng đến logic logout
-        if (error?.response?.status === 401 && originalRequest.url.includes('/api/auth/refresh')) {
-            // === SỬA LỖI: Thêm logic điều hướng tại đây ===
-            if (window.location.pathname !== '/login') {
-                message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-                localStorage.removeItem('accessToken'); // Dọn dẹp token
-                window.dispatchEvent(new Event('force_logout')); // Thông báo cho các context khác
-                window.location.href = '/login'; // Điều hướng
-            }
-            return Promise.reject(error);
-        }
-
-        // Xử lý lỗi 401 cho các API cần xác thực khác
-        if (error?.response?.status === 401 && !originalRequest._retry) {
+        // Nếu lỗi là 401 và request chưa được retry
+        if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
+                // Nếu đang refresh, đẩy request vào hàng đợi
                 return new Promise(function (resolve, reject) {
                     failedQueue.push({ resolve, reject });
                 })
-                .then(token => {
-                    originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                    return instance(originalRequest);
-                })
-                .catch(err => {
-                    return Promise.reject(err);
-                });
+                    .then(token => {
+                        originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                        return instance(originalRequest);
+                    })
+                    .catch(err => {
+                        return Promise.reject(err);
+                    });
             }
 
             originalRequest._retry = true;
             isRefreshing = true;
 
             try {
-                const res = await axios.post(
-                    `${import.meta.env.VITE_BACKEND_URL}/api/auth/refresh`,
-                    {},
-                    { withCredentials: true }
-                );
+                // Gọi API refresh token
+                const res = await refreshInstance.post('/api/auth/refresh');
+                const newAccessToken = res.data.token;
 
-                const newToken = res.data?.accessToken;
-                if (!newToken) throw new Error("No new token received");
+                // Lưu token mới
+                localStorage.setItem('access_token', newAccessToken);
 
-                // Cập nhật token mới vào localStorage để các request sau này sử dụng
-                localStorage.setItem('accessToken', newToken);
+                // Cập nhật header cho các request sau này
+                instance.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
+                originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
 
-                processQueue(null, newToken);
-                originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                // Thực thi lại các request trong hàng đợi
+                processQueue(null, newAccessToken);
+
+                // Retry lại request ban đầu
                 return instance(originalRequest);
-
             } catch (refreshError) {
+                // Nếu refresh thất bại, logout người dùng
                 processQueue(refreshError, null);
-                
-                // === SỬA LỖI: Thêm logic điều hướng tại đây ===
-                if (window.location.pathname !== '/login') {
-                    message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-                    localStorage.removeItem('accessToken'); // Dọn dẹp token
-                    window.dispatchEvent(new Event('force_logout')); // Thông báo cho các context khác
-                    window.location.href = '/login'; // Điều hướng
-                }
-
+                localStorage.removeItem('access_token');
+                // Gửi một sự kiện để AuthProvider có thể bắt và cập nhật state
+                window.dispatchEvent(new Event('force_logout'));
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
