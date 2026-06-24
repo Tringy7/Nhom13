@@ -37,7 +37,7 @@ const CheckoutPage = () => {
     const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
     const [voucherDiscount, setVoucherDiscount] = useState(0);
-    
+
     const [userPoints, setUserPoints] = useState(0);
     const [pointsToUse, setPointsToUse] = useState('');
     const [pointsError, setPointsError] = useState(null);
@@ -124,8 +124,7 @@ const CheckoutPage = () => {
                     quantity: item.quantity,
                     price: item.price
                 })),
-                // Gửi đi ID của UserVoucher
-                couponId: selectedVoucher ? selectedVoucher.id : null,
+                voucherId: selectedVoucher ? selectedVoucher.voucherId : null,
                 pointsToUse: Number(pointsToUse) || 0,
                 paymentMethod: paymentMethod,
             };
@@ -276,12 +275,12 @@ const CheckoutPage = () => {
                                         <Text type="secondary">Hiện có: {userPoints.toLocaleString()}</Text>
                                     </Row>
                                     <Space.Compact style={{ width: '100%' }}>
-                                        <Input 
-                                            type="number" 
-                                            placeholder="Nhập số điểm" 
-                                            value={pointsToUse} 
-                                            onChange={e => setPointsToUse(e.target.value)} 
-                                            style={{ height: 44 }} 
+                                        <Input
+                                            type="number"
+                                            placeholder="Nhập số điểm"
+                                            value={pointsToUse}
+                                            onChange={e => setPointsToUse(e.target.value)}
+                                            style={{ height: 44 }}
                                         />
                                         <Button type="default" onClick={handleUseMaxPoints} style={{ height: 44 }}>Dùng tối đa</Button>
                                     </Space.Compact>

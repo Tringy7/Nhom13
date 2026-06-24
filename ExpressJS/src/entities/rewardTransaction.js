@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
       references: { model: 'Users', key: 'id' }
     },
     type: {
-      type: DataTypes.ENUM('EARN', 'SPEND'),
+      type: DataTypes.ENUM('EARN', 'USE'),
       allowNull: false
     },
     points: {

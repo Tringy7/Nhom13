@@ -27,7 +27,7 @@ const createOrder = async (userId, {
     paymentMethod = 'COD',
     items,
     voucherId = null,
-    pointsToUse = 0
+    pointsToUse = 0 // This is `pointsToUse` from the request
 }, req) => {
     const t = await sequelize.transaction();
     try {
@@ -51,11 +51,16 @@ const createOrder = async (userId, {
 
         if (orderableItems.length === 0) throw new Error('Không có sản phẩm nào để thanh toán.');
 
+        // 1. Correctly calculate subtotal
         const subtotal = orderableItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+        // 2. Initialize discounts
         let voucherDiscount = 0;
+        let pointsDiscount = 0; // This will be stored in the Order model
         let appliedVoucherId = null;
         let userVoucher = null;
 
+        // 3. Process Voucher
         if (voucherId) {
             userVoucher = await UserVoucher.findOne({
                 where: { voucherId: voucherId, userId: userId, isUsed: false },
@@ -64,40 +69,49 @@ const createOrder = async (userId, {
             });
 
             if (!userVoucher) throw new Error('Voucher không hợp lệ hoặc đã được sử dụng.');
-
             const voucher = userVoucher.voucher;
             if (new Date(voucher.endDate) < new Date()) throw new Error('Voucher đã hết hạn.');
             if (subtotal < voucher.minOrderValue) throw new Error(`Đơn hàng chưa đạt giá trị tối thiểu ${voucher.minOrderValue.toLocaleString()}đ để dùng voucher.`);
 
             if (voucher.discountType === 'FIXED') {
                 voucherDiscount = voucher.discountValue;
-            } else {
+            } else { // PERCENT
                 voucherDiscount = Math.min((subtotal * voucher.discountValue) / 100, voucher.maxDiscountAmount || Infinity);
             }
             appliedVoucherId = voucher.id;
         }
 
-        let tempTotal = subtotal - voucherDiscount;
-        let pointsDiscount = 0;
-        const pointsToUseNum = Number(pointsToUse) || 0;
-
-        if (pointsToUseNum > 0) {
-            if (user.points < pointsToUseNum) throw new Error('Bạn không đủ điểm để sử dụng.');
-            // Assuming 1 point = 1 VND for discount
-            pointsDiscount = pointsToUseNum;
-            if (pointsDiscount > tempTotal) {
-                pointsDiscount = tempTotal; // Can't discount more than the total
+        // 4. Process Points
+        const pointsToRedeem = Number(pointsToUse) || 0;
+        if (pointsToRedeem > 0) {
+            if (user.points < pointsToRedeem) {
+                throw new Error('Số điểm sử dụng vượt quá số điểm hiện có.');
             }
+            // Assuming 1 point = 1 VND. The discount is the number of points used.
+            pointsDiscount = pointsToRedeem;
         }
 
-        const finalTotal = Math.max(0, tempTotal - pointsDiscount);
+        // 5. Calculate Final Total
+        // Ensure discounts don't make the total negative.
+        const totalDiscount = voucherDiscount + pointsDiscount;
+        const finalTotal = Math.max(0, subtotal - totalDiscount);
 
+        // Make sure the points redeemed don't exceed the value of the order after voucher.
+        if (pointsDiscount > subtotal - voucherDiscount) {
+            // This is a server-side correction. The client should prevent this.
+            pointsDiscount = Math.max(0, subtotal - voucherDiscount);
+        }
+
+        const finalTotalWithCorrection = Math.max(0, subtotal - voucherDiscount - pointsDiscount);
+
+
+        // 6. Create the Order with all financial fields
         const order = await Order.create({
             userId,
-            totalAmount: finalTotal,
-            subtotal: subtotal,
-            voucherDiscount: voucherDiscount,
-            pointsDiscount: pointsDiscount,
+            subtotal, // Save the original subtotal
+            voucherDiscount, // Save the voucher discount
+            pointsDiscount, // Save the points discount
+            totalAmount: finalTotalWithCorrection, // Save the final calculated total
             shippingFee: 30000, // Example shipping fee
             shippingAddress,
             note,
@@ -106,6 +120,7 @@ const createOrder = async (userId, {
             shippingMethod: 'Giao hàng tiêu chuẩn'
         }, { transaction: t });
 
+        // 7. Create Order Details
         const orderDetailsData = orderableItems.map(item => ({
             orderId: order.id,
             productId: item.productId,
@@ -116,32 +131,33 @@ const createOrder = async (userId, {
         }));
         await OrderDetail.bulkCreate(orderDetailsData, { transaction: t });
 
+        // 8. Create Payment Record
         await Payment.create({
             orderId: order.id,
             method: paymentMethod,
             status: 'PENDING',
-            amount: finalTotal
+            amount: finalTotalWithCorrection
         }, { transaction: t });
 
-        // Mark voucher as used
+        // 9. Update Voucher and Points (Post-Order Actions)
         if (userVoucher) {
             await userVoucher.update({ isUsed: true, orderId: order.id }, { transaction: t });
         }
 
-        // Deduct points from user and create history
         if (pointsDiscount > 0) {
-            const actualPointsUsed = Math.ceil(pointsDiscount); // Use the actual discount value as points used
-            await user.decrement('points', { by: actualPointsUsed, transaction: t });
+            // Use the final calculated pointsDiscount to decrement user points
+            await user.decrement('points', { by: pointsDiscount, transaction: t });
+            // Create a history record for the transaction
             await createRewardHistory(
                 userId,
-                actualPointsUsed,
-                REWARD_TYPE.REDEEM,
-                `Sử dụng ${actualPointsUsed} điểm cho đơn hàng #${order.id}`,
+                pointsDiscount,
+                REWARD_TYPE.USE,
+                `Sử dụng ${pointsDiscount} điểm cho đơn hàng #${order.id}`,
                 { transaction: t }
             );
         }
 
-        // Clear cart and update product stock
+        // 10. Clean up cart and update stock
         const cart = await Cart.findOne({ where: { userId } });
         if (cart) {
             await CartItem.destroy({ where: { cartId: cart.id }, transaction: t });
@@ -150,12 +166,14 @@ const createOrder = async (userId, {
             await Product.decrement('stock', { by: item.quantity, where: { id: item.productId }, transaction: t });
         }
 
+        // Everything is successful, commit the transaction
         await t.commit();
 
+        // 11. Handle VNPAY redirection if necessary
         let paymentUrl = null;
-        if (paymentMethod === PAYMENT_METHOD.VNPAY && finalTotal > 0) {
+        if (paymentMethod === PAYMENT_METHOD.VNPAY && finalTotalWithCorrection > 0) {
             const ipAddr = req?.headers?.['x-forwarded-for'] || req?.ip || '127.0.0.1';
-            paymentUrl = await paymentService.createPaymentUrl(order.id, finalTotal, ipAddr);
+            paymentUrl = await paymentService.createPaymentUrl(order.id, finalTotalWithCorrection, ipAddr);
         }
 
         const orderData = order.get({ plain: true });
@@ -164,12 +182,15 @@ const createOrder = async (userId, {
         return orderData;
 
     } catch (error) {
+        // If any step fails, roll back the entire transaction
         await t.rollback();
         console.error('Lỗi khi tạo đơn hàng:', error);
         throw error;
     }
 };
 
+// --- The rest of the file remains the same ---
+// (getOrders, getOrderById, etc.)
 const cancelOrderItem = async (userId, orderId, orderItemId) => {
     const t = await sequelize.transaction();
     try {
@@ -196,7 +217,6 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
         const remainingItems = order.details.filter(item => item.id !== orderItemId && item.status === ORDER_DETAIL_STATUS.EXISTED);
         const newSubtotal = remainingItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-        // Re-evaluate voucher
         let newVoucherDiscount = 0;
         if (order.voucherId) {
             const voucher = await Voucher.findByPk(order.voucherId, { transaction: t });
@@ -207,7 +227,6 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
                     newVoucherDiscount = Math.min((newSubtotal * voucher.discountValue) / 100, voucher.maxDiscountAmount || Infinity);
                 }
             } else {
-                // Voucher becomes invalid, so we might need to un-use it
                 const userVoucher = await UserVoucher.findOne({ where: { orderId: order.id }, transaction: t });
                 if (userVoucher) {
                     await userVoucher.update({ isUsed: false, orderId: null }, { transaction: t });
@@ -215,19 +234,16 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
             }
         }
 
-        // Points are not refunded on partial cancellation for simplicity, but could be added here.
-
         const newFinalTotal = Math.max(0, newSubtotal - newVoucherDiscount - (order.pointsDiscount || 0));
         await order.update({ totalAmount: newFinalTotal, subtotal: newSubtotal, voucherDiscount: newVoucherDiscount }, { transaction: t });
 
         const allItemsCancelled = order.details.every(item => item.status === ORDER_DETAIL_STATUS.CANCELLED);
         if (allItemsCancelled) {
             await order.update({ orderStatus: ORDER_STATUS.CANCELLED }, { transaction: t });
-            // Refund points and voucher if the whole order is cancelled
             const user = await User.findByPk(userId, { transaction: t });
             if (user && order.pointsDiscount > 0) {
                 await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
-                await createRewardHistory(userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.REFUND, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
+                await createRewardHistory(userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.EARN, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
             }
             const userVoucher = await UserVoucher.findOne({ where: { orderId: order.id }, transaction: t });
             if (userVoucher) {
@@ -271,16 +287,6 @@ const getOrderById = async (userId, orderId) => {
             {
                 model: OrderDetail,
                 as: 'details',
-                attributes: [
-                    'id',
-                    'productId',
-                    'productName',
-                    'quantity',
-                    'price',
-                    'status',
-                    'createdAt',
-                    'updatedAt'
-                ],
                 include: [{
                     model: Product,
                     as: 'product',
@@ -290,17 +296,6 @@ const getOrderById = async (userId, orderId) => {
             {
                 model: Payment,
                 as: 'payment',
-                attributes: [
-                    'id',
-                    'orderId',
-                    'method',
-                    'status',
-                    'amount',
-                    'transactionId',
-                    'paidAt',
-                    'createdAt',
-                    'updatedAt'
-                ]
             },
             { model: User, as: 'shipper', attributes: ['fullName', 'phone'] }
         ]
