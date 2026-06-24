@@ -59,6 +59,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('ACTIVE', 'LOCKED'),
       allowNull: false,
       defaultValue: 'ACTIVE'
+    },
+    refreshToken: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    refreshTokenExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     sequelize,

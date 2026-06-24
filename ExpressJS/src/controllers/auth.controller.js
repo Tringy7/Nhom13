@@ -11,7 +11,7 @@ import {
 } from "../services/auth/otpService.js";
 import { sendPasswordResetEmail } from "../services/auth/mailService.js";
 
-const { User, RefreshToken, ResetOtp } = db;
+const { User, ResetOtp } = db;
 
 const otpStore = new Map();
 
@@ -29,15 +29,13 @@ let login = async (req, res) => {
       return res.status(401).json({ message: "Wrong password" });
     }
 
-    await user.update({ lastLoginAt: new Date() });
-
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    await RefreshToken.create({
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    await user.update({
+      refreshToken,
+      refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      lastLoginAt: new Date(),
     });
 
     res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
@@ -65,24 +63,20 @@ let refresh = async (req, res) => {
     const token = req.cookies.refreshToken;
     if (!token) return res.sendStatus(401);
 
-    const storedToken = await RefreshToken.findOne({ where: { token, revoked: false } });
-    if (!storedToken) return res.sendStatus(403);
+    const user = await User.findOne({ where: { refreshToken: token } });
+    if (!user || user.refreshTokenExpiresAt < new Date()) {
+      return res.sendStatus(403);
+    }
 
     jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
       if (err) return res.sendStatus(403);
 
-      const user = await User.findByPk(decoded.id);
-      if (!user) return res.sendStatus(403);
-
-      await storedToken.update({ revoked: true });
-
       const newAccessToken = generateAccessToken(user);
       const newRefreshToken = generateRefreshToken(user);
 
-      await RefreshToken.create({
-        token: newRefreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      await user.update({
+        refreshToken: newRefreshToken,
+        refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
       res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
@@ -100,7 +94,10 @@ let logout = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
     if (token) {
-      await RefreshToken.update({ revoked: true }, { where: { token } });
+      const user = await User.findOne({ where: { refreshToken: token } });
+      if (user) {
+        await user.update({ refreshToken: null, refreshTokenExpiresAt: null });
+      }
     }
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
