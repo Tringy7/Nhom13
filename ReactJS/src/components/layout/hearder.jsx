@@ -40,7 +40,7 @@ const Header = () => {
         { label: 'Shop', key: 'products', path: '/products' },
         { label: 'Orders', key: 'history', path: '/history' },
         { label: 'Rewards', key: 'rewards', path: '/rewards' },
-        { label: 'About', key: 'about', path: '#' }
+        { label: 'About', key: 'about', path: '/about' }
     ];
 
     const isAdmin = String(auth.user?.role || '').toLowerCase() === 'admin';

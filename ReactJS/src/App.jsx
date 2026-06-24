@@ -20,6 +20,7 @@ import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 import VnPayReturn from "./components/pages/VnPayReturn.jsx";
+import AboutPage from "./components/pages/AboutPage.jsx";
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 
@@ -40,6 +41,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/payment/failed" element={<PaymentFailedPage />} />
         <Route path="/payment/vnpay-return" element={<VnPayReturn />} />

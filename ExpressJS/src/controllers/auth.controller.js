@@ -42,9 +42,9 @@ let login = async (req, res) => {
     res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     const role = user.role.toLowerCase();
-    let redirectURI = "/";
+    let redirectURI = "/api/home";
     if (role === "admin") redirectURI = "/admin/dashboard";
-    else if (role === "user") redirectURI = "/";
+    else if (role === "user") redirectURI = "/api/home";
 
     return res.json({
       message: "Login success",
