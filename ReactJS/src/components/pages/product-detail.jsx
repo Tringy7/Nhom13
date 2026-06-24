@@ -194,6 +194,15 @@ const ProductDetail = () => {
                     </Row>
                 </div>
             )
+        },
+        {
+            key: '3',
+            label: 'Comments',
+            children: (
+                <div style={{ padding: '12px 0' }}>
+                    <Empty description="Chưa có bình luận nào." />
+                </div>
+            )
         }
     ];
 
