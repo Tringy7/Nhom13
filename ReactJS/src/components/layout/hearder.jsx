@@ -44,11 +44,16 @@ const Header = () => {
     ];
 
     const isAdmin = String(auth.user?.role || '').toLowerCase() === 'admin';
+    const isManagerOrAdmin = ['admin', 'manager'].includes(String(auth.user?.role || '').toLowerCase());
 
     const profileMenuItems = [
         ...(isAdmin ? [{
             key: 'admin-orders',
             label: <Link to="/admin/orders" style={{ fontSize: '13px', fontWeight: 500 }}>Admin Orders</Link>,
+        }] : []),
+        ...(isManagerOrAdmin ? [{
+            key: 'manager-dashboard',
+            label: <Link to="/manager/dashboard" style={{ fontSize: '13px', fontWeight: 500 }}>Manager Dashboard</Link>,
         }] : []),
         {
             key: 'profile',
@@ -256,6 +261,11 @@ const Header = () => {
                             {isAdmin && (
                                 <Link to="/admin/orders" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
                                     Admin Orders
+                                </Link>
+                            )}
+                            {isManagerOrAdmin && (
+                                <Link to="/manager/dashboard" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
+                                    Manager Dashboard
                                 </Link>
                             )}
                             <Link to="/user/profile" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>

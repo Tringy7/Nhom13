@@ -1,79 +1,55 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class User extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `entities/index` file will call this method automatically.
-     */
     static associate(entities) {
-      User.hasOne(entities.Shop, {
-        foreignKey: 'userId',
-        as: 'shop'
-      });
-      User.hasOne(entities.ShipperWallet, {
-        foreignKey: 'shipperId',
-        as: 'shipperWallet'
-      });
-      User.hasMany(entities.Order, {
-        foreignKey: 'userId',
-        as: 'orders'
-      });
-      User.hasMany(entities.ProductReview, {
-        foreignKey: 'userId',
-        as: 'reviews'
-      });
-      User.hasMany(entities.ProductFavorite, {
-        foreignKey: 'userId',
-        as: 'favorites'
-      });
-      User.hasMany(entities.ProductView, {
-        foreignKey: 'userId',
-        as: 'viewedProducts'
-      });
-      User.hasMany(entities.Coupon, {
-        foreignKey: 'userId',
-        as: 'coupons'
-      });
-      User.hasMany(entities.ChatMessage, {
-        foreignKey: 'senderId',
-        as: 'sentMessages'
-      });
-      User.belongsToMany(entities.ChatRoom, {
-        through: 'ChatRoomParticipants',
-        foreignKey: 'userId',
-        otherKey: 'roomId',
-        as: 'chatRooms'
-      });
+      User.hasMany(entities.Order, { foreignKey: 'userId', as: 'orders' });
+      User.hasMany(entities.Order, { foreignKey: 'shipperId', as: 'deliveries' });
+      User.hasOne(entities.Cart, { foreignKey: 'userId', as: 'cart' });
+      User.hasMany(entities.Wishlist, { foreignKey: 'userId', as: 'wishlistItems' });
+      User.hasMany(entities.Review, { foreignKey: 'userId', as: 'reviews' });
+      User.hasMany(entities.OrderCancellationRequest, { foreignKey: 'userId', as: 'cancellationRequests' });
+
+      // Defines the many-to-many relationship with Voucher through UserVoucher
+      User.belongsToMany(entities.Voucher, { through: entities.UserVoucher, foreignKey: 'userId', as: 'vouchers' });
     }
   }
   User.init({
-    email: DataTypes.STRING,
-    password: DataTypes.STRING,
-    role: DataTypes.STRING,
-    refreshToken: DataTypes.STRING,
-    firstName: DataTypes.STRING,
-    lastName: DataTypes.STRING,
-    address: DataTypes.STRING,
-    phoneNumber: DataTypes.STRING,
-    gender: DataTypes.STRING,
-    image: DataTypes.STRING,
-    positionId: DataTypes.STRING,
-    pointsBalance: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0
+    fullName: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    phone: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    avatar: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    role: {
+      type: DataTypes.ENUM('ADMIN', 'MANAGER', 'SHIPPER', 'USER'),
+      allowNull: false,
+      defaultValue: 'USER'
+    },
+    status: {
+      type: DataTypes.ENUM('ACTIVE', 'LOCKED'),
+      allowNull: false,
+      defaultValue: 'ACTIVE'
     }
   }, {
     sequelize,
     modelName: 'User',
+    tableName: 'Users'
   });
   return User;
 };

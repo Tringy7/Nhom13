@@ -1,29 +1,20 @@
 'use strict';
-const { Model } = require('sequelize');
-
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class Voucher extends Model {
     static associate(entities) {
-      Voucher.hasMany(entities.UserVoucher, {
-        foreignKey: 'voucherId',
-        as: 'userVouchers'
-      });
+      Voucher.hasMany(entities.Order, { foreignKey: 'voucherId', as: 'orders' });
+
+      // Defines the many-to-many relationship with User through UserVoucher
+      Voucher.belongsToMany(entities.User, { through: entities.UserVoucher, foreignKey: 'voucherId', as: 'users' });
     }
   }
-  
   Voucher.init({
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true
-    },
     code: {
       type: DataTypes.STRING,
       unique: true,
       allowNull: false
     },
-    title: DataTypes.STRING,
-    description: DataTypes.TEXT,
     discountType: {
       type: DataTypes.ENUM('PERCENT', 'FIXED'),
       allowNull: false
@@ -36,21 +27,28 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    maxDiscount: {
-      type: DataTypes.INTEGER,
-      allowNull: true
+    startDate: {
+      type: DataTypes.DATE,
+      allowNull: false
     },
-    startDate: DataTypes.DATE,
-    endDate: DataTypes.DATE,
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true
+    endDate: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    status: {
+      type: DataTypes.ENUM('ACTIVE', 'INACTIVE', 'EXPIRED'),
+      allowNull: false,
+      defaultValue: 'ACTIVE'
     }
   }, {
     sequelize,
     modelName: 'Voucher',
-    tableName: 'vouchers'
+    tableName: 'Vouchers'
   });
-  
   return Voucher;
 };

@@ -1,6 +1,6 @@
 'use strict';
-const { Model } = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class Product extends Model {
     static associate(entities) {
       Product.belongsTo(entities.Brand, {
@@ -17,18 +17,18 @@ module.exports = (sequelize, DataTypes) => {
         otherKey: 'promotionId',
         as: 'promotions'
       });
-      Product.hasMany(entities.ProductReview, {
-        foreignKey: 'productId',
-        as: 'reviews'
-      });
-      Product.hasMany(entities.ProductFavorite, {
-        foreignKey: 'productId',
-        as: 'favorites'
-      });
-      Product.hasMany(entities.ProductView, {
-        foreignKey: 'productId',
-        as: 'views'
-      });
+      // Product.hasMany(entities.ProductReview, {
+      //   foreignKey: 'productId',
+      //   as: 'reviews'
+      // });
+      // Product.hasMany(entities.ProductFavorite, {
+      //   foreignKey: 'productId',
+      //   as: 'favorites'
+      // });
+      // Product.hasMany(entities.ProductView, {
+      //   foreignKey: 'productId',
+      //   as: 'views'
+      // });
     }
   }
   Product.init({

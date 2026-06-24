@@ -1,16 +1,14 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Promotion, Product, Brand, ProductImage } = db;
-
-const productInclude = [
+const getProductInclude = () => [
   {
-    model: Brand,
+    model: db.Brand,
     as: 'brand',
     attributes: ['id', 'name', 'logo']
   },
   {
-    model: ProductImage,
+    model: db.ProductImage,
     as: 'images',
     attributes: ['id', 'imageUrl']
   }
@@ -19,26 +17,21 @@ const productInclude = [
 const getPromotions = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
-  console.log(db);
-console.log('Promotion:', Promotion);
-console.log('Product:', Product);
-console.log('Brand:', Brand);
-console.log('ProductImage:', ProductImage);
 
-  return Promotion.findAll({
-     where: {
+  return db.Promotion.findAll({
+    where: {
       isActive: true
     },
     offset,
     limit,
     order: [['createdAt', 'DESC']],
-    attributes: ['id', 'title', 'discountPercent', 'image', 'createdAt'],
+    attributes: ['id', 'name', 'description', 'discountRate', 'startDate', 'endDate', 'isActive', 'createdAt'],
     include: [
       {
-        model: Product,
+        model: db.Product,
         as: 'products',
         attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-        include: productInclude,
+        include: getProductInclude(),
         through: { attributes: [] }
       }
     ]
@@ -48,12 +41,12 @@ console.log('ProductImage:', ProductImage);
 const getBestSellingProducts = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
-  return Product.findAndCountAll({
+  return db.Product.findAndCountAll({
     offset,
     limit,
     order: [['sold', 'DESC']],
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-    include: productInclude,
+    include: getProductInclude(),
     distinct: true
   });
 };
@@ -73,13 +66,13 @@ const getAllProducts = async (options = {}) => {
     };
   }
 
-  return Product.findAndCountAll({
+  return db.Product.findAndCountAll({
     where: whereClause,
     offset,
     limit,
     order,
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
-    include: productInclude,
+    include: getProductInclude(),
     distinct: true
   });
 };

@@ -4,9 +4,8 @@ import { PAYMENT_METHOD, PAYMENT_STATUS } from '../constants/payment.constants.j
 import { ORDER_STATUS } from '../constants/order.constants.js';
 import qs from 'qs';
 
-const { Order, Payment, sequelize } = db;
-
 const createPaymentUrl = async (req, res) => {
+    const { Order, Payment } = db;
     try {
         const { orderId } = req.body;
         const userId = req.user.id;
@@ -47,6 +46,7 @@ const createPaymentUrl = async (req, res) => {
 };
 
 const vnpayIpn = async (req, res) => {
+    const { Order, Payment, sequelize } = db;
     const vnp_Params = req.query;
     const isValidSignature = paymentService.verifyReturn(vnp_Params);
 
@@ -119,6 +119,7 @@ const vnpayReturn = (req, res) => {
 
 // API cho Frontend gọi để xác thực chữ ký và trả về trạng thái đơn giản
 const verifyReturnUrlAPI = async (req, res) => {
+    const { Order, Payment, sequelize } = db;
     const vnp_Params = req.query;
     const isValid = paymentService.verifyReturn(vnp_Params);
 
@@ -182,6 +183,7 @@ const verifyReturnUrlAPI = async (req, res) => {
 };
 
 const getPaymentStatus = async (req, res) => {
+    const { Order, Payment } = db;
     try {
         const { id } = req.params;
         const order = await Order.findByPk(id, {

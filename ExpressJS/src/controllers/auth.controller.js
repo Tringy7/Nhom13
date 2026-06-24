@@ -11,8 +11,6 @@ import {
 } from "../services/auth/otpService.js";
 import { sendPasswordResetEmail } from "../services/auth/mailService.js";
 
-const { User, RefreshToken, ResetOtp } = db;
-
 // Lưu OTP tạm thời trong memory (cho đăng ký)
 const otpStore = new Map();
 
@@ -20,12 +18,17 @@ const otpStore = new Map();
    LOGIN
 ========================= */
 let login = async (req, res) => {
+  const { User, RefreshToken } = db;
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
+
+    if (user.status === 'LOCKED') {
+      return res.status(403).json({ message: "Tài khoản của bạn đã bị khóa." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -56,14 +59,22 @@ let login = async (req, res) => {
 
     const role = user.role;
     let redirectURI = "/";
-    if (role === "admin") redirectURI = "/admin/dashboard";
-    else if (role === "user") redirectURI = "/user/dashboard";
+    if (role === "ADMIN") redirectURI = "/admin/dashboard";
+    else if (role === "MANAGER") redirectURI = "/manager/dashboard";
+    else if (role === "USER") redirectURI = "/";
 
     return res.json({
       message: "Login success",
       token: accessToken,
       role,
       redirectURI,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        avatar: user.avatar,
+        role: user.role,
+      }
     });
   } catch (error) {
     console.error(error);
@@ -75,6 +86,7 @@ let login = async (req, res) => {
    REFRESH TOKEN (ROTATION)
 ========================= */
 let refresh = async (req, res) => {
+  const { User, RefreshToken } = db;
   try {
     const token = req.cookies.refreshToken;
     if (!token) {
@@ -138,6 +150,7 @@ let refresh = async (req, res) => {
    LOGOUT
 ========================= */
 let logout = async (req, res) => {
+  const { RefreshToken } = db;
   try {
     const token = req.cookies.refreshToken;
     if (token) {
@@ -156,6 +169,7 @@ let logout = async (req, res) => {
    FORGOT PASSWORD - SEND OTP
 ========================= */
 let forgotPassword = async (req, res) => {
+  const { User, ResetOtp } = db;
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
@@ -165,7 +179,7 @@ let forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
@@ -188,6 +202,7 @@ let forgotPassword = async (req, res) => {
    RESET PASSWORD - VERIFY OTP & UPDATE
 ========================= */
 let resetPassword = async (req, res) => {
+  const { User, ResetOtp } = db;
   try {
     const { email, otp, tempToken, newPassword } = req.body;
 
@@ -236,6 +251,7 @@ let resetPassword = async (req, res) => {
    RESEND OTP (FORGOT PASSWORD)
 ========================= */
 let resendOtp = async (req, res) => {
+  const { User, ResetOtp } = db;
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
@@ -245,7 +261,7 @@ let resendOtp = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
@@ -261,8 +277,9 @@ let resendOtp = async (req, res) => {
    REGISTER - GỬI OTP
 ========================= */
 let register = async (req, res) => {
+  const { User } = db;
   try {
-    const { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
+    const { email, password, firstName, lastName, phoneNumber, fullName, phone } = req.body;
     const lowerCaseEmail = email.toLowerCase();
 
     const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
@@ -280,16 +297,18 @@ let register = async (req, res) => {
     // Gửi email bất đồng bộ
     sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
       console.error("Send OTP email failed:", mailError);
-      // Ghi log lỗi nhưng không block response trả về cho user
     });
+
+    const resolvedFullName = fullName || `${firstName || ''} ${lastName || ''}`.trim() || 'New User';
+    const resolvedPhone = phone || phoneNumber;
 
     otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry,
-      userData: { email: lowerCaseEmail, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
+      userData: { email: lowerCaseEmail, password: hashedPassword, fullName: resolvedFullName, phone: resolvedPhone }
     });
 
-    console.log(lowerCaseEmail, otp)
+    console.log(lowerCaseEmail, otp);
 
     return res.status(200).json({
       success: true,
@@ -308,13 +327,14 @@ let register = async (req, res) => {
    VERIFY REGISTRATION OTP
 ========================= */
 let verifyRegistrationOtp = async (req, res) => {
+  const { User } = db;
   try {
     const { email, otp } = req.body;
     const lowerCaseEmail = email.toLowerCase();
-    console.log(lowerCaseEmail, otp)
+    console.log(lowerCaseEmail, otp);
 
     const record = otpStore.get(lowerCaseEmail);
-    console.log(record)
+    console.log(record);
     if (!record) {
       return res.status(400).json({
         success: false,
@@ -340,8 +360,8 @@ let verifyRegistrationOtp = async (req, res) => {
     // Tạo user vào database
     const newUser = await User.create({
       ...record.userData,
-      roleId: 'R3',      // tuỳ theo model của bạn
-      role: 'user'       // nếu dùng role string
+      role: 'USER',
+      status: 'ACTIVE'
     });
 
     otpStore.delete(lowerCaseEmail);
@@ -352,8 +372,7 @@ let verifyRegistrationOtp = async (req, res) => {
       data: {
         id: newUser.id,
         email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
+        fullName: newUser.fullName,
       }
     });
   } catch (error) {
@@ -387,7 +406,6 @@ let resendRegistrationOtp = async (req, res) => {
     // Gửi email bất đồng bộ
     sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
       console.error("Resend OTP email failed:", mailError);
-      // Ghi log lỗi nhưng không block response trả về cho user
     });
 
     otpStore.set(lowerCaseEmail, { ...record, otp, otpExpiry });
@@ -409,9 +427,10 @@ let resendRegistrationOtp = async (req, res) => {
    EDIT USER PROFILE
 ========================= */
 let editUserProfile = async (req, res) => {
+  const { User } = db;
   try {
     const userId = req.user.id;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId } = req.body;
+    const { email, fullName, phone, avatar } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -427,13 +446,9 @@ let editUserProfile = async (req, res) => {
 
     await user.update({
       email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
-      address: address || user.address,
-      gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
+      fullName: fullName || user.fullName,
+      phone: phone || user.phone,
+      avatar: avatar || user.avatar,
     });
 
     return res.json({
@@ -441,13 +456,9 @@ let editUserProfile = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
+        fullName: user.fullName,
+        phone: user.phone,
+        avatar: user.avatar,
         role: user.role,
       },
     });
@@ -461,10 +472,11 @@ let editUserProfile = async (req, res) => {
    EDIT ADMIN PROFILE
 ========================= */
 let editAdminProfile = async (req, res) => {
+  const { User } = db;
   try {
     const adminId = req.user.id;
     const { userId } = req.params;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId, role } = req.body;
+    const { email, fullName, phone, avatar, role } = req.body;
 
     const targetUserId = userId ? parseInt(userId) : adminId;
     const user = await User.findByPk(targetUserId);
@@ -472,7 +484,7 @@ let editAdminProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (targetUserId !== adminId && user.role === "admin") {
+    if (targetUserId !== adminId && user.role === "ADMIN") {
       return res.status(403).json({ message: "Cannot edit other admin profiles" });
     }
 
@@ -485,13 +497,9 @@ let editAdminProfile = async (req, res) => {
 
     const updateData = {
       email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
-      address: address || user.address,
-      gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
+      fullName: fullName || user.fullName,
+      phone: phone || user.phone,
+      avatar: avatar || user.avatar,
     };
 
     if (role && targetUserId !== adminId) {
@@ -505,13 +513,9 @@ let editAdminProfile = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
+        fullName: user.fullName,
+        phone: user.phone,
+        avatar: user.avatar,
         role: user.role,
       },
     });
@@ -528,9 +532,9 @@ export default {
   forgotPassword,
   resetPassword,
   resendOtp,                  // Gửi lại OTP cho quên mật khẩu
-  register,                  // Đăng ký - gửi OTP
-  verifyRegistrationOtp,     // Xác thực OTP đăng ký
-  resendRegistrationOtp,     // Gửi lại OTP đăng ký
+  register,                   // Đăng ký - gửi OTP
+  verifyRegistrationOtp,      // Xác thực OTP đăng ký
+  resendRegistrationOtp,      // Gửi lại OTP đăng ký
   editUserProfile,
   editAdminProfile,
 };

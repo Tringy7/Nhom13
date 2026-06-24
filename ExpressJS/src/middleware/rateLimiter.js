@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 export const registerLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 3600000, // 1 giờ
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5,
+    skip: () => process.env.NODE_ENV === 'development', // Bỏ qua khi dev
     message: {
         success: false,
         message: 'Quá nhiều yêu cầu đăng ký từ IP này, vui lòng thử lại sau 1 giờ.'
@@ -14,6 +15,7 @@ export const registerLimiter = rateLimit({
 export const otpLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 phút
     max: 3,
+    skip: () => process.env.NODE_ENV === 'development', // Bỏ qua khi dev
     message: {
         success: false,
         message: 'Quá nhiều lần gửi OTP, vui lòng thử lại sau 5 phút.'

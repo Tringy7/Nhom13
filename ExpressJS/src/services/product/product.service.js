@@ -1,40 +1,37 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Promotion, Product, Brand, ProductImage } = db;
-
-const productInclude = [
+const getProductInclude = () => [
   {
-    model: Brand,
+    model: db.Brand,
     as: 'brand',
     attributes: ['id', 'name', 'logo']
   },
   {
-    model: ProductImage,
+    model: db.ProductImage,
     as: 'images',
     attributes: ['id', 'imageUrl']
   }
 ];
 
-const getProductById = async (options = {}) => {
-  const productId = options;
-  return Product.findByPk(productId);
-}
+const getProductById = async (productId) => {
+  return db.Product.findByPk(productId);
+};
 
 const getPromotions = async (limit = 5) => {
-  return Promotion.findAll({
-     where: {
+  return db.Promotion.findAll({
+    where: {
       isActive: true
     },
     limit,
     order: [['createdAt', 'DESC']],
-    attributes: ['id', 'title', 'discountPercent', 'image', 'createdAt'],
+    attributes: ['id', 'name', 'description', 'discountRate', 'startDate', 'endDate', 'isActive', 'createdAt'],
     include: [
       {
-        model: Product,
+        model: db.Product,
         as: 'products',
         attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-        include: productInclude,
+        include: getProductInclude(),
         through: { attributes: [] }
       }
     ]
@@ -42,25 +39,25 @@ const getPromotions = async (limit = 5) => {
 };
 
 const getNewestProducts = async (limit = 10) => {
-  return Product.findAll({
+  return db.Product.findAll({
     limit,
     order: [['createdAt', 'DESC']],
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
-    include: productInclude
+    include: getProductInclude()
   });
 };
 
 const getBestSellingProducts = async (limit = 10) => {
-  return Product.findAll({
+  return db.Product.findAll({
     limit,
     order: [['sold', 'DESC']],
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-    include: productInclude
+    include: getProductInclude()
   });
 };
 
 const getProductDetail = async (productId) => {
-  return Product.findByPk(productId, {
+  return db.Product.findByPk(productId, {
     attributes: [
       'id',
       'name',
@@ -74,19 +71,19 @@ const getProductDetail = async (productId) => {
       'createdAt',
       'updatedAt'
     ],
-    include: productInclude
+    include: getProductInclude()
   });
 };
 
 const getProductsByCategory = async (category, limit = 20) => {
-  return Product.findAll({
+  return db.Product.findAll({
     where: {
       category
     },
     limit,
     order: [['createdAt', 'DESC']],
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-    include: productInclude
+    include: getProductInclude()
   });
 };
 

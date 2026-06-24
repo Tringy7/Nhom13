@@ -1,9 +1,10 @@
 'use strict';
-const { Model } = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class PromotionProduct extends Model {
     static associate(entities) {
-      // This table is used as a join table for Product <-> Promotion.
+      PromotionProduct.belongsTo(entities.Promotion, { foreignKey: 'promotionId' });
+      PromotionProduct.belongsTo(entities.Product, { foreignKey: 'productId' });
     }
   }
   PromotionProduct.init({
@@ -26,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'PromotionProduct',
-    tableName: 'promotionproducts'
+    tableName: 'promotion_products'
   });
   return PromotionProduct;
 };

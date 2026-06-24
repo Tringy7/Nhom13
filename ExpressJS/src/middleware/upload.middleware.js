@@ -39,3 +39,27 @@ export const uploadProfileImage = multer({
         fileSize: 5 * 1024 * 1024, // 5MB limit
     },
 });
+
+// Product image uploads configuration
+const productUploadDir = path.join(__dirname, "..", "uploads", "products");
+if (!fs.existsSync(productUploadDir)) {
+    fs.mkdirSync(productUploadDir, { recursive: true });
+}
+
+const productStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, productUploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, "product-" + uniqueSuffix + path.extname(file.originalname));
+    },
+});
+
+export const uploadProductImage = multer({
+    storage: productStorage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+    },
+});

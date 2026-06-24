@@ -1,6 +1,5 @@
-'use strict';
-const { Model } = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class OrderItem extends Model {
     static associate(entities) {
       OrderItem.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });

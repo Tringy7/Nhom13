@@ -1,6 +1,5 @@
-'use strict';
-const { Model } = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class ProductView extends Model {
     static associate(entities) {
       ProductView.belongsTo(entities.User, {

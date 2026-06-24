@@ -1,4 +1,4 @@
-const ORDER_STATUS = Object.freeze({
+export const ORDER_STATUS = Object.freeze({
     NEW: 'NEW',
     CONFIRMED: 'CONFIRMED',
     PREPARING: 'PREPARING',
@@ -7,7 +7,3 @@ const ORDER_STATUS = Object.freeze({
     CANCELLED: 'CANCELLED',
     CANCEL_REQUEST: 'CANCEL_REQUEST'
 });
-
-module.exports = {
-    ORDER_STATUS
-};

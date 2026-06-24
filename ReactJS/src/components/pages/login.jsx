@@ -20,9 +20,11 @@ const LoginPage = () => {
                 const role = res?.role || res?.user?.role || '';
                 const redirectPath = role.toLowerCase() === 'admin'
                     ? '/admin/orders'
-                    : role.toLowerCase() === 'user'
-                        ? '/user/profile'
-                        : res.redirectURI || '/';
+                    : role.toLowerCase() === 'manager'
+                        ? '/manager/dashboard'
+                        : role.toLowerCase() === 'user'
+                            ? '/user/profile'
+                            : res.redirectURI || '/';
 
                 dispatch({
                     type: 'LOGIN',

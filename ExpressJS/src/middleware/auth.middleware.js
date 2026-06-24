@@ -27,11 +27,8 @@ export const verifyToken = (req, res, next) => {
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    // Không chuyển thành chữ thường nữa để đồng nhất với định dạng enum
-    const userRole = req.user?.role;
-    
-    // Đảm bảo roles truyền vào cũng chuẩn
-    const allowedRoles = roles;
+    const userRole = req.user?.role?.toUpperCase();
+    const allowedRoles = roles.map(r => r.toUpperCase());
 
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({ message: "Forbidden" });

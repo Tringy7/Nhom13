@@ -5,13 +5,14 @@ import paymentService from '../payment/payment.service.js';
 import { ORDER_STATUS } from '../../constants/order.constants.js';
 import { PAYMENT_METHOD } from '../../constants/payment.constants.js';
 
-const { Order, OrderItem, OrderStatusHistory, Payment, Cart, CartItem, Product, User, UserVoucher, RewardTransaction, Voucher, sequelize } = db;
-
 const createStatusHistory = async (orderId, status, note, changedBy, transaction) => {
+  const { OrderStatusHistory } = db;
   return OrderStatusHistory.create({ orderId, status, note, changedBy }, { transaction });
 };
 
 const createOrder = async (userId, { shippingAddress, phoneNumber, note, paymentMethod = 'COD', items, couponCode = null, pointsToUse = 0 }, req) => {
+  const { User, Product, Order, OrderItem, Payment, UserVoucher, Voucher, RewardTransaction, Cart, CartItem } = db;
+  const { sequelize } = db;
   const t = await sequelize.transaction();
 
   try {
@@ -153,6 +154,7 @@ const createOrder = async (userId, { shippingAddress, phoneNumber, note, payment
 };
 
 const getOrders = async (userId) => {
+    const { Order, OrderItem, Product, Payment } = db;
     return Order.findAll({
       where: { userId },
       include: [
@@ -164,6 +166,7 @@ const getOrders = async (userId) => {
 };
   
 const getOrderById = async (userId, orderId) => {
+  const { Order, OrderItem, Product, Payment } = db;
   const order = await Order.findOne({
     where: { id: orderId, userId },
     include: [
@@ -176,6 +179,7 @@ const getOrderById = async (userId, orderId) => {
 };
 
 const transitionOrderStatus = async (order, newStatus, { changedBy, note }) => {
+  const { sequelize } = db;
   const t = await sequelize.transaction();
   try {
     order.status = newStatus;
@@ -196,6 +200,7 @@ const transitionOrderStatus = async (order, newStatus, { changedBy, note }) => {
 };
 
 const cancelOrder = async (userId, orderId) => {
+  const { Order } = db;
   const order = await Order.findOne({ where: { id: orderId, userId } });
   if (!order) throw new Error('Không tìm thấy đơn hàng');
 
@@ -210,9 +215,10 @@ const cancelOrder = async (userId, orderId) => {
 };
   
 const getAdminOrders = async () => {
+  const { Order, User, OrderItem, Product } = db;
   return Order.findAll({
     include: [
-      { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] },
+      { model: User, as: 'customer', attributes: ['id', 'fullName', 'email'] },
       { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product', attributes: ['id', 'name'] }] }
     ],
     order: [['createdAt', 'DESC']]
@@ -220,10 +226,11 @@ const getAdminOrders = async () => {
 };
   
 const getAdminOrderById = async (orderId) => {
+  const { Order, User, OrderItem, Product } = db;
   const order = await Order.findOne({
     where: { id: orderId },
     include: [
-      { model: User, as: 'user' },
+      { model: User, as: 'customer' },
       { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product' }] }
     ]
   });
@@ -232,6 +239,7 @@ const getAdminOrderById = async (orderId) => {
 };
   
 const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
+  const { Order } = db;
   const order = await Order.findByPk(orderId);
   if (!order) throw new Error('Không tìm thấy đơn hàng');
 
@@ -257,6 +265,7 @@ const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
 };
 
 const handleCancelRequest = async (adminId, orderId, approve) => {
+    const { Order } = db;
     const order = await Order.findByPk(orderId);
     if (!order) throw new Error('Không tìm thấy đơn hàng');
 
@@ -275,7 +284,7 @@ const handleCancelRequest = async (adminId, orderId, approve) => {
             note: 'Admin từ chối yêu cầu hủy đơn'
         });
     }
-}
+};
   
 export default {
   createOrder,

@@ -19,12 +19,22 @@ import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 
+// Manager imports
+import ManagerDashboard from "./components/pages/Manager/dashboard.jsx";
+import ManagerProducts from "./components/pages/Manager/products.jsx";
+import ManagerProductEdit from "./components/pages/Manager/product-edit.jsx";
+import ManagerBrands from "./components/pages/Manager/brands.jsx";
+import ManagerOrders from "./components/pages/Manager/orders.jsx";
+import ManagerVouchers from "./components/pages/Manager/vouchers.jsx";
+import ManagerPromotions from "./components/pages/Manager/promotions.jsx";
+import ManagerCancellations from "./components/pages/Manager/cancellations.jsx";
+
 import { Routes, Route, useLocation } from 'react-router-dom';
 
 function App() {
   const location = useLocation();
   const authRoutes = ['/login', '/register', '/forgot-password'];
-  const showHeaderFooter = !authRoutes.includes(location.pathname) && !location.pathname.startsWith('/payment');
+  const showHeaderFooter = !authRoutes.includes(location.pathname) && !location.pathname.startsWith('/payment') && !location.pathname.startsWith('/manager');
 
   return (
     <>
@@ -61,6 +71,19 @@ function App() {
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/edit-profile" element={<AdminEditProfile />} />
           <Route path="/admin/edit-profile/:userId" element={<AdminEditProfile />} />
+        </Route>
+
+        {/* Manager Routes */}
+        <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+          <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+          <Route path="/manager/products" element={<ManagerProducts />} />
+          <Route path="/manager/products/new" element={<ManagerProductEdit />} />
+          <Route path="/manager/products/edit/:id" element={<ManagerProductEdit />} />
+          <Route path="/manager/brands" element={<ManagerBrands />} />
+          <Route path="/manager/orders" element={<ManagerOrders />} />
+          <Route path="/manager/vouchers" element={<ManagerVouchers />} />
+          <Route path="/manager/promotions" element={<ManagerPromotions />} />
+          <Route path="/manager/cancellations" element={<ManagerCancellations />} />
         </Route>
       </Routes>
       {showHeaderFooter && <Footer />}

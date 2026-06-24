@@ -1,6 +1,6 @@
 'use strict';
-const { Model } = require('sequelize');
-module.exports = (sequelize, DataTypes) => {
+import { Model } from 'sequelize';
+export default (sequelize, DataTypes) => {
   class Promotion extends Model {
     static associate(entities) {
       Promotion.belongsToMany(entities.Product, {
@@ -12,22 +12,29 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   Promotion.init({
-    title: {
+    name: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    discountPercent: {
-      type: DataTypes.DECIMAL(5, 2),
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    discountRate: {
+      type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
-    image: {
-      type: DataTypes.STRING,
-      allowNull: true
+    startDate: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    endDate: {
+      type: DataTypes.DATE,
+      allowNull: false
     },
     isActive: {
       type: DataTypes.BOOLEAN,
-      allowNull: false,
       defaultValue: true
     }
   }, {

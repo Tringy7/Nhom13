@@ -1,19 +1,6 @@
 import db from '../../entities/index.js';
 
-const {
-  Product,
-  ProductImage,
-  Brand,
-  ProductReview,
-  ProductFavorite,
-  ProductView,
-  Order,
-  OrderItem,
-  User,
-  Coupon
-} = db;
-
-const { Op } = db.Sequelize;
+const { Op } = db.Sequelize || {};
 
 const normalizeDecimal = (value) => Number(value || 0);
 
@@ -35,6 +22,7 @@ const getRewardForReview = () => {
 };
 
 const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
+  const { Order, OrderItem } = db;
   const order = await Order.findOne({
     where: {
       id: orderId,
@@ -61,6 +49,7 @@ const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
 };
 
 const submitReview = async (userId, productId, { orderId, rating, comment = '' }) => {
+  const { ProductReview, User, Coupon } = db;
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Điểm đánh giá phải từ 1 đến 5');
   }
@@ -124,6 +113,7 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
 };
 
 const toggleFavorite = async (userId, productId) => {
+  const { ProductFavorite } = db;
   const existed = await ProductFavorite.findOne({ where: { userId, productId } });
   if (existed) {
     await existed.destroy();
@@ -135,6 +125,7 @@ const toggleFavorite = async (userId, productId) => {
 };
 
 const addViewedProduct = async (userId, productId) => {
+  const { ProductView, Product, ProductImage, Brand } = db;
   await ProductView.create({ userId, productId, viewedAt: new Date() });
 
   const recent = await ProductView.findAll({
@@ -165,6 +156,7 @@ const addViewedProduct = async (userId, productId) => {
 };
 
 const getWishlist = async (userId) => {
+  const { ProductFavorite, Product, ProductImage, Brand } = db;
   const rows = await ProductFavorite.findAll({
     where: { userId },
     include: [{
@@ -183,13 +175,15 @@ const getWishlist = async (userId) => {
 };
 
 const getSimilarProducts = async (productId, limit = 8) => {
+  const { Product, ProductImage, Brand } = db;
+  const { Op: SequelizeOp } = db.Sequelize;
   const product = await Product.findByPk(productId);
   if (!product) return [];
 
   const products = await Product.findAll({
     where: {
-      id: { [Op.ne]: product.id },
-      [Op.or]: [
+      id: { [SequelizeOp.ne]: product.id },
+      [SequelizeOp.or]: [
         { category: product.category },
         { brandId: product.brandId }
       ]
@@ -206,12 +200,13 @@ const getSimilarProducts = async (productId, limit = 8) => {
 };
 
 const getReviewsByProduct = async (productId) => {
+  const { ProductReview, User } = db;
   const reviews = await ProductReview.findAll({
     where: { productId },
     include: [{
       model: User,
       as: 'user',
-      attributes: ['id', 'firstName', 'lastName', 'image']
+      attributes: ['id', 'fullName', 'avatar']
     }],
     order: [['createdAt', 'DESC']],
     limit: 30
@@ -230,6 +225,7 @@ const getReviewsByProduct = async (productId) => {
 };
 
 const getProductInsights = async (productId, userId = null) => {
+  const { ProductFavorite, OrderItem, Order, ProductReview } = db;
   const [reviewData, favoriteCount, buyerCount, commentCount, favoriteRow] = await Promise.all([
     getReviewsByProduct(productId),
     ProductFavorite.count({ where: { productId } }),
@@ -255,14 +251,16 @@ const getProductInsights = async (productId, userId = null) => {
 };
 
 const getUserCoupons = async (userId) => {
+  const { Coupon } = db;
+  const { Op: SequelizeOp } = db.Sequelize;
   const now = new Date();
   return Coupon.findAll({
     where: {
       userId,
       isActive: true,
-      [Op.or]: [
+      [SequelizeOp.or]: [
         { expiresAt: null },
-        { expiresAt: { [Op.gt]: now } }
+        { expiresAt: { [SequelizeOp.gt]: now } }
       ]
     },
     order: [['createdAt', 'DESC']]
@@ -270,6 +268,8 @@ const getUserCoupons = async (userId) => {
 };
 
 const previewDiscount = async (userId, { subtotal = 0, couponCode = null, pointsToUse = 0 }) => {
+  const { User, Coupon } = db;
+  const { Op: SequelizeOp } = db.Sequelize;
   const user = await User.findByPk(userId);
   if (!user) throw new Error('Người dùng không tồn tại');
 
@@ -325,6 +325,7 @@ const previewDiscount = async (userId, { subtotal = 0, couponCode = null, points
 };
 
 const consumeCouponIfNeeded = async (couponCode, transaction) => {
+  const { Coupon } = db;
   if (!couponCode) return;
   const coupon = await Coupon.findOne({ where: { code: couponCode }, transaction, lock: transaction.LOCK.UPDATE });
   if (!coupon) return;
@@ -336,6 +337,7 @@ const consumeCouponIfNeeded = async (couponCode, transaction) => {
 };
 
 const consumePoints = async (userId, pointsRedeemed, transaction) => {
+  const { User } = db;
   if (!pointsRedeemed) return;
   const user = await User.findByPk(userId, { transaction, lock: transaction.LOCK.UPDATE });
   if (!user) return;
