@@ -79,7 +79,7 @@ let refresh = async (req, res) => {
         refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
-      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
+      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
       res.cookie("refreshToken", newRefreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.json({ message: "Token refreshed", accessToken: newAccessToken });
