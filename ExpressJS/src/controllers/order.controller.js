@@ -5,7 +5,7 @@ import { sendOrderSuccessEmail } from '../services/auth/email.service.js';
 const createOrder = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
-    const { shippingAddress, phoneNumber, note, paymentMethod, items, couponCode, pointsToUse } = req.body;
+    const { shippingAddress, phoneNumber, note, paymentMethod, items, voucherId, pointsToUse } = req.body;
 
     if (!items || items.length === 0) {
       throw new Error('Vui lòng chọn ít nhất 1 sản phẩm để đặt hàng');
@@ -17,7 +17,7 @@ const createOrder = async (req, res) => {
       note,
       paymentMethod,
       items,
-      couponCode,
+      voucherId,
       pointsToUse
     }, req);
 
@@ -76,7 +76,7 @@ const getOrders = async (req, res) => {
 const getOrderById = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
-    const { orderId } = req.params; 
+    const { orderId } = req.params;
     const order = await orderService.getOrderById(userId, orderId);
     return res.status(200).json({
       success: true,

@@ -136,7 +136,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       [{ model: Voucher, as: 'voucher' }, 'discountValue', 'DESC']
     ]
   });
-  
+
   console.log(`Final Query Result: Found ${userVouchers.length} records.`);
   console.log("--- DEBUG VOUCHER END ---");
   return userVouchers;
@@ -174,12 +174,12 @@ const receiveVoucher = async (userId, voucherId) => {
     throw new Error('Bạn đã nhận voucher này rồi.');
   }
 
-  const rewardCode = `${voucher.code}-${uuidv4().split('-')[0].toUpperCase()}`;
+  const code = `${voucher.code}-${uuidv4().split('-')[0].toUpperCase()}`;
 
   const userVoucher = await UserVoucher.create({
     userId,
     voucherId,
-    rewardCode,
+    code,
     status: true, // status: true means 'not used'
     receivedAt: new Date()
   });
@@ -187,12 +187,12 @@ const receiveVoucher = async (userId, voucherId) => {
   return userVoucher;
 };
 
-const applyVoucher = async (userId, rewardCode, orderTotal) => {
+const applyVoucher = async (userId, voucherId, orderTotal) => {
   const userVoucher = await UserVoucher.findOne({
     where: {
       userId,
-      rewardCode,
-      status: true
+      voucherId,
+      isUsed: false
     },
     include: {
       model: Voucher,

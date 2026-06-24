@@ -30,6 +30,21 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       references: { model: 'Users', key: 'id' }
     },
+    subtotal: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    voucherDiscount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    pointsDiscount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
     totalAmount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false

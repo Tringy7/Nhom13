@@ -69,7 +69,7 @@ const RewardsPage = () => {
 
     const renderVoucher = (data, isOwned = false) => {
         const voucher = isOwned ? data.voucher : data;
-        const { id, title, description, discountType, discountValue, endDate, code } = voucher;
+        const { id, title, description, discountType, discountValue, minOrderValue, endDate, code } = voucher;
     
         const isExpired = new Date(endDate) < new Date();
         const isDisabled = isOwned && (data.isUsed || isExpired);
@@ -88,9 +88,17 @@ const RewardsPage = () => {
                         <GiftOutlined style={{ fontSize: 32, color: isDisabled ? '#9ca3af' : '#4f46e5' }} />
                     </div>
                     <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Title level={5} style={{ margin: 0 }}>{title}</Title>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Mã: {code}</Text>
-                        <Paragraph style={{ flex: 1, margin: '8px 0' }}>{description}</Paragraph>
+                        <Title level={5} style={{ margin: 0 }}>{discountText}</Title>
+                        <Text type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>Mã: {code}</Text>
+                        
+                        <Paragraph style={{ margin: '4px 0', flex: 1 }}>{description}</Paragraph>
+                        
+                        {minOrderValue > 0 && 
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                Áp dụng cho đơn hàng từ {formatCurrency(minOrderValue)}đ
+                            </Text>
+                        }
+
                         <Divider style={{ margin: '8px 0' }} />
                         <Row justify="space-between" align="middle">
                             <Text style={{ fontSize: 12, color: isExpired ? '#ef4444' : '#6b7280' }}>
