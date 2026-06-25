@@ -4,17 +4,16 @@ import {
     ShoppingCartOutlined,
     SearchOutlined,
     MenuOutlined,
-    HeartOutlined, // Import HeartOutlined
+    HeartOutlined,
 } from '@ant-design/icons';
-import { Button, Drawer, Dropdown } from 'antd';
+import { Button, Drawer } from 'antd';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/auth.context';
-import { logoutApi } from '../util/api/auth.api';
 
 const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { auth, dispatch } = useContext(AuthContext);
+    const { auth } = useContext(AuthContext);
     const [current, setCurrent] = useState('home');
     const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
@@ -22,18 +21,6 @@ const Header = () => {
         const currentPath = location.pathname.split('/')[1] || 'home';
         setCurrent(currentPath);
     }, [location]);
-
-    const handleLogout = async () => {
-        try {
-            await logoutApi();
-        } catch (error) {
-            console.error("Logout error", error);
-        } finally {
-            setCurrent("home");
-            dispatch({ type: 'LOGOUT' });
-            navigate("/login");
-        }
-    };
 
     const mainMenuItems = [
         { label: 'Home', key: 'home', path: '/home' },
@@ -44,30 +31,6 @@ const Header = () => {
     ];
 
     const isAdmin = String(auth.user?.role || '').toLowerCase() === 'admin';
-
-    const profileMenuItems = [
-        ...(isAdmin ? [{
-            key: 'admin-orders',
-            label: <Link to="/admin/orders" style={{ fontSize: '13px', fontWeight: 500 }}>Admin Orders</Link>,
-        }] : []),
-        {
-            key: 'profile',
-            label: <Link to="/user/profile" style={{ fontSize: '13px', fontWeight: 500 }}>My Profile</Link>,
-        },
-        {
-            key: 'wishlist', // Add Wishlist to profile dropdown
-            label: <Link to="/wishlist" style={{ fontSize: '13px', fontWeight: 500 }}>My Wishlist</Link>,
-        },
-        {
-            key: 'rewards',
-            label: <Link to="/rewards" style={{ fontSize: '13px', fontWeight: 500 }}>My Rewards</Link>,
-        },
-        {
-            key: 'logout',
-            danger: true,
-            label: <span onClick={handleLogout} style={{ fontSize: '13px', fontWeight: 500 }}>Logout</span>,
-        },
-    ];
 
     return (
         <div className="header-wrapper">
@@ -213,11 +176,9 @@ const Header = () => {
                     </Link>
 
                     {auth.isAuthenticated ? (
-                        <Dropdown menu={{ items: profileMenuItems }} placement="bottomRight" trigger={['click']}>
-                            <button className="icon-btn desktop-only">
-                                <UserOutlined style={{ fontSize: '18px' }} />
-                            </button>
-                        </Dropdown>
+                        <Link to={isAdmin ? "/admin/profile" : "/user/profile"} className="icon-btn desktop-only">
+                            <UserOutlined style={{ fontSize: '18px' }} />
+                        </Link>
                     ) : (
                         <Button type="text" onClick={() => navigate('/login')} style={{fontWeight: 600}}>Login</Button>
                     )}
@@ -261,20 +222,9 @@ const Header = () => {
                     
                     {auth.isAuthenticated ? (
                         <>
-                            {isAdmin && (
-                                <Link to="/admin/orders" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
-                                    Admin Orders
-                                </Link>
-                            )}
-                            <Link to="/user/profile" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
+                            <Link to={isAdmin ? "/admin/profile" : "/user/profile"} style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
                                 Profile
                             </Link>
-                             <Link to="/wishlist" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
-                                Wishlist
-                            </Link>
-                            <span onClick={() => { handleLogout(); setIsDrawerVisible(false); }} style={{ fontSize: '16px', fontWeight: 600, color: '#ff4d4f', cursor: 'pointer' }}>
-                                Logout
-                            </span>
                         </>
                     ) : (
                         <Link to="/login" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>

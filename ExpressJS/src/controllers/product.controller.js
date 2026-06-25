@@ -1,5 +1,5 @@
 import productService from '../services/product/product.service.js';
-  
+
 const getProductDetail = async (req, res) => {
   try {
     const productId = Number(req.params.id);

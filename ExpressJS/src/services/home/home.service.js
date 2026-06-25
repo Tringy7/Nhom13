@@ -40,22 +40,60 @@ const getBestSellingProducts = async (options = {}) => {
 };
 
 const getAllProducts = async (options = {}) => {
-  const { page = 1, limit = 12, search = '', sort = 'default', brandId } = options;
-  const offset = (page - 1) * limit;
+  const {
+    page = 1,
+    limit = 12,
+    search = '',
+    sort = 'default',
+    category,
+    brandId,
+    minPrice,
+    maxPrice,
+    ram
+  } = options;
 
+  const offset = (page - 1) * limit;
+  const { Op } = db.Sequelize;
+
+  // ── Sort ──────────────────────────────────────────────
   let order = [['createdAt', 'DESC']];
-  if (sort === 'price-asc') order = [['price', 'ASC']];
-  if (sort === 'price-desc') order = [['price', 'DESC']];
+  if (sort === 'price-asc')    order = [['price', 'ASC']];
+  if (sort === 'price-desc')   order = [['price', 'DESC']];
   if (sort === 'best-selling') order = [['sold', 'DESC']];
 
-  let whereClause = { isActive: true };
+  // ── Where clause ──────────────────────────────────────
+  const whereClause = { isActive: true };
+
+  // Search theo tên
   if (search) {
-    whereClause.name = {
-      [db.Sequelize.Op.iLike]: `%${search}%`
-    };
+    whereClause.name = { [Op.iLike]: `%${search}%` };
   }
+
+  // Filter category (hỗ trợ 1 giá trị hoặc mảng)
+  if (category) {
+    const categories = Array.isArray(category) ? category : [category];
+    whereClause.category = { [Op.in]: categories };
+  }
+
+  // Filter brandId (hỗ trợ 1 giá trị hoặc mảng)
   if (brandId) {
-    whereClause.brandId = brandId;
+    const brandIds = Array.isArray(brandId)
+        ? brandId.map(Number)
+        : [Number(brandId)];
+    whereClause.brandId = { [Op.in]: brandIds };
+  }
+
+  // Filter price range
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    whereClause.price = {};
+    if (minPrice !== undefined) whereClause.price[Op.gte] = minPrice;
+    if (maxPrice !== undefined) whereClause.price[Op.lte] = maxPrice;
+  }
+
+  // Filter RAM (hỗ trợ 1 giá trị hoặc mảng)
+  if (ram) {
+    const rams = Array.isArray(ram) ? ram.map(Number) : [Number(ram)];
+    whereClause.ram = { [Op.in]: rams };
   }
 
   return Product.findAndCountAll({
@@ -63,7 +101,7 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'createdAt'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'ram', 'category', 'createdAt'],
     include: productInclude,
     distinct: true
   });

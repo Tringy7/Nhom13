@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Row, Col, Avatar, Tag, Skeleton, message } from 'antd';
+import { Card, Button, Row, Col, Avatar, Tag, Skeleton, message, Popconfirm } from 'antd';
 import {
     UserOutlined,
     CheckCircleOutlined,
@@ -12,14 +12,18 @@ import {
     UserSwitchOutlined,
     CrownOutlined,
     TeamOutlined,
-    CalendarOutlined
+    CalendarOutlined,
+    LogoutOutlined
 } from '@ant-design/icons';
 import { getUser } from '../../components/util/api/user.api.js';
+import { logoutApi } from '../util/api/auth.api.js';
+import { AuthContext } from '../context/auth.context';
 import styles from '../../components/styles/profile.module.css';
 import { getImageUrl } from '../util/helpers.js';
 
 const UserProfile = () => {
     const navigate = useNavigate();
+    const { dispatch } = useContext(AuthContext);
     const [profile, setProfile] = useState({});
     const [loading, setLoading] = useState(true);
 
@@ -41,6 +45,17 @@ const UserProfile = () => {
         };
         fetchProfile();
     }, []);
+
+    const handleLogout = async () => {
+        try {
+            await logoutApi();
+        } catch (error) {
+            console.error("Logout error", error);
+        } finally {
+            dispatch({ type: 'LOGOUT' });
+            navigate("/login");
+        }
+    };
 
     const handleEditClick = () => {
         navigate('/user/edit-profile');
@@ -102,6 +117,16 @@ const UserProfile = () => {
                             <Button type="primary" className={styles.gradientButton} onClick={handleEditClick}>
                                 Chỉnh sửa hồ sơ
                             </Button>
+                            <Popconfirm
+                                title="Bạn có chắc chắn muốn đăng xuất?"
+                                onConfirm={handleLogout}
+                                okText="Đăng xuất"
+                                cancelText="Hủy"
+                            >
+                                <Button danger icon={<LogoutOutlined />} style={{ marginTop: '12px', width: '100%' }}>
+                                    Đăng xuất
+                                </Button>
+                            </Popconfirm>
                         </div>
                     </Card>
                 </Col>
