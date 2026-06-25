@@ -3,7 +3,7 @@ import db from '../../entities/index.js';
 const {
   Product,
   Brand,
-  Review,      // Updated from ProductReview
+  ProductReview,
   Wishlist,    // Updated from ProductFavorite
   Order,
   OrderDetail, // Updated from OrderItem
@@ -48,11 +48,10 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
 
   await ensureOrderDeliveredForProduct(userId, orderId, productId);
 
-  const existed = await Review.findOne({
+  const existed = await ProductReview.findOne({
     where: {
       userId,
-      productId,
-      orderId
+      productId
     }
   });
 
@@ -60,10 +59,9 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
     throw new Error('Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi');
   }
 
-  const review = await Review.create({
+  const review = await ProductReview.create({
     userId,
     productId,
-    orderId,
     rating,
     comment
   });
@@ -90,7 +88,7 @@ const getWishlist = async (userId) => {
     include: [{
       model: Product,
       as: 'product',
-      attributes: ['id', 'name', 'price', 'images', 'stock', 'status'], // Use 'images' instead of 'thumbnail'
+      attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'isActive'],
       include: [
         { model: Brand, as: 'brand', attributes: ['id', 'name'] }
       ]
@@ -103,7 +101,7 @@ const getWishlist = async (userId) => {
 
 // Updated review retrieval
 const getReviewsByProduct = async (productId) => {
-  const reviews = await Review.findAll({
+  const reviews = await ProductReview.findAll({
     where: { productId },
     include: [{
       model: User,
@@ -152,7 +150,7 @@ const getSimilarProducts = async (productId, limit = 8) => {
         where: {
             id: { [Op.ne]: product.id },
             [Op.or]: [
-                { categoryId: product.categoryId },
+                { category: product.category },
                 { brandId: product.brandId }
             ]
         },

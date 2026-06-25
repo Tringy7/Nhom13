@@ -20,46 +20,74 @@ import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 import VnPayReturn from "./components/pages/VnPayReturn.jsx";
 
-import { Routes, Route, useLocation } from 'react-router-dom';
+// ── Admin imports ──────────────────────────────────────────────────────────
+import AdminLayout from "./components/layout/AdminLayout.jsx";
+import AdminDashboardPage from "./components/pages/admin/AdminDashboardPage.jsx";
+import AdminUsersPage from "./components/pages/admin/AdminUsersPage.jsx";
+import AdminManagerPage from "./components/pages/admin/AdminManagerPage.jsx";
+import AdminShipperPage from "./components/pages/admin/AdminShipperPage.jsx";
+import AdminOrderPage from "./components/pages/admin/AdminOrderPage.jsx";
+import AdminCancelRequestPage from "./components/pages/admin/AdminCancelRequestPage.jsx";
+import AdminRevenuePage from "./components/pages/admin/AdminRevenuePage.jsx";
+import AdminSettingsPage from "./components/pages/admin/AdminSettingsPage.jsx";
+
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 function App() {
   const location = useLocation();
-  const authRoutes = ['/login', '/register', '/forgot-password'];
-  const showHeaderFooter = !authRoutes.includes(location.pathname) && !location.pathname.startsWith('/payment');
+  const authRoutes = ["/login", "/register", "/forgot-password"];
+
+  // Ẩn Header/Footer ở trang auth, payment VÀ toàn bộ trang /admin/*
+  const showHeaderFooter =
+    !authRoutes.includes(location.pathname) &&
+    !location.pathname.startsWith("/payment") &&
+    !location.pathname.startsWith("/admin");
 
   return (
     <>
       {showHeaderFooter && <Header />}
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        {/* ── Public Routes ──────────────────────────────────────────── */}
+        <Route path="/"               element={<HomePage />} />
+        <Route path="/home"           element={<HomePage />} />
+        <Route path="/login"          element={<LoginPage />} />
+        <Route path="/register"       element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/payment/success" element={<PaymentSuccessPage />} />
-        <Route path="/payment/failed" element={<PaymentFailedPage />} />
+        <Route path="/product/:id"    element={<ProductDetail />} />
+        <Route path="/products"       element={<Products />} />
+        <Route path="/payment/success"      element={<PaymentSuccessPage />} />
+        <Route path="/payment/failed"       element={<PaymentFailedPage />} />
         <Route path="/payment/vnpay-return" element={<VnPayReturn />} />
 
-        {/* Protected Routes */}
+        {/* ── User Protected Routes ───────────────────────────────────── */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/cart" element={<CartPage />} />
+          <Route path="/cart"         element={<CartPage />} />
           <Route path="/checkout/new" element={<CheckoutPage />} />
-          <Route path="/orders" element={<OrderHistoryPage />} />
-          <Route path="/history" element={<OrderHistoryPage />} />
-          <Route path="/rewards" element={<RewardsPage />} />
-          <Route path="/user/profile" element={<UserProfile />} />
+          <Route path="/orders"       element={<OrderHistoryPage />} />
+          <Route path="/history"      element={<OrderHistoryPage />} />
+          <Route path="/rewards"      element={<RewardsPage />} />
+          <Route path="/user/profile"      element={<UserProfile />} />
           <Route path="/user/edit-profile" element={<UserEditProfile />} />
         </Route>
-        
-        {/* Admin Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-          <Route path="/admin/profile" element={<AdminProfile />} />
-          <Route path="/admin/orders" element={<AdminOrdersPage />} />
-          <Route path="/admin/edit-profile" element={<AdminEditProfile />} />
-          <Route path="/admin/edit-profile/:userId" element={<AdminEditProfile />} />
+
+        {/* ── Admin Routes (dùng ProtectedRoute có sẵn + AdminLayout) ─── */}
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard"      element={<AdminDashboardPage />} />
+            <Route path="users"          element={<AdminUsersPage />} />
+            <Route path="managers"       element={<AdminManagerPage />} />
+            <Route path="shippers"       element={<AdminShipperPage />} />
+            <Route path="orders"         element={<AdminOrderPage />} />
+            <Route path="cancel-requests" element={<AdminCancelRequestPage />} />
+            <Route path="revenue"        element={<AdminRevenuePage />} />
+            <Route path="settings"       element={<AdminSettingsPage />} />
+
+            {/* Giữ lại route cũ đã có */}
+            <Route path="profile"        element={<AdminProfile />} />
+            <Route path="edit-profile"   element={<AdminEditProfile />} />
+            <Route path="edit-profile/:userId" element={<AdminEditProfile />} />
+          </Route>
         </Route>
       </Routes>
       {showHeaderFooter && <Footer />}

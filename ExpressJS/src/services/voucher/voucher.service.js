@@ -1,7 +1,6 @@
 'use strict';
 import { Op } from 'sequelize';
 import db from '../../entities/index.js';
-import { v4 as uuidv4 } from 'uuid';
 
 const { User, Voucher, UserVoucher, RewardTransaction } = db;
 
@@ -14,7 +13,7 @@ const getMyVouchers = async (userId) => {
       required: true
     }],
     order: [
-      ['receivedAt', 'DESC']
+      ['createdAt', 'DESC']
     ]
   });
   return userVouchers;
@@ -32,38 +31,38 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  // Test 2: Thêm điều kiện status
-  const test2 = await UserVoucher.findAll({ where: { userId, status: true } });
-  console.log(`Test 2 (userId & status): Found ${test2.length} records.`);
+  // Test 2: Thêm điều kiện chưa sử dụng
+  const test2 = await UserVoucher.findAll({ where: { userId, isUsed: false } });
+  console.log(`Test 2 (userId & isUsed=false): Found ${test2.length} records.`);
   if (test2.length === 0) {
-      console.log(">>> LỖI: Không tìm thấy voucher nào có status = true (chưa sử dụng).");
+      console.log(">>> LỖI: Không tìm thấy voucher nào chưa sử dụng.");
       return [];
   }
 
-  // Test 3: Join với Voucher và lọc theo isActive
+  // Test 3: Join với Voucher và lọc theo status ACTIVE
   const test3 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
-      where: { isActive: true },
+      where: { status: 'ACTIVE' },
       required: true
     }]
   });
-  console.log(`Test 3 (include & isActive): Found ${test3.length} records.`);
+  console.log(`Test 3 (include & voucher status): Found ${test3.length} records.`);
   if (test3.length === 0) {
-      console.log(">>> LỖI: Các voucher của user không có cờ 'isActive' = true trong bảng Vouchers.");
+      console.log(">>> LỖI: Các voucher của user không ACTIVE.");
       return [];
   }
 
   // Test 4: Thêm điều kiện startDate
   const test4 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() }
       },
       required: true
@@ -77,12 +76,12 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
 
   // Test 5: Thêm điều kiện endDate
   const test5 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() }
       },
@@ -97,12 +96,12 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
 
   // Test 6: Thêm điều kiện minOrderValue
   const test6 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() },
         minOrderValue: { [Op.lte]: orderTotal }
@@ -119,13 +118,13 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   const userVouchers = await UserVoucher.findAll({
     where: {
       userId,
-      status: true,
+      isUsed: false,
     },
     include: [{
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() },
         minOrderValue: { [Op.lte]: orderTotal }
@@ -145,7 +144,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
 const getAvailableVouchers = async () => {
   const available = await Voucher.findAll({
     where: {
-      isActive: true,
+      status: 'ACTIVE',
       endDate: {
         [Op.gte]: new Date()
       }
@@ -159,7 +158,7 @@ const getAvailableVouchers = async () => {
 
 const receiveVoucher = async (userId, voucherId) => {
   const voucher = await Voucher.findOne({
-    where: { id: voucherId, isActive: true }
+    where: { id: voucherId, status: 'ACTIVE' }
   });
 
   if (!voucher) {
@@ -174,29 +173,25 @@ const receiveVoucher = async (userId, voucherId) => {
     throw new Error('Bạn đã nhận voucher này rồi.');
   }
 
-  const rewardCode = `${voucher.code}-${uuidv4().split('-')[0].toUpperCase()}`;
-
   const userVoucher = await UserVoucher.create({
     userId,
     voucherId,
-    rewardCode,
-    status: true, // status: true means 'not used'
-    receivedAt: new Date()
+    isUsed: false
   });
 
   return userVoucher;
 };
 
-const applyVoucher = async (userId, rewardCode, orderTotal) => {
+const applyVoucher = async (userId, voucherCode, orderTotal) => {
   const userVoucher = await UserVoucher.findOne({
     where: {
       userId,
-      rewardCode,
-      status: true
+      isUsed: false
     },
     include: {
       model: Voucher,
       as: 'voucher',
+      where: { code: voucherCode },
       required: true
     }
   });
@@ -207,7 +202,7 @@ const applyVoucher = async (userId, rewardCode, orderTotal) => {
 
   const { voucher } = userVoucher;
 
-  if (!voucher.isActive || new Date(voucher.endDate) < new Date()) {
+  if (voucher.status !== 'ACTIVE' || new Date(voucher.endDate) < new Date()) {
     throw new Error('Mã giảm giá đã hết hạn hoặc không hoạt động.');
   }
   if (new Date(voucher.startDate) > new Date()) {
@@ -221,9 +216,6 @@ const applyVoucher = async (userId, rewardCode, orderTotal) => {
   let discountAmount = 0;
   if (voucher.discountType === 'PERCENT') {
     discountAmount = (orderTotal * voucher.discountValue) / 100;
-    if (voucher.maxDiscount && discountAmount > voucher.maxDiscount) {
-      discountAmount = voucher.maxDiscount;
-    }
   } else { // FIXED
     discountAmount = voucher.discountValue;
   }
@@ -239,9 +231,9 @@ const applyVoucher = async (userId, rewardCode, orderTotal) => {
 
 const getRewardBalance = async (userId) => {
   const user = await User.findByPk(userId, {
-    attributes: ['pointsBalance']
+    attributes: ['points']
   });
-  return user ? user.pointsBalance : 0;
+  return user ? user.points : 0;
 };
 
 const getRewardHistory = async (userId) => {

@@ -2,6 +2,21 @@
 import db from '../../entities/index.js';
 
 const { Product, Brand } = db;
+const { Op } = db.Sequelize;
+
+const productAttributes = [
+  'id',
+  'name',
+  'price',
+  'thumbnail',
+  'stock',
+  'sold',
+  'category',
+  'brandId',
+  'isActive',
+  'createdAt',
+  'updatedAt'
+];
 
 // Simplified include for product queries
 const productInclude = [
@@ -29,15 +44,15 @@ const getBestSellingProducts = async (options = {}) => {
   return Product.findAndCountAll({
     offset,
     limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    order: [['sold', 'DESC']],
+    attributes: productAttributes,
     include: productInclude,
     distinct: true
   });
 };
 
 const getAllProducts = async (options = {}) => {
-  const { page = 1, limit = 12, search = '', sort = 'default', categoryId, brandId } = options;
+  const { page = 1, limit = 12, search = '', sort = 'default', category, brandId } = options;
   const offset = (page - 1) * limit;
 
   let order = [['createdAt', 'DESC']];
@@ -47,11 +62,13 @@ const getAllProducts = async (options = {}) => {
   let whereClause = {};
   if (search) {
     whereClause.name = {
-      [db.Sequelize.Op.iLike]: `%${search}%` // Use iLike for case-insensitive search
+      [Op.like]: `%${search}%`
     };
   }
-  if (categoryId) {
-    whereClause.categoryId = categoryId;
+  if (category) {
+    whereClause.category = {
+      [Op.like]: `%${category}%`
+    };
   }
   if (brandId) {
     whereClause.brandId = brandId;
@@ -62,7 +79,7 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    attributes: productAttributes,
     include: productInclude,
     distinct: true
   });

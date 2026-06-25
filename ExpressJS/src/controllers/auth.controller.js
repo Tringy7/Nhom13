@@ -13,6 +13,22 @@ import { sendPasswordResetEmail } from "../services/auth/mailService.js";
 
 const { User, RefreshToken, ResetOtp } = db;
 
+const buildFullName = (firstName = "", lastName = "") =>
+  `${firstName || ""} ${lastName || ""}`.trim();
+
+const toUserResponse = (user) => ({
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  avatar: user.avatar,
+  address: user.address,
+  gender: user.gender,
+  points: user.points,
+  role: user.role,
+  status: user.status,
+});
+
 // Lưu OTP tạm thời trong memory (cho đăng ký)
 const otpStore = new Map();
 
@@ -55,9 +71,10 @@ let login = async (req, res) => {
     });
 
     const role = user.role;
+    const normalizedRole = String(role || "").toUpperCase();
     let redirectURI = "/";
-    if (role === "admin") redirectURI = "/admin/dashboard";
-    else if (role === "user") redirectURI = "/user/dashboard";
+    if (normalizedRole === "ADMIN") redirectURI = "/admin/dashboard";
+    else if (normalizedRole === "USER") redirectURI = "/user/dashboard";
 
     return res.json({
       message: "Login success",
@@ -165,7 +182,7 @@ let forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
@@ -245,7 +262,7 @@ let resendOtp = async (req, res) => {
 
     const otp = generateOTP();
     const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt });
@@ -286,7 +303,16 @@ let register = async (req, res) => {
     otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry,
-      userData: { email: lowerCaseEmail, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
+      userData: {
+        email: lowerCaseEmail,
+        password: hashedPassword,
+        fullName: buildFullName(firstName, lastName),
+        phone: phoneNumber || null,
+        address,
+        gender,
+        role: 'user',
+        status: 'ACTIVE'
+      }
     });
 
     console.log(lowerCaseEmail, otp)
@@ -339,9 +365,7 @@ let verifyRegistrationOtp = async (req, res) => {
 
     // Tạo user vào database
     const newUser = await User.create({
-      ...record.userData,
-      roleId: 'R3',      // tuỳ theo model của bạn
-      role: 'user'       // nếu dùng role string
+      ...record.userData
     });
 
     otpStore.delete(lowerCaseEmail);
@@ -352,8 +376,8 @@ let verifyRegistrationOtp = async (req, res) => {
       data: {
         id: newUser.id,
         email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
+        fullName: newUser.fullName,
+        phone: newUser.phone,
       }
     });
   } catch (error) {
@@ -411,7 +435,7 @@ let resendRegistrationOtp = async (req, res) => {
 let editUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId } = req.body;
+    const { email, firstName, lastName, fullName, phoneNumber, phone, address, gender, image, avatar } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -427,29 +451,16 @@ let editUserProfile = async (req, res) => {
 
     await user.update({
       email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
+      fullName: fullName || buildFullName(firstName, lastName) || user.fullName,
+      phone: phoneNumber || phone || user.phone,
       address: address || user.address,
       gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
+      avatar: image || avatar || user.avatar,
     });
 
     return res.json({
       message: "Profile updated successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
-        role: user.role,
-      },
+      user: toUserResponse(user),
     });
   } catch (error) {
     console.error(error);
@@ -464,7 +475,7 @@ let editAdminProfile = async (req, res) => {
   try {
     const adminId = req.user.id;
     const { userId } = req.params;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId, role } = req.body;
+    const { email, firstName, lastName, fullName, phoneNumber, phone, address, gender, image, avatar, role } = req.body;
 
     const targetUserId = userId ? parseInt(userId) : adminId;
     const user = await User.findByPk(targetUserId);
@@ -485,13 +496,11 @@ let editAdminProfile = async (req, res) => {
 
     const updateData = {
       email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
+      fullName: fullName || buildFullName(firstName, lastName) || user.fullName,
+      phone: phoneNumber || phone || user.phone,
       address: address || user.address,
       gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
+      avatar: image || avatar || user.avatar,
     };
 
     if (role && targetUserId !== adminId) {
@@ -502,18 +511,7 @@ let editAdminProfile = async (req, res) => {
 
     return res.json({
       message: "Profile updated successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
-        role: user.role,
-      },
+      user: toUserResponse(user),
     });
   } catch (error) {
     console.error(error);

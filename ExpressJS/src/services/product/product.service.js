@@ -1,8 +1,7 @@
 'use strict';
 import db from '../../entities/index.js';
 
-// Updated imports to use the new models
-const { Product, Brand, Category } = db;
+const { Product, Brand } = db;
 
 const getProductDetail = async (productId) => {
   const product = await Product.findByPk(productId, {
@@ -11,12 +10,14 @@ const getProductDetail = async (productId) => {
       'id',
       'name',
       'price',
-      'images', // Use 'images' instead of 'thumbnail'
+      'thumbnail',
       'stock',
-      'status',
+      'sold',
       'description',
-      'categoryId',
+      'ram',
+      'category',
       'brandId',
+      'isActive',
       'createdAt',
       'updatedAt'
     ],
@@ -24,11 +25,6 @@ const getProductDetail = async (productId) => {
       {
         model: Brand,
         as: 'brand',
-        attributes: ['id', 'name']
-      },
-      {
-        model: Category,
-        as: 'category',
         attributes: ['id', 'name']
       }
     ]

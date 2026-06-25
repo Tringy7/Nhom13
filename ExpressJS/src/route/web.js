@@ -12,6 +12,7 @@ import {
 } from '../middleware/validator.js';
 
 import authRoutes from './auth.routes.js';
+import adminRoute from "./admin.route.js";
 import homeRoutes from './home.routes.js';
 import productRoutes from './product.routes.js';
 import productFeatureRoutes from './product-feature.routes.js';
@@ -55,7 +56,7 @@ let initWebRoutes = (app) => {
     app.use('/', voucherRoutes);
     app.use('/', profileRoutes);
     app.use('/', paymentRoutes); // Sử dụng payment routes
-
+    app.use('/api/admin', adminRoute); // Sử dụng admin routes
 
     return app.use('/', router);
 };

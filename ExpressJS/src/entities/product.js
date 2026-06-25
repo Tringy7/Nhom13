@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       Product.belongsTo(entities.Brand, { foreignKey: 'brandId', as: 'brand' });
       Product.hasMany(entities.CartItem, { foreignKey: 'productId', as: 'cartItems' });
       Product.hasMany(entities.OrderDetail, { foreignKey: 'productId', as: 'orderDetails' });
-      Product.hasMany(entities.Review, { foreignKey: 'productId', as: 'reviews' });
+      Product.hasMany(entities.ProductReview, { foreignKey: 'productId', as: 'reviews' });
       Product.hasMany(entities.Wishlist, { foreignKey: 'productId', as: 'wishlistItems' });
     }
   }
@@ -29,16 +29,41 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 0
     },
-    images: {
-      type: DataTypes.JSON,
+    sold: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    thumbnail: {
+      type: DataTypes.STRING,
       allowNull: true
     },
-    status: {
-      type: DataTypes.ENUM('ACTIVE', 'INACTIVE'),
-      allowNull: false,
-      defaultValue: 'ACTIVE'
+    ram: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     },
-    // categoryId field removed
+    category: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true
+    },
+    images: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        const thumbnail = this.getDataValue('thumbnail');
+        return thumbnail ? [thumbnail] : [];
+      }
+    },
+    status: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.getDataValue('isActive') === false ? 'INACTIVE' : 'ACTIVE';
+      }
+    },
     brandId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -50,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Product',
-    tableName: 'Products'
+    tableName: 'products'
   });
   return Product;
 };
