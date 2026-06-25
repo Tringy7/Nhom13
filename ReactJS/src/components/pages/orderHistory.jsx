@@ -173,6 +173,22 @@ const OrderHistoryPage = () => {
                                     const tagBg = statusObj.color === 'blue' ? '#eff6ff' : statusObj.color === 'green' ? '#dcfce7' : statusObj.color === 'gold' ? '#fef3c7' : statusObj.color === 'orange' ? '#ffedd5' : '#fee2e2';
                                     const tagColor = statusObj.color === 'blue' ? '#1d4ed8' : statusObj.color === 'green' ? '#15803d' : statusObj.color === 'gold' ? '#b45309' : statusObj.color === 'orange' ? '#c2410c' : '#b91c1c';
 
+                                    const isCOD = order.paymentMethod === 'COD';
+                                    let paymentStatusText = isCOD ? 'Chưa thanh toán' : 'Đã thanh toán';
+                                    let paymentStatusColor = isCOD ? 'orange' : 'green';
+
+                                    // If COD and delivered, it's paid
+                                    if (isCOD && order.status === 'DELIVERED') {
+                                        paymentStatusText = 'Đã thanh toán';
+                                        paymentStatusColor = 'green';
+                                    }
+                                    // If cancelled, payment status is moot
+                                    if (order.status === 'CANCELLED') {
+                                        paymentStatusText = 'Giao dịch hủy';
+                                        paymentStatusColor = 'default';
+                                    }
+
+
                                     return (
                                         <Card key={order.id} variant="borderless" className="order-card" style={styles.card} bodyStyle={{ padding: 0 }}>
                                             <Row justify="space-between" align="middle" style={{ padding: '20px 32px', borderBottom: '1px solid #f3f4f6' }}>
@@ -226,7 +242,10 @@ const OrderHistoryPage = () => {
                                             <Row justify="space-between" align="middle" style={{ background: '#f9fafb', padding: '20px 32px', borderTop: '1px solid #f3f4f6' }}>
                                                 <Col>
                                                     <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 4 }}>Total Amount</Text>
-                                                    <Text strong style={{ fontSize: 24, color: '#111827' }}>{formatPrice(order.totalPrice)}</Text>
+                                                    <Space align="baseline">
+                                                        <Text strong style={{ fontSize: 24, color: '#111827' }}>{formatPrice(order.totalPrice)}</Text>
+                                                        <Tag color={paymentStatusColor}>{paymentStatusText}</Tag>
+                                                    </Space>
                                                 </Col>
                                                 <Col>
                                                     <Space size={12}>
