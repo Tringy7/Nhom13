@@ -16,6 +16,7 @@ import CheckoutPage from "./components/pages/checkout.jsx";
 import OrderHistoryPage from "./components/pages/orderHistory.jsx";
 import OrderDetail from "./components/pages/orderDetail.jsx";
 import RewardsPage from "./components/pages/rewards.jsx";
+import WishlistPage from "./components/pages/wishlist.jsx"; // Import WishlistPage
 import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
@@ -51,9 +52,10 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout/new" element={<CheckoutPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
-          <Route path="/orders/:id" element={<OrderDetail />} /> {/* THÊM ROUTE MỚI */}
+          <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/history" element={<OrderHistoryPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} /> {/* Add Wishlist Route */}
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/user/edit-profile" element={<UserEditProfile />} />
         </Route>

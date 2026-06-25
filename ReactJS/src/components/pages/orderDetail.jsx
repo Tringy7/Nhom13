@@ -307,9 +307,9 @@ const ProductListCard = ({ details, orderStatus, onReview, onCancelItem }) => {
 const ShippingAddressCard = ({ order }) => (
     <CardBase>
         <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 16 }}>Shipping Address</Title>
-        <Paragraph strong style={{ marginBottom: 8 }}>{order.customer?.fullName || 'Customer Name'}</Paragraph>
+        <Paragraph strong style={{ marginBottom: 8 }}>{order.fullName || 'Customer Name'}</Paragraph>
         <Paragraph style={{ color: '#595959', marginBottom: 4 }}>
-            <PhoneOutlined style={{ marginRight: 8 }} /> {order.customer?.phone || 'No phone provided'}
+            <PhoneOutlined style={{ marginRight: 8 }} /> {order.phoneNumber || 'No phone provided'}
         </Paragraph>
         <Paragraph style={{ color: '#595959', marginBottom: 16 }}>
             <EnvironmentOutlined style={{ marginRight: 8 }} /> {order.shippingAddress}

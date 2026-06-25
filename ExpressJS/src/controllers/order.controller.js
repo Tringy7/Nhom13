@@ -5,15 +5,16 @@ import { sendOrderSuccessEmail } from '../services/auth/email.service.js';
 const createOrder = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
-    const { shippingAddress, phoneNumber, note, paymentMethod, items, voucherId, pointsToUse } = req.body;
+    const { fullName, phoneNumber, shippingAddress, note, paymentMethod, items, voucherId, pointsToUse } = req.body;
 
     if (!items || items.length === 0) {
       throw new Error('Vui lòng chọn ít nhất 1 sản phẩm để đặt hàng');
     }
 
     const order = await orderService.createOrder(userId, {
-      shippingAddress,
+      fullName,
       phoneNumber,
+      shippingAddress,
       note,
       paymentMethod,
       items,
@@ -21,7 +22,6 @@ const createOrder = async (req, res) => {
       pointsToUse
     }, req);
 
-    // Xử lý chuyển hướng cho VNPAY
     if (paymentMethod === PAYMENT_METHOD.VNPAY && order.paymentUrl) {
       return res.status(200).json({
         success: true,
@@ -33,7 +33,6 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Gửi email xác nhận đơn hàng bất đồng bộ, không chặn response trả về cho client
     if (req.user?.email) {
       sendOrderSuccessEmail(req.user.email, order).catch((error) => {
         console.error('Gửi email xác nhận đơn hàng thất bại:', error);

@@ -4,12 +4,12 @@ import {
     ShoppingCartOutlined,
     SearchOutlined,
     MenuOutlined,
-    GiftOutlined,
+    HeartOutlined, // Import HeartOutlined
 } from '@ant-design/icons';
 import { Button, Drawer, Dropdown } from 'antd';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/auth.context';
-import { logoutApi } from '../util/api/auth.api'; // Thêm dòng này
+import { logoutApi } from '../util/api/auth.api';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -25,7 +25,7 @@ const Header = () => {
 
     const handleLogout = async () => {
         try {
-            await logoutApi(); // Gọi API logout để clear cookie phía backend
+            await logoutApi();
         } catch (error) {
             console.error("Logout error", error);
         } finally {
@@ -53,6 +53,10 @@ const Header = () => {
         {
             key: 'profile',
             label: <Link to="/user/profile" style={{ fontSize: '13px', fontWeight: 500 }}>My Profile</Link>,
+        },
+        {
+            key: 'wishlist', // Add Wishlist to profile dropdown
+            label: <Link to="/wishlist" style={{ fontSize: '13px', fontWeight: 500 }}>My Wishlist</Link>,
         },
         {
             key: 'rewards',
@@ -200,6 +204,10 @@ const Header = () => {
                         <SearchOutlined style={{ fontSize: '18px' }} />
                     </button>
                     
+                    <Link to="/wishlist" className="icon-btn">
+                        <HeartOutlined style={{ fontSize: '18px' }} />
+                    </Link>
+
                     <Link to="/cart" className="icon-btn">
                         <ShoppingCartOutlined style={{ fontSize: '18px' }} />
                     </Link>
@@ -260,6 +268,9 @@ const Header = () => {
                             )}
                             <Link to="/user/profile" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
                                 Profile
+                            </Link>
+                             <Link to="/wishlist" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
+                                Wishlist
                             </Link>
                             <span onClick={() => { handleLogout(); setIsDrawerVisible(false); }} style={{ fontSize: '16px', fontWeight: 600, color: '#ff4d4f', cursor: 'pointer' }}>
                                 Logout

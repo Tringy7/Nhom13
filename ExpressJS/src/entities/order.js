@@ -30,6 +30,14 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       references: { model: 'Users', key: 'id' }
     },
+    fullName: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    phoneNumber: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     subtotal: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
