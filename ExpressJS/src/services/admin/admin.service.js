@@ -1,6 +1,7 @@
 import { Op, fn, col, literal } from "sequelize";
 import db from "../../entities/index.js";
 import bcrypt from "bcryptjs";
+import managerService from "../Manager/manager.service.js";
 
 const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, Product, SystemSetting } = db;
 
@@ -14,10 +15,12 @@ const ROLE = {
 const ORDER_STATUS = {
   NEW: "NEW",
   CONFIRMED: "CONFIRMED",
+  PREPARING: "PREPARING",
   SHIPPING: "SHIPPING",
   DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
   CANCEL_REQUEST: "CANCEL_REQUEST",
+  DELIVERY_FAILED: "DELIVERY_FAILED",
 };
 
 const SYSTEM_SETTING_DEFAULTS = [
@@ -283,6 +286,30 @@ export const getOrderById = async (id) => {
   if (!order) throw new Error("Order not found");
   return normalizeOrder(order);
 };
+
+export const updateOrderStatus = async (id, status, note = "", adminId = null) => {
+  if (!Object.values(ORDER_STATUS).includes(status)) {
+    throw new Error("Invalid order status");
+  }
+
+  return normalizeOrder(await managerService.updateOrderStatus(id, status, note, adminId));
+};
+
+// ─── PRODUCTS ───────────────────────────────────────────────────────────────
+export const getProducts = (query) => managerService.getProducts(query);
+export const getProductById = (id) => managerService.getProductDetail(id);
+export const createProduct = (data) => managerService.createProduct(data);
+export const updateProduct = (id, data) => managerService.updateProduct(id, data);
+export const deleteProduct = (id) => managerService.deleteProduct(id);
+export const toggleProductActive = (id) => managerService.toggleProductActive(id);
+export const getBrands = () => managerService.getBrands();
+export const getCategories = () => managerService.getCategories();
+
+// ─── VOUCHERS ───────────────────────────────────────────────────────────────
+export const getVouchers = () => managerService.getVouchers();
+export const createVoucher = (data) => managerService.createVoucher(data);
+export const updateVoucher = (id, data) => managerService.updateVoucher(id, data);
+export const deleteVoucher = (id) => managerService.deleteVoucher(id);
 
 // ─── CANCEL REQUESTS ─────────────────────────────────────────────────────────
 export const getCancelRequests = async ({ page = 1, limit = 10, status = "" }) => {

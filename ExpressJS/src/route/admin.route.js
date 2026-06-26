@@ -32,8 +32,25 @@ router.patch("/shippers/:id/lock",    ...guard, adminCtrl.lockShipper);
 router.patch("/shippers/:id/unlock",  ...guard, adminCtrl.unlockShipper);
 
 // ── Orders ───────────────────────────────────────────────────────────────────
-router.get("/orders",     ...guard, adminCtrl.getOrders);
-router.get("/orders/:id", ...guard, adminCtrl.getOrderById);
+router.get("/orders",              ...guard, adminCtrl.getOrders);
+router.get("/orders/:id",          ...guard, adminCtrl.getOrderById);
+router.patch("/orders/:id/status", ...guard, adminCtrl.updateOrderStatus);
+
+// ── Products ─────────────────────────────────────────────────────────────────
+router.get("/products",             ...guard, adminCtrl.getProducts);
+router.post("/products",            ...guard, adminCtrl.createProduct);
+router.get("/products/:id",         ...guard, adminCtrl.getProductById);
+router.put("/products/:id",         ...guard, adminCtrl.updateProduct);
+router.delete("/products/:id",      ...guard, adminCtrl.deleteProduct);
+router.patch("/products/:id/toggle", ...guard, adminCtrl.toggleProductActive);
+router.get("/brands",               ...guard, adminCtrl.getBrands);
+router.get("/categories",           ...guard, adminCtrl.getCategories);
+
+// ── Vouchers ─────────────────────────────────────────────────────────────────
+router.get("/vouchers",        ...guard, adminCtrl.getVouchers);
+router.post("/vouchers",       ...guard, adminCtrl.createVoucher);
+router.put("/vouchers/:id",    ...guard, adminCtrl.updateVoucher);
+router.delete("/vouchers/:id", ...guard, adminCtrl.deleteVoucher);
 
 // ── Cancel Requests ───────────────────────────────────────────────────────────
 router.get("/cancel-requests",                ...guard, adminCtrl.getCancelRequests);

@@ -49,6 +49,36 @@ export const getAdminOrders = (params) =>
   asAxiosResponse(axiosInstance.get("/api/admin/orders", { params }));
 export const getAdminOrderById = (id) =>
   asAxiosResponse(axiosInstance.get(`/api/admin/orders/${id}`));
+export const updateAdminOrderStatus = (id, data) =>
+  asAxiosResponse(axiosInstance.patch(`/api/admin/orders/${id}/status`, data));
+
+// Products
+export const getAdminProducts = (params) =>
+  asAxiosResponse(axiosInstance.get("/api/admin/products", { params }));
+export const getAdminProductById = (id) =>
+  asAxiosResponse(axiosInstance.get(`/api/admin/products/${id}`));
+export const createAdminProduct = (data) =>
+  asAxiosResponse(axiosInstance.post("/api/admin/products", data));
+export const updateAdminProduct = (id, data) =>
+  asAxiosResponse(axiosInstance.put(`/api/admin/products/${id}`, data));
+export const deleteAdminProduct = (id) =>
+  asAxiosResponse(axiosInstance.delete(`/api/admin/products/${id}`));
+export const toggleAdminProduct = (id) =>
+  asAxiosResponse(axiosInstance.patch(`/api/admin/products/${id}/toggle`));
+export const getAdminBrands = () =>
+  asAxiosResponse(axiosInstance.get("/api/admin/brands"));
+export const getAdminCategories = () =>
+  asAxiosResponse(axiosInstance.get("/api/admin/categories"));
+
+// Vouchers
+export const getAdminVouchers = () =>
+  asAxiosResponse(axiosInstance.get("/api/admin/vouchers"));
+export const createAdminVoucher = (data) =>
+  asAxiosResponse(axiosInstance.post("/api/admin/vouchers", data));
+export const updateAdminVoucher = (id, data) =>
+  asAxiosResponse(axiosInstance.put(`/api/admin/vouchers/${id}`, data));
+export const deleteAdminVoucher = (id) =>
+  asAxiosResponse(axiosInstance.delete(`/api/admin/vouchers/${id}`));
 
 // Cancel Requests
 export const getCancelRequests = (params) =>

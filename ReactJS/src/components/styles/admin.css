@@ -1,0 +1,163 @@
+.admin-shell {
+  min-height: 100vh;
+  background: #f6f7fb;
+  color: #121417;
+  font-family: "Plus Jakarta Sans", "Manrope", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-sider {
+  background: #ffffff !important;
+  border-right: 1px solid rgba(224, 227, 229, 0.9);
+  box-shadow: 6px 0 24px rgba(17, 24, 39, 0.04);
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px 18px;
+}
+
+.admin-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  color: #ffffff;
+  background: #1f6feb;
+  font-weight: 800;
+  font-size: 20px;
+  box-shadow: 0 12px 24px rgba(31, 111, 235, 0.22);
+}
+
+.admin-brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.admin-brand-subtitle,
+.admin-muted-text {
+  color: #7c8798;
+  font-size: 12px;
+}
+
+.admin-menu {
+  border-inline-end: 0 !important;
+  padding: 8px 12px;
+}
+
+.admin-menu .ant-menu-item {
+  height: 44px;
+  margin-inline: 0;
+  margin-block: 4px;
+  border-radius: 14px;
+  color: #657083;
+  font-weight: 650;
+}
+
+.admin-menu .ant-menu-item-selected {
+  color: #1f6feb;
+  background: #edf4ff !important;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 72px;
+  padding: 0 32px;
+  background: rgba(246, 247, 251, 0.94);
+  border-bottom: 1px solid rgba(224, 227, 229, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.admin-account {
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px solid rgba(224, 227, 229, 0.85);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.admin-content {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.admin-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.admin-page-head .ant-typography {
+  margin-bottom: 4px;
+}
+
+.admin-toolbar {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.admin-product-thumb {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(224, 227, 229, 0.9);
+  background: #f3f5f8;
+}
+
+.admin-shell .ant-card {
+  border-radius: 24px;
+  border: 1px solid rgba(224, 227, 229, 0.8);
+  box-shadow: 0 16px 42px rgba(17, 24, 39, 0.06);
+}
+
+.admin-shell .ant-card-body {
+  padding: 22px;
+}
+
+.admin-shell .ant-table-wrapper .ant-table {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.admin-shell .ant-table-thead > tr > th {
+  background: #f8fafc;
+  color: #5f6b7a;
+  font-weight: 750;
+}
+
+.admin-shell .ant-btn {
+  border-radius: 12px;
+  font-weight: 650;
+}
+
+.admin-shell .ant-btn-primary {
+  background: #1f6feb;
+  box-shadow: 0 10px 18px rgba(31, 111, 235, 0.16);
+}
+
+.admin-shell .ant-input,
+.admin-shell .ant-input-number,
+.admin-shell .ant-select-selector,
+.admin-shell .ant-picker {
+  border-radius: 12px !important;
+}
+
+@media (max-width: 900px) {
+  .admin-content {
+    padding: 20px;
+  }
+
+  .admin-page-head {
+    flex-direction: column;
+  }
+}
