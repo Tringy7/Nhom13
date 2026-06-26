@@ -1,7 +1,7 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('Products', {
+    await queryInterface.createTable('products', {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -12,27 +12,36 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false
       },
+      price: {
+        type: Sequelize.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0
+      },
       description: {
         type: Sequelize.TEXT,
         allowNull: true
-      },
-      price: {
-        type: Sequelize.DECIMAL(12, 2),
-        allowNull: false
       },
       stock: {
         type: Sequelize.INTEGER,
         allowNull: false,
         defaultValue: 0
       },
-      images: {
-        type: Sequelize.JSON,
+      sold: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+      },
+      thumbnail: {
+        type: Sequelize.STRING,
         allowNull: true
       },
-      status: {
-        type: Sequelize.ENUM('ACTIVE', 'INACTIVE'),
-        allowNull: false,
-        defaultValue: 'ACTIVE'
+      ram: {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      },
+      category: {
+        type: Sequelize.STRING,
+        allowNull: true
       },
       brandId: {
         type: Sequelize.INTEGER,
@@ -41,6 +50,10 @@ module.exports = {
           model: 'brands',
           key: 'id'
         }
+      },
+      isActive: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: true
       },
       createdAt: {
         allowNull: false,
@@ -53,6 +66,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('Products');
+    await queryInterface.dropTable('products');
   }
 };

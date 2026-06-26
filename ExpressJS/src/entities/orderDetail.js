@@ -1,5 +1,7 @@
 'use strict';
 const { Model } = require('sequelize');
+const { ORDER_DETAIL_STATUS } = require('../constants/order.constants');
+
 module.exports = (sequelize, DataTypes) => {
   class OrderDetail extends Model {
     static associate(entities) {
@@ -15,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     productId: {
       type: DataTypes.INTEGER,
-      allowNull: true, // Changed to true to match migration
+      allowNull: true,
       references: { model: 'Products', key: 'id' }
     },
     productName: {
@@ -29,6 +31,14 @@ module.exports = (sequelize, DataTypes) => {
     price: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false
+    },
+    status: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: ORDER_DETAIL_STATUS.EXISTED,
+      validate: {
+        isIn: [Object.values(ORDER_DETAIL_STATUS)]
+      }
     }
   }, {
     sequelize,

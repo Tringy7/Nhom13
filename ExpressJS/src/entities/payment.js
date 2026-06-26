@@ -1,8 +1,8 @@
 'use strict';
-const { Model } = require('sequelize');
-const { PAYMENT_METHOD, PAYMENT_STATUS } = require('../constants/payment.constants');
+import { Model } from 'sequelize';
+import { PAYMENT_METHOD, PAYMENT_STATUS } from '../constants/payment.constants.js';
 
-module.exports = (sequelize, DataTypes) => {
+export default (sequelize, DataTypes) => {
   class Payment extends Model {
     static associate(entities) {
       Payment.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });

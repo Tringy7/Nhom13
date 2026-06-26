@@ -7,30 +7,30 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(entities.Order, { foreignKey: 'shipperId', as: 'deliveries' });
       User.hasOne(entities.Cart, { foreignKey: 'userId', as: 'cart' });
       User.hasMany(entities.Wishlist, { foreignKey: 'userId', as: 'wishlistItems' });
-      User.hasMany(entities.Review, { foreignKey: 'userId', as: 'reviews' });
-      User.hasMany(entities.ProductReview, { foreignKey: 'userId', as: 'productReviews' });
+      User.hasMany(entities.ProductReview, { foreignKey: 'userId', as: 'reviews' });
       User.hasMany(entities.OrderCancellationRequest, { foreignKey: 'userId', as: 'cancellationRequests' });
-
-      // Defines the many-to-many relationship with Voucher through UserVoucher
       User.belongsToMany(entities.Voucher, { through: entities.UserVoucher, foreignKey: 'userId', as: 'vouchers' });
     }
   }
   User.init({
     fullName: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     },
     email: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true
+      unique: true,
+      validate: {
+        isEmail: true
+      }
     },
     password: {
       type: DataTypes.STRING,
       allowNull: false
     },
     phone: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(11),
       allowNull: true
     },
     avatar: {
@@ -59,11 +59,20 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('ACTIVE', 'LOCKED'),
       allowNull: false,
       defaultValue: 'ACTIVE'
+    },
+    refreshToken: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    refreshTokenExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     sequelize,
     modelName: 'User',
-    tableName: 'users'
+    tableName: 'Users',
+    timestamps: true
   });
   return User;
 };

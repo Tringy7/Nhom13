@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Typography, Button, Spin, Result, Row, Col, Divider, Image, Space, Form, Input, message, Modal, Empty, Tag, Radio } from 'antd';
-import { ArrowLeftOutlined, WalletOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, TagOutlined, StarOutlined, RightOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, WalletOutlined, EnvironmentOutlined, PhoneOutlined, UserOutlined, MailOutlined, TagOutlined, StarOutlined, RightOutlined, GiftOutlined } from '@ant-design/icons';
 import { createOrder } from '../util/api/order.api';
-import { createVNPayPaymentApi } from '../util/api/payment.api';
 import { getMyVouchersApi, applyVoucherApi, getRewardBalanceApi } from '../util/api/voucher.api.js';
+import { getUserApi } from '../util/api/user.api.js';
 import { getImageUrl } from '../util/helpers';
 import vnpayLogo from '../../assets/vnpay-logo.png';
 
@@ -18,24 +18,26 @@ const styles = {
     primaryBtn: { height: 56, borderRadius: 16, fontSize: 16, fontWeight: 700, background: 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)', border: 'none' },
     summaryCard: { borderRadius: 28, boxShadow: '0 14px 40px rgba(0,0,0,0.06)', position: 'sticky', top: 24, background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.2)' },
     voucherRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb', cursor: 'pointer' },
-    voucherModalCard: { border: '1px solid #e5e7eb', borderRadius: 12, marginBottom: 12, padding: 16, transition: 'all 0.2s ease' },
+    couponCard: { background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', transition: 'all 0.3s ease', display: 'flex', marginBottom: 16 },
+    couponIconWrapper: { width: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '2px dashed #e5e7eb', background: '#eef2ff' },
 };
 
 const CheckoutPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [form] = Form.useForm();
-    
+
     const [orderItems, setOrderItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('COD');
+    const [userInfo, setUserInfo] = useState(null);
 
     const [myVouchers, setMyVouchers] = useState([]);
     const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
     const [voucherDiscount, setVoucherDiscount] = useState(0);
-    
+
     const [userPoints, setUserPoints] = useState(0);
     const [pointsToUse, setPointsToUse] = useState('');
     const [pointsError, setPointsError] = useState(null);
@@ -45,30 +47,68 @@ const CheckoutPage = () => {
     const pointsDiscount = Number(pointsToUse) || 0;
     const total = Math.max(0, subtotal + shippingFee - voucherDiscount - pointsDiscount);
 
+    const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+    const formatCurrency = (value) => new Intl.NumberFormat('vi-VN').format(value);
+
+    // Step 1: Fetch user data and store it in state
+    const fetchCurrentUser = async () => {
+        try {
+            const res = await getUserApi();
+            // Because of the interceptor, `res` is already `response.data`.
+            // The actual user object is in `res.data`.
+            const user = res?.data || res;
+            setUserInfo(user);
+        } catch (error) {
+            console.error("Failed to fetch user:", error);
+            message.error('Không thể tải thông tin người dùng. Vui lòng thử lại.');
+        }
+    };
+
+    // Initial data loading
     useEffect(() => {
+        setLoading(true);
         if (location.state && location.state.selectedItems) {
             const items = location.state.selectedItems;
             setOrderItems(items);
+
+            const fetchInitialData = async () => {
+                try {
+                    await Promise.all([
+                        fetchCurrentUser(),
+                        (async () => {
+                            const [vouchersRes, balanceRes] = await Promise.all([
+                                getMyVouchersApi(),
+                                getRewardBalanceApi()
+                            ]);
+                            const validVouchers = (vouchersRes?.data || []).filter(uv => !uv.isUsed && new Date(uv.voucher.endDate) >= new Date());
+                            setMyVouchers(validVouchers);
+                            setUserPoints(balanceRes?.data?.points || 0);
+                        })()
+                    ]);
+                } catch (error) {
+                    message.error('Lỗi khi tải dữ liệu trang thanh toán.');
+                } finally {
+                    setLoading(false);
+                }
+            };
             fetchInitialData();
         } else {
             setLoading(false);
+            navigate('/cart');
         }
-    }, [location.state]);
+    }, [location.state, navigate]);
 
-    const fetchInitialData = async () => {
-        try {
-            const [vouchersRes, balanceRes] = await Promise.all([
-                getMyVouchersApi(),
-                getRewardBalanceApi()
-            ]);
-            setMyVouchers(vouchersRes.data || []);
-            setUserPoints(balanceRes.data?.points || 0);
-        } catch (error) {
-            message.error('Lỗi khi tải dữ liệu ưu đãi.');
-        } finally {
-            setLoading(false);
+    // Step 2: A separate useEffect to populate the form when userInfo is available
+    useEffect(() => {
+        if (userInfo) {
+            form.setFieldsValue({
+                fullName: userInfo.fullName || '',
+                phoneNumber: userInfo.phone || '',
+                shippingAddress: userInfo.address || ''
+            });
         }
-    };
+    }, [userInfo, form]);
+
 
     useEffect(() => {
         const pointsValue = Number(pointsToUse);
@@ -83,13 +123,14 @@ const CheckoutPage = () => {
 
     const handleSelectVoucher = async (userVoucher) => {
         try {
-            const res = await applyVoucherApi(userVoucher.rewardCode, subtotal);
+            const res = await applyVoucherApi(userVoucher.voucherId, subtotal);
             const { discountAmount } = res.data;
-            
+
             setSelectedVoucher(userVoucher);
             setVoucherDiscount(discountAmount);
             setIsVoucherModalVisible(false);
-            message.success(`Áp dụng voucher "${userVoucher.voucher.code}" thành công!`);
+
+            message.success(`Áp dụng voucher thành công! Bạn được giảm ${formatPrice(discountAmount)}.`);
         } catch (error) {
             message.error(error.response?.data?.message || 'Không thể áp dụng voucher này.');
         }
@@ -108,19 +149,20 @@ const CheckoutPage = () => {
         setSubmitting(true);
         try {
             const orderPayload = {
-                shippingAddress: values.shippingAddress,
+                fullName: values.fullName,
                 phoneNumber: values.phoneNumber,
+                shippingAddress: values.shippingAddress,
                 note: values.note,
                 items: orderItems.map(item => ({
                     productId: item.productId,
                     quantity: item.quantity,
                     price: item.price
                 })),
-                couponCode: selectedVoucher ? selectedVoucher.rewardCode : null,
+                voucherId: selectedVoucher ? selectedVoucher.voucherId : null,
                 pointsToUse: Number(pointsToUse) || 0,
                 paymentMethod: paymentMethod,
             };
-            
+
             const orderResponse = await createOrder(orderPayload);
             const createdOrder = orderResponse.data.data ?? orderResponse.data;
 
@@ -141,7 +183,48 @@ const CheckoutPage = () => {
         }
     };
 
-    const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+    const renderVoucherInModal = (userVoucher) => {
+        const { voucher } = userVoucher;
+        const { title, description, discountType, discountValue, minOrderValue, endDate, code } = voucher;
+
+        let discountText = '';
+        if (discountType === 'PERCENT') {
+            discountText = `Giảm ${discountValue}%`;
+        } else {
+            discountText = `Giảm ${formatCurrency(discountValue)}đ`;
+        }
+
+        return (
+            <div style={styles.couponCard}>
+                <div style={styles.couponIconWrapper}>
+                    <GiftOutlined style={{ fontSize: 32, color: '#4f46e5' }} />
+                </div>
+                <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <Title level={5} style={{ margin: 0 }}>{discountText}</Title>
+                    <Text type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>Mã: {code}</Text>
+
+                    <Paragraph style={{ margin: '4px 0', flex: 1 }}>{description}</Paragraph>
+
+                    {minOrderValue > 0 &&
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                            Áp dụng cho đơn hàng từ {formatCurrency(minOrderValue)}đ
+                        </Text>
+                    }
+
+                    <Divider style={{ margin: '8px 0' }} />
+
+                    <Row justify="space-between" align="middle">
+                        <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                            HSD: {new Date(endDate).toLocaleDateString('vi-VN')}
+                        </Text>
+                        <Button type="primary" onClick={() => handleSelectVoucher(userVoucher)}>
+                            Sử dụng
+                        </Button>
+                    </Row>
+                </div>
+            </div>
+        );
+    };
 
     if (loading) {
         return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}><Spin size="large" /></div>;
@@ -171,7 +254,7 @@ const CheckoutPage = () => {
                                     <Form.Item name="shippingAddress" rules={[{ required: true }]}><Input prefix={<MailOutlined />} placeholder="Địa chỉ" style={styles.input} /></Form.Item>
                                     <Form.Item name="note"><Input.TextArea placeholder="Ghi chú (tùy chọn)" style={{...styles.input, height: 'auto' }} /></Form.Item>
                                 </Card>
-                                
+
                                 <Card title={<Text strong>Sản phẩm</Text>} bordered={false} style={styles.card}>
                                     {orderItems.map((item, idx) => (
                                         <Row key={idx} gutter={16} align="middle" style={{ padding: '12px 0', borderBottom: idx < orderItems.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
@@ -213,7 +296,7 @@ const CheckoutPage = () => {
                                             <Tag color="blue">{selectedVoucher.voucher.code}</Tag>
                                         ) : (
                                             <Text type="secondary">
-                                                {myVouchers.length === 0 ? 'Không có voucher' : 'Chọn voucher'}
+                                                {myVouchers.length === 0 ? 'Không có voucher' : `${myVouchers.length} voucher có sẵn`}
                                             </Text>
                                         )}
                                         <RightOutlined />
@@ -226,12 +309,12 @@ const CheckoutPage = () => {
                                         <Text type="secondary">Hiện có: {userPoints.toLocaleString()}</Text>
                                     </Row>
                                     <Space.Compact style={{ width: '100%' }}>
-                                        <Input 
-                                            type="number" 
-                                            placeholder="Nhập số điểm" 
-                                            value={pointsToUse} 
-                                            onChange={e => setPointsToUse(e.target.value)} 
-                                            style={{ height: 44 }} 
+                                        <Input
+                                            type="number"
+                                            placeholder="Nhập số điểm"
+                                            value={pointsToUse}
+                                            onChange={e => setPointsToUse(e.target.value)}
+                                            style={{ height: 44 }}
                                         />
                                         <Button type="default" onClick={handleUseMaxPoints} style={{ height: 44 }}>Dùng tối đa</Button>
                                     </Space.Compact>
@@ -253,11 +336,11 @@ const CheckoutPage = () => {
                                 </Space>
 
                                 <div style={{ marginTop: 32 }}>
-                                    <Button 
-                                        type="primary" 
-                                        htmlType="submit" 
-                                        block 
-                                        loading={submitting} 
+                                    <Button
+                                        type="primary"
+                                        htmlType="submit"
+                                        block
+                                        loading={submitting}
                                         style={styles.primaryBtn}
                                         disabled={!!pointsError || submitting}
                                     >
@@ -271,27 +354,17 @@ const CheckoutPage = () => {
             </div>
 
             <Modal
-                title="Voucher của tôi"
+                title="Chọn voucher"
                 open={isVoucherModalVisible}
                 onCancel={() => setIsVoucherModalVisible(false)}
                 footer={null}
-                bodyStyle={{ maxHeight: '60vh', overflowY: 'auto', padding: '8px' }}
+                bodyStyle={{ maxHeight: '60vh', overflowY: 'auto', padding: '24px 8px' }}
             >
                 {myVouchers.length > 0 ? myVouchers.map(uv => (
-                    <div key={uv.id} style={styles.voucherModalCard}>
-                        <Row justify="space-between">
-                            <Col>
-                                <Title level={5} style={{ margin: 0 }}>{uv.voucher.title}</Title>
-                                <Text type="secondary" style={{ fontSize: 12 }}>HSD: {new Date(uv.voucher.endDate).toLocaleDateString('vi-VN')}</Text>
-                            </Col>
-                            <Col>
-                                <Button type="primary" onClick={() => handleSelectVoucher(uv)}>Sử dụng</Button>
-                            </Col>
-                        </Row>
-                        <Divider style={{ margin: '12px 0' }} />
-                        <Text>{uv.voucher.description}</Text>
+                    <div key={uv.id}>
+                        {renderVoucherInModal(uv)}
                     </div>
-                )) : <Empty description="Bạn không có voucher nào." />}
+                )) : <Empty description="Bạn không có voucher nào khả dụng." />}
             </Modal>
         </div>
     );

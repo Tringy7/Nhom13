@@ -21,7 +21,7 @@ const LoginPage = () => {
                 const redirectPath = role.toLowerCase() === 'admin'
                     ? '/admin/dashboard'
                     : role.toLowerCase() === 'user'
-                        ? '/user/profile'
+                        ? '/'
                         : res.redirectURI || '/';
 
                 dispatch({

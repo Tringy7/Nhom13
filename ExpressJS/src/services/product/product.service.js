@@ -1,31 +1,39 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Product, Brand } = db;
+const { Product, Brand, ProductImage, Promotion } = db;
 
 const getProductDetail = async (productId) => {
   const product = await Product.findByPk(productId, {
-    // Select the correct, simplified attributes
     attributes: [
       'id',
       'name',
       'price',
-      'thumbnail',
+      'description',
       'stock',
       'sold',
-      'description',
+      'thumbnail',
       'ram',
       'category',
-      'brandId',
       'isActive',
-      'createdAt',
-      'updatedAt'
+      'brandId'
     ],
     include: [
       {
         model: Brand,
         as: 'brand',
         attributes: ['id', 'name']
+      },
+      {
+        model: ProductImage,
+        as: 'images',
+        attributes: ['imageUrl']
+      },
+      {
+        model: Promotion,
+        as: 'promotions',
+        attributes: ['id', 'name', 'description', 'discountRate', 'startDate', 'endDate', 'isActive'],
+        through: { attributes: [] }
       }
     ]
   });
@@ -36,10 +44,6 @@ const getProductDetail = async (productId) => {
 
   return product;
 };
-
-// The other functions (getPromotions, getNewestProducts, getBestSellingProducts, getProductsByCategory)
-// were removed as they were either obsolete due to model changes (Promotion) or redundant
-// with the more advanced filtering in `home.service.js`.
 
 export default {
   getProductDetail

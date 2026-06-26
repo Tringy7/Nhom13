@@ -11,6 +11,13 @@ router.post(
   orderController.createOrder
 );
 
+router.post(
+  '/api/orders/:orderId/items/:itemId',
+  verifyToken,
+  authorize("user", "admin"),
+  orderController.cancelOrderItem
+);
+
 router.delete(
   '/api/order/:orderId/cancel',
   verifyToken,

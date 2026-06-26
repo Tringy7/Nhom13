@@ -3,12 +3,32 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
     static associate(entities) {
-      // Product.belongsTo(entities.Category, { foreignKey: 'categoryId', as: 'category' }); // Removed
-      Product.belongsTo(entities.Brand, { foreignKey: 'brandId', as: 'brand' });
-      Product.hasMany(entities.CartItem, { foreignKey: 'productId', as: 'cartItems' });
-      Product.hasMany(entities.OrderDetail, { foreignKey: 'productId', as: 'orderDetails' });
-      Product.hasMany(entities.ProductReview, { foreignKey: 'productId', as: 'reviews' });
-      Product.hasMany(entities.Wishlist, { foreignKey: 'productId', as: 'wishlistItems' });
+      Product.belongsTo(entities.Brand, {
+        foreignKey: 'brandId',
+        as: 'brand'
+      });
+      Product.hasMany(entities.ProductImage, {
+        foreignKey: 'productId',
+        as: 'images'
+      });
+      Product.belongsToMany(entities.Promotion, {
+        through: entities.PromotionProduct,
+        foreignKey: 'productId',
+        otherKey: 'promotionId',
+        as: 'promotions'
+      });
+      Product.hasMany(entities.ProductReview, {
+        foreignKey: 'productId',
+        as: 'reviews'
+      });
+      // Product.hasMany(entities.ProductFavorite, {
+      //   foreignKey: 'productId',
+      //   as: 'favorites'
+      // });
+      // Product.hasMany(entities.ProductView, {
+      //   foreignKey: 'productId',
+      //   as: 'views'
+      // });
     }
   }
   Product.init({
@@ -16,13 +36,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false
     },
+    price: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
     description: {
       type: DataTypes.TEXT,
       allowNull: true
-    },
-    price: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false
     },
     stock: {
       type: DataTypes.INTEGER,
@@ -38,7 +59,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true
     },
-    ram: {
+    ram:{
       type: DataTypes.INTEGER,
       allowNull: true
     },
@@ -46,31 +67,17 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true
     },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      allowNull: true,
-      defaultValue: true
-    },
-    images: {
-      type: DataTypes.VIRTUAL,
-      get() {
-        const thumbnail = this.getDataValue('thumbnail');
-        return thumbnail ? [thumbnail] : [];
-      }
-    },
-    status: {
-      type: DataTypes.VIRTUAL,
-      get() {
-        return this.getDataValue('isActive') === false ? 'INACTIVE' : 'ACTIVE';
-      }
-    },
     brandId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Brands',
+        model: 'brands',
         key: 'id'
       }
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     }
   }, {
     sequelize,

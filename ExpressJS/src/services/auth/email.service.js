@@ -114,7 +114,7 @@ export const sendOrderSuccessEmail = async (email, order) => {
 
                             <p style="margin:8px 0;">
                                 <strong>Trạng thái:</strong>
-                                ${order.status}
+                                ${order.orderStatus}
                             </p>
 
                             <p style="margin:8px 0;">

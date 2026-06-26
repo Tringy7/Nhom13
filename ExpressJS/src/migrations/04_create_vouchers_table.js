@@ -34,22 +34,24 @@ module.exports = {
         allowNull: false
       },
       quantity: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.TINYINT,
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 1
       },
-      status: {
-        type: Sequelize.ENUM('ACTIVE', 'INACTIVE', 'EXPIRED'),
+      isActive: {
+        type: Sequelize.BOOLEAN,
         allowNull: false,
-        defaultValue: 'ACTIVE'
+        defaultValue: true
       },
       createdAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       updatedAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
   },

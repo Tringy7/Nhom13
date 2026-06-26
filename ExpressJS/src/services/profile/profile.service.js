@@ -1,10 +1,10 @@
 import db from "../../entities/index.js";
-const { User } = db;
 
 /* =========================
    GET USER PROFILE SERVICE
 ========================= */
 const getUserProfile = async (userId) => {
+    const { User } = db;
     try {
         const user = await User.findByPk(userId, {
             attributes: { exclude: ['password'] }
@@ -20,13 +20,13 @@ const getUserProfile = async (userId) => {
    UPDATE USER PROFILE SERVICE
 ========================= */
 const updateUserProfile = async (userId, updateData) => {
+    const { User } = db;
     try {
         const user = await User.findByPk(userId);
         if (!user) {
-            return null; // Or throw an error
+            return null;
         }
 
-        // Check for email uniqueness if it's being changed
         if (updateData.email && updateData.email !== user.email) {
             const existingUser = await User.findOne({ where: { email: updateData.email } });
             if (existingUser) {
@@ -40,12 +40,10 @@ const updateUserProfile = async (userId, updateData) => {
         console.log("Service Received Data:", updateData.gender);
         console.log("Before Save, User Gender was:", user.gender);
 
-        // Update user with new data
         await user.update(updateData);
 
         console.log("After Save, User Gender is:", user.gender);
 
-        // Return the updated user without the password
         const updatedUser = await User.findByPk(userId, {
             attributes: { exclude: ['password'] }
         });
@@ -53,7 +51,6 @@ const updateUserProfile = async (userId, updateData) => {
         return updatedUser;
     } catch (error) {
         console.error('Update User Profile Service Error:', error);
-        // Re-throw the error to be caught by the controller
         throw error;
     }
 };
@@ -62,20 +59,19 @@ const updateUserProfile = async (userId, updateData) => {
    UPDATE ADMIN PROFILE SERVICE
 ========================= */
 const updateAdminProfile = async (adminId, targetUserId, updateData) => {
+    const { User } = db;
     try {
         const userToUpdate = await User.findByPk(targetUserId);
         if (!userToUpdate) {
             return null;
         }
 
-        // Prevent admins from editing other admins
         if (targetUserId !== adminId && userToUpdate.role === 'admin') {
             const error = new Error("Cannot edit other admin profiles");
             error.statusCode = 403;
             throw error;
         }
 
-        // Check for email uniqueness if it's being changed
         if (updateData.email && updateData.email !== userToUpdate.email) {
             const existingUser = await User.findOne({ where: { email: updateData.email } });
             if (existingUser) {
@@ -85,7 +81,6 @@ const updateAdminProfile = async (adminId, targetUserId, updateData) => {
             }
         }
         
-        // Admins can change roles of other users
         if (updateData.role && targetUserId !== adminId) {
             userToUpdate.role = updateData.role;
         }
@@ -94,7 +89,6 @@ const updateAdminProfile = async (adminId, targetUserId, updateData) => {
         console.log("Service Received Data Gender:", updateData.gender);
         console.log("Before Save, User Gender was:", userToUpdate.gender);
 
-        // Update the user
         await userToUpdate.update(updateData);
 
         console.log("After Save, User Gender is:", userToUpdate.gender);

@@ -29,16 +29,32 @@ const getBestSellingProducts = async (req, res) => {
     return res.status(500).json({ message: 'Server error while loading best selling products' });
   }
 };
-
 const getAllProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 12, search = '', sort = 'default' } = req.query;
+    const {
+      page = 1,
+      limit = 12,
+      search = '',
+      sort = 'default',
+      category,      // string hoặc array: 'Gaming Laptops' | ['Gaming Laptops','Ultrabooks']
+      brandId,       // number hoặc array: 1 | [1,2,3]
+      minPrice,      // number
+      maxPrice,      // number
+      ram            // number hoặc array: 16 | [16,32]
+    } = req.query;
+
     const data = await homeService.getAllProducts({
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
       search,
-      sort
+      sort,
+      category,
+      brandId,
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      ram
     });
+
     return res.json({
       message: 'All products loaded successfully',
       data

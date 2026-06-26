@@ -20,14 +20,14 @@ const editProfileLimiter = rateLimit({
 router.get(
   "/api/user/profile",
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "shipper", "admin"),
   profileController.getProfile
 );
 
 router.patch(
   "/api/user/profile",
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "shipper", "admin"),
   editProfileLimiter,
   uploadProfileImage.single("image"), // <-- Thêm middleware upload ở đây
   editProfileValidationRules,

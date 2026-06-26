@@ -24,14 +24,6 @@ module.exports = {
           key: 'id'
         }
       },
-      orderId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Orders',
-          key: 'id'
-        }
-      },
       rating: {
         type: Sequelize.INTEGER,
         allowNull: false

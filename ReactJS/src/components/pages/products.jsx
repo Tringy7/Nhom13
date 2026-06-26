@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Typography, Button, Empty, Input, Select, Pagination, Breadcrumb, Image, Tag, Skeleton, message, Checkbox, Slider, Space } from 'antd';
-import { HomeOutlined, DownOutlined, AppstoreOutlined, BarsOutlined, PlusCircleOutlined } from '@ant-design/icons';
+import { HomeOutlined, DownOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAllProductsStoreApi } from '../util/api/product.api';
 import { getImageUrl } from '../util/helpers';
@@ -9,24 +9,52 @@ const { Title, Paragraph, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
+const CATEGORIES = ['GAMING', 'BUSINESS'];
+const BRANDS = [
+    { label: 'AORUS',  value: '1' },
+    { label: 'ASUS',   value: '2' },
+    { label: 'DELL',   value: '3' },
+    { label: 'LENOVO', value: '5' },
+    { label: 'MSI',    value: '6' },
+    { label: 'APPLE',  value: '7' },
+];
+const RAM_OPTIONS = [8, 16, 32];
+const PAGE_SIZE   = 8;
+const PRICE_MAX   = 100000000;
+
 const ProductsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
     const [products, setProducts] = useState({ rows: [], count: 0 });
-    const [loading, setLoading] = useState(true);
+    const [loading,  setLoading]  = useState(true);
 
-    // Logic hooks and state are kept unchanged
-    const page = parseInt(searchParams.get('page')) || 1;
-    const search = searchParams.get('search') || '';
-    const sort = searchParams.get('sort') || 'default';
-    const PAGE_SIZE = 8;
+    // --- Read all filters from URL ---
+    const page       = parseInt(searchParams.get('page'))   || 1;
+    const search     = searchParams.get('search')           || '';
+    const sort       = searchParams.get('sort')             || 'default';
+    const categories = searchParams.getAll('category');
+    const brandIds   = searchParams.getAll('brandId');
+    const minPrice   = parseInt(searchParams.get('minPrice')) || 0;
+    const maxPrice   = parseInt(searchParams.get('maxPrice')) || PRICE_MAX;
+    const rams       = searchParams.getAll('ram').map(Number);
 
+    // --- Fetch whenever any filter changes ---
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                const res = await getAllProductsStoreApi(page, PAGE_SIZE, search, sort);
+                const res = await getAllProductsStoreApi({
+                    page,
+                    limit:    PAGE_SIZE,
+                    search,
+                    sort,
+                    category: categories.length   ? categories : undefined,
+                    brandId:  brandIds.length     ? brandIds   : undefined,
+                    minPrice: minPrice > 0        ? minPrice   : undefined,
+                    maxPrice: maxPrice < PRICE_MAX ? maxPrice  : undefined,
+                    ram:      rams.length         ? rams       : undefined,
+                });
                 const data = res?.data || res;
                 if (data?.rows || data?.data?.rows) {
                     setProducts(data.rows ? data : data.data);
@@ -40,31 +68,79 @@ const ProductsPage = () => {
             }
         };
         fetchProducts();
-    }, [page, search, sort]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams.toString()]);
+
+    // --- URL helpers ---
+    const buildParams = (overrides) => {
+        const base = {
+            page:     String(page),
+            search,
+            sort,
+            category: categories,
+            brandId:  brandIds,
+            minPrice: String(minPrice),
+            maxPrice: String(maxPrice),
+            ram:      rams.map(String),
+        };
+        const merged = { ...base, ...overrides };
+        const params = new URLSearchParams();
+
+        Object.entries(merged).forEach(([key, val]) => {
+            if (Array.isArray(val)) {
+                val.forEach(v => params.append(key, v));
+            } else if (val !== undefined && val !== '') {
+                // Bỏ qua minPrice = 0 và maxPrice = PRICE_MAX (giá trị mặc định)
+                if (key === 'minPrice' && val === '0')              return;
+                if (key === 'maxPrice' && val === String(PRICE_MAX)) return;
+                params.set(key, val);
+            }
+        });
+
+        return params;
+    };
 
     const handlePageChange = (newPage) => {
-        setSearchParams({ page: newPage, search, sort });
+        setSearchParams(buildParams({ page: String(newPage) }));
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleSearch = (value) => {
-        setSearchParams({ page: 1, search: value, sort });
+        setSearchParams(buildParams({ page: '1', search: value }));
     };
 
     const handleSortChange = (value) => {
-        setSearchParams({ page: 1, search, sort: value });
+        setSearchParams(buildParams({ page: '1', sort: value }));
     };
 
-    const formatPrice = (price) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(price);
+    const handleCategoryChange = (checked) => {
+        setSearchParams(buildParams({ page: '1', category: checked }));
     };
 
-    // UI Rendering Functions
+    const handleBrandChange = (checked) => {
+        setSearchParams(buildParams({ page: '1', brandId: checked }));
+    };
+
+    const handlePriceChange = (value) => {
+        setSearchParams(buildParams({ page: '1', minPrice: String(value[0]), maxPrice: String(value[1]) }));
+    };
+
+    const handleRamToggle = (ram) => {
+        const next = rams.includes(ram)
+            ? rams.filter(r => r !== ram)
+            : [...rams, ram];
+        setSearchParams(buildParams({ page: '1', ram: next.map(String) }));
+    };
+
+    const formatPrice = (price) =>
+        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+    const hasActiveFilters =
+        categories.length || brandIds.length || rams.length || minPrice > 0 || maxPrice < PRICE_MAX;
+
+    // --- Render product card ---
     const renderProductCard = (product) => {
-        const imageUrl = product?.images?.[0]?.imageUrl || product.thumbnail;
+        const imageUrl     = product?.images?.[0]?.imageUrl || product.thumbnail;
         const displayImage = getImageUrl(imageUrl);
 
         return (
@@ -83,7 +159,7 @@ const ProductsPage = () => {
                         alt={product.name}
                         className="card-image"
                     />
-                    {product.isNew && <Tag className="card-badge new">NEW</Tag>}
+                    {product.isNew       && <Tag className="card-badge new">NEW</Tag>}
                     {product.discount > 0 && <Tag className="card-badge discount">-{product.discount}%</Tag>}
                 </div>
                 <div className="card-content">
@@ -96,56 +172,104 @@ const ProductsPage = () => {
                     </div>
                     <div className="card-footer">
                         <Text strong className="card-price">{formatPrice(product.price)}</Text>
-                        <Button shape="circle" icon={<PlusCircleOutlined />} className="add-to-cart-btn" onClick={(e) => e.stopPropagation()} />
+                        <Button
+                            shape="circle"
+                            icon={<PlusCircleOutlined />}
+                            className="add-to-cart-btn"
+                            onClick={(e) => e.stopPropagation()}
+                        />
                     </div>
                 </div>
             </Card>
         );
     };
 
+    // --- Render filter sidebar ---
     const renderFilterSidebar = () => (
         <div className="filter-sidebar">
             <div className="filter-section">
                 <Title level={5} className="filter-title">Category</Title>
-                <Checkbox.Group style={{ width: '100%' }}>
+                <Checkbox.Group
+                    value={categories}
+                    onChange={handleCategoryChange}
+                    style={{ width: '100%' }}
+                >
                     <Space direction="vertical" style={{ width: '100%' }}>
-                        <Checkbox value="gaming">Gaming Laptops</Checkbox>
-                        <Checkbox value="creator">Creator Laptops</Checkbox>
-                        <Checkbox value="business">Business Laptops</Checkbox>
-                        <Checkbox value="ultrabook">Ultrabooks</Checkbox>
+                        {CATEGORIES.map(cat => (
+                            <Checkbox key={cat} value={cat}>{cat}</Checkbox>
+                        ))}
                     </Space>
                 </Checkbox.Group>
             </div>
+
             <div className="filter-section">
                 <Title level={5} className="filter-title">Brand</Title>
-                <Checkbox.Group style={{ width: '100%' }}>
+                <Checkbox.Group
+                    value={brandIds}
+                    onChange={handleBrandChange}
+                    style={{ width: '100%' }}
+                >
                     <Space direction="vertical" style={{ width: '100%' }}>
-                        <Checkbox value="asus">Asus</Checkbox>
-                        <Checkbox value="dell">Dell</Checkbox>
-                        <Checkbox value="hp">HP</Checkbox>
-                        <Checkbox value="lenovo">Lenovo</Checkbox>
+                        {BRANDS.map(b => (
+                            <Checkbox key={b.value} value={b.value}>{b.label}</Checkbox>
+                        ))}
                     </Space>
                 </Checkbox.Group>
             </div>
-            <div className="filter-section">
-                <Title level={5} className="filter-title">Price Range</Title>
-                <Slider range defaultValue={[10000000, 50000000]} max={100000000} step={1000000} tooltip={{ formatter: formatPrice }} />
-            </div>
+
+            {/*<div className="filter-section">*/}
+            {/*    <Title level={5} className="filter-title">Price Range</Title>*/}
+            {/*    <Slider*/}
+            {/*        range*/}
+            {/*        value={[minPrice, maxPrice]}*/}
+            {/*        max={PRICE_MAX}*/}
+            {/*        step={1000000}*/}
+            {/*        tooltip={{ formatter: formatPrice }}*/}
+            {/*        onAfterChange={handlePriceChange}*/}
+            {/*    />*/}
+            {/*    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>*/}
+            {/*        <Text style={{ fontSize: 12, color: '#64748b' }}>{formatPrice(minPrice)}</Text>*/}
+            {/*        <Text style={{ fontSize: 12, color: '#64748b' }}>{formatPrice(maxPrice)}</Text>*/}
+            {/*    </div>*/}
+            {/*</div>*/}
+
             <div className="filter-section">
                 <Title level={5} className="filter-title">RAM</Title>
                 <Space wrap>
-                    <Button className="filter-chip">16GB</Button>
-                    <Button className="filter-chip active">32GB</Button>
-                    <Button className="filter-chip">64GB</Button>
+                    {RAM_OPTIONS.map(ram => (
+                        <Button
+                            key={ram}
+                            className={`filter-chip${rams.includes(ram) ? ' active' : ''}`}
+                            onClick={() => handleRamToggle(ram)}
+                        >
+                            {ram}GB
+                        </Button>
+                    ))}
                 </Space>
             </div>
+
+            {hasActiveFilters ? (
+                <Button
+                    block
+                    onClick={() => setSearchParams(buildParams({
+                        page:     '1',
+                        category: [],
+                        brandId:  [],
+                        ram:      [],
+                        minPrice: '0',
+                        maxPrice: String(PRICE_MAX),
+                    }))}
+                    style={{ borderRadius: 999, marginTop: 8 }}
+                >
+                    Clear all filters
+                </Button>
+            ) : null}
         </div>
     );
 
     return (
         <div className="products-page-container">
             <style>{`
-                /* GLOBAL STYLES */
                 .products-page-container {
                     max-width: 1500px;
                     margin: 0 auto;
@@ -154,7 +278,6 @@ const ProductsPage = () => {
                 }
                 @media (max-width: 768px) { .products-page-container { padding: 24px 16px 80px; } }
 
-                /* HEADER SECTION */
                 .page-header-section {
                     background: #fff;
                     border-radius: 28px;
@@ -207,12 +330,8 @@ const ProductsPage = () => {
                     padding: 0 24px !important;
                 }
 
-                /* MAIN LAYOUT */
-                .main-content-row {
-                    margin-top: 32px;
-                }
+                .main-content-row { margin-top: 32px; }
 
-                /* FILTER SIDEBAR */
                 .filter-sidebar {
                     background: #fff;
                     border-radius: 28px;
@@ -242,7 +361,19 @@ const ProductsPage = () => {
                     border-color: #a5b4fc;
                 }
 
-                /* PRODUCT CARD */
+                .results-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 20px;
+                    font-size: 14px;
+                    color: #64748b;
+                }
+                .results-meta strong {
+                    color: #0f172a;
+                    font-weight: 600;
+                }
+
                 .premium-product-card {
                     background: #fff;
                     border-radius: 26px;
@@ -280,9 +411,9 @@ const ProductsPage = () => {
                     border: none;
                     font-weight: 600;
                 }
-                .card-badge.new { background: #dbeafe; color: #1e40af; }
+                .card-badge.new      { background: #dbeafe; color: #1e40af; }
                 .card-badge.discount { background: #fee2e2; color: #991b1b; }
-                .card-content { padding: 24px; }
+                .card-content  { padding: 24px; }
                 .card-brand {
                     font-size: 11px;
                     text-transform: uppercase;
@@ -300,7 +431,7 @@ const ProductsPage = () => {
                     margin-bottom: 12px !important;
                     min-height: 50px;
                 }
-                .card-specs { margin-bottom: 16px; }
+                .card-specs  { margin-bottom: 16px; }
                 .card-footer {
                     display: flex;
                     justify-content: space-between;
@@ -326,7 +457,6 @@ const ProductsPage = () => {
                     color: #fff;
                 }
 
-                /* PAGINATION */
                 .pagination-container {
                     margin-top: 60px;
                     text-align: center;
@@ -338,20 +468,18 @@ const ProductsPage = () => {
                     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
                     display: inline-block;
                 }
-                .custom-pagination .ant-pagination-item, .custom-pagination .ant-pagination-prev, .custom-pagination .ant-pagination-next {
+                .custom-pagination .ant-pagination-item,
+                .custom-pagination .ant-pagination-prev,
+                .custom-pagination .ant-pagination-next {
                     border-radius: 50%;
                     border: none;
                     background: #f1f5f9;
                 }
-                .custom-pagination .ant-pagination-item-active {
-                    background: #2563eb;
-                }
-                .custom-pagination .ant-pagination-item-active a {
-                    color: #fff;
-                }
+                .custom-pagination .ant-pagination-item-active { background: #2563eb; }
+                .custom-pagination .ant-pagination-item-active a { color: #fff; }
             `}</style>
 
-            {/* HEADER SECTION */}
+            {/* HEADER */}
             <div className="page-header-section">
                 <Row justify="space-between" align="middle" gutter={[24, 24]}>
                     <Col xs={24} lg={12}>
@@ -366,11 +494,16 @@ const ProductsPage = () => {
                     </Col>
                     <Col xs={24} lg={12}>
                         <Space wrap size={16} className="toolbar-controls" style={{ float: 'right' }}>
+                            {/* FIX: value thay vì defaultValue để sync khi URL thay đổi */}
                             <Search
                                 placeholder="Search in collection..."
                                 allowClear
-                                defaultValue={search}
+                                value={search}
                                 onSearch={handleSearch}
+                                onChange={(e) => {
+                                    // Khi user xoá hết bằng nút allowClear hoặc tay
+                                    if (!e.target.value) handleSearch('');
+                                }}
                                 className="custom-search-bar"
                                 style={{ width: 280 }}
                             />
@@ -392,14 +525,20 @@ const ProductsPage = () => {
 
             {/* MAIN CONTENT */}
             <Row gutter={32} className="main-content-row">
-                {/* SIDEBAR */}
                 <Col xs={24} lg={5}>
                     {renderFilterSidebar()}
                 </Col>
 
-                {/* PRODUCT GRID */}
                 <Col xs={24} lg={19}>
                     <Skeleton active loading={loading} paragraph={{ rows: 12 }}>
+                        {/* FIX: Hiển thị số lượng kết quả */}
+                        {!loading && products.count > 0 && (
+                            <div className="results-meta">
+                                <strong>{products.count.toLocaleString('vi-VN')}</strong>
+                                sản phẩm{hasActiveFilters ? ' phù hợp với bộ lọc' : ''}
+                            </div>
+                        )}
+
                         {products.rows.length > 0 ? (
                             <Row gutter={[28, 40]}>
                                 {products.rows.map((product) => (
@@ -413,7 +552,7 @@ const ProductsPage = () => {
                                 <Empty description="No products found matching your criteria." />
                             </div>
                         )}
-                        
+
                         {products.count > PAGE_SIZE && (
                             <div className="pagination-container">
                                 <Pagination

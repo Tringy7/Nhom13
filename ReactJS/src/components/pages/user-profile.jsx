@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Row, Col, Avatar, Tag, Skeleton, message } from 'antd';
+import { Card, Button, Row, Col, Avatar, Tag, Skeleton, message, Popconfirm } from 'antd';
 import {
     UserOutlined,
     CheckCircleOutlined,
@@ -12,14 +12,18 @@ import {
     UserSwitchOutlined,
     CrownOutlined,
     TeamOutlined,
-    CalendarOutlined
+    CalendarOutlined,
+    LogoutOutlined
 } from '@ant-design/icons';
 import { getUser } from '../../components/util/api/user.api.js';
+import { logoutApi } from '../util/api/auth.api.js';
+import { AuthContext } from '../context/auth.context';
 import styles from '../../components/styles/profile.module.css';
-import { getImageUrl } from '../util/helpers.js'; // IMPORT HELPER
+import { getImageUrl } from '../util/helpers.js';
 
 const UserProfile = () => {
     const navigate = useNavigate();
+    const { dispatch } = useContext(AuthContext);
     const [profile, setProfile] = useState({});
     const [loading, setLoading] = useState(true);
 
@@ -27,17 +31,11 @@ const UserProfile = () => {
         const fetchProfile = async () => {
             try {
                 const response = await getUser();
-
-                // Xử lý linh hoạt các trường hợp trả về của API và tự động unwrap
                 let data = response?.data?.user || response?.user || response?.data || response || {};
-                
-                // Nếu dữ liệu vẫn còn bị bọc trong 'user', unwrap nó
                 if (data.user) {
                     data = data.user;
                 }
-                
                 setProfile(data);
-
             } catch (error) {
                 console.error('Fetch profile failed:', error);
                 message.error('Không thể tải thông tin người dùng. Vui lòng thử lại sau.');
@@ -45,14 +43,19 @@ const UserProfile = () => {
                 setLoading(false);
             }
         };
-
         fetchProfile();
     }, []);
 
-    // Thêm useEffect để debug state profile
-    useEffect(() => {
-        console.log('Profile state updated:', profile);
-    }, [profile]);
+    const handleLogout = async () => {
+        try {
+            await logoutApi();
+        } catch (error) {
+            console.error("Logout error", error);
+        } finally {
+            dispatch({ type: 'LOGOUT' });
+            navigate("/login");
+        }
+    };
 
     const handleEditClick = () => {
         navigate('/user/edit-profile');
@@ -60,47 +63,17 @@ const UserProfile = () => {
 
     const getGenderInfo = (gender) => {
         switch (gender) {
-            case 'MALE':
-                return {
-                    text: 'Nam',
-                    icon: <ManOutlined />,
-                    color: 'blue'
-                };
-            case 'FEMALE':
-                return {
-                    text: 'Nữ',
-                    icon: <WomanOutlined />,
-                    color: 'purple'
-                };
-            case 'ORTHER':
-                return {
-                    text: 'Khac',
-                    icon: <WomanOutlined />,
-                    color: 'purple'
-                };
-            default:
-                return {
-                    text: 'Chưa cập nhật',
-                    icon: <UserSwitchOutlined />,
-                    color: 'default'
-                };
+            case 'MALE': return { text: 'Nam', icon: <ManOutlined />, color: 'blue' };
+            case 'FEMALE': return { text: 'Nữ', icon: <WomanOutlined />, color: 'purple' };
+            case 'OTHER': return { text: 'Khác', icon: <UserSwitchOutlined />, color: 'default' };
+            default: return { text: 'Chưa cập nhật', icon: <UserSwitchOutlined />, color: 'default' };
         }
     };
 
     const getRoleInfo = (role) => {
         switch (role) {
-            case 'admin':
-                return {
-                    text: 'Quản trị viên',
-                    icon: <CrownOutlined />,
-                    color: 'gold'
-                };
-            default:
-                return {
-                    text: 'Người dùng',
-                    icon: <TeamOutlined />,
-                    color: 'cyan'
-                };
+            case 'admin': return { text: 'Quản trị viên', icon: <CrownOutlined />, color: 'gold' };
+            default: return { text: 'Người dùng', icon: <TeamOutlined />, color: 'cyan' };
         }
     };
 
@@ -131,7 +104,7 @@ const UserProfile = () => {
                             <Avatar
                                 size={120}
                                 icon={<UserOutlined />}
-                                src={getImageUrl(profile.image)} // SỬ DỤNG HELPER
+                                src={getImageUrl(profile.avatar)}
                                 className={styles.avatar}
                             />
                             <div className={styles.badgeVerified}>
@@ -139,13 +112,21 @@ const UserProfile = () => {
                             </div>
                             <p className={styles.updateText}>
                                 Cập nhật lần cuối:{' '}
-                                {profile.updatedAt
-                                    ? new Date(profile.updatedAt).toLocaleDateString('vi-VN')
-                                    : 'N/A'}
+                                {profile.updatedAt ? new Date(profile.updatedAt).toLocaleDateString('vi-VN') : 'N/A'}
                             </p>
                             <Button type="primary" className={styles.gradientButton} onClick={handleEditClick}>
                                 Chỉnh sửa hồ sơ
                             </Button>
+                            <Popconfirm
+                                title="Bạn có chắc chắn muốn đăng xuất?"
+                                onConfirm={handleLogout}
+                                okText="Đăng xuất"
+                                cancelText="Hủy"
+                            >
+                                <Button danger icon={<LogoutOutlined />} style={{ marginTop: '12px', width: '100%' }}>
+                                    Đăng xuất
+                                </Button>
+                            </Popconfirm>
                         </div>
                     </Card>
                 </Col>
@@ -156,10 +137,15 @@ const UserProfile = () => {
                         <p className={styles.headerSubtitle}>Quản lý và cập nhật thông tin tài khoản của bạn.</p>
 
                         <Row gutter={[24, 24]}>
-                            {renderInfoRow('Tên', profile.firstName, <UserOutlined />)}
-                            {renderInfoRow('Họ', profile.lastName, <UserOutlined />)}
+                            <Col xs={24} style={{ marginBottom: '24px' }}>
+                                <div className={styles.infoLabel}>Họ và tên</div>
+                                <div className={styles.infoValue}>
+                                    <UserOutlined />
+                                    <span>{profile.fullName || 'Chưa cập nhật'}</span>
+                                </div>
+                            </Col>
                             {renderInfoRow('Email', profile.email, <MailOutlined />)}
-                            {renderInfoRow('Số điện thoại', profile.phoneNumber, <PhoneOutlined />)}
+                            {renderInfoRow('Số điện thoại', profile.phone, <PhoneOutlined />)}
 
                             <Col xs={24} style={{ marginBottom: '24px' }}>
                                 <div className={styles.infoLabel}>Địa chỉ</div>
@@ -208,9 +194,7 @@ const UserProfile = () => {
                                 <div className={styles.infoValue}>
                                     <CalendarOutlined />
                                     <span>
-                                        {profile.createdAt
-                                            ? new Date(profile.createdAt).toLocaleDateString('vi-VN')
-                                            : 'N/A'}
+                                        {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                                     </span>
                                 </div>
                             </Col>
