@@ -1,5 +1,8 @@
 import profileService from "../services/profile/profile.service.js";
 
+const buildFullName = (firstName = "", lastName = "") =>
+    `${firstName || ""} ${lastName || ""}`.trim();
+
 /* =========================
    GET USER PROFILE
 ========================= */
@@ -54,23 +57,24 @@ const editUserProfile = async (req, res) => {
         console.log("=== EDIT USER PROFILE ===");
         console.log("Request Body Gender:", req.body.gender);
         
-        let imageUrl = req.body.image;
+        let avatarUrl = req.body.avatar || req.body.image;
         if (req.file) {
-            imageUrl = `/uploads/user/${req.file.filename}`;
+            avatarUrl = `/uploads/user/${req.file.filename}`;
         }
 
         const updateData = {
             email: req.body.email,
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            phoneNumber: req.body.phoneNumber,
+            fullName: req.body.fullName || buildFullName(req.body.firstName, req.body.lastName),
+            phone: req.body.phone || req.body.phoneNumber,
             address: req.body.address,
             gender: req.body.gender, // Không convert, giữ nguyên chuỗi
-            image: imageUrl, // Cập nhật imageUrl mới nếu có upload
+            avatar: avatarUrl, // Cập nhật avatar mới nếu có upload
         };
 
         // Remove undefined fields so they aren't updated
-        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === undefined || updateData[key] === "") delete updateData[key];
+        });
 
         console.log("Data to Service:", updateData);
 
@@ -105,24 +109,25 @@ const editAdminProfile = async (req, res) => {
         console.log("=== EDIT ADMIN PROFILE ===");
         console.log("Request Body Gender:", req.body.gender);
 
-        let imageUrl = req.body.image;
+        let avatarUrl = req.body.avatar || req.body.image;
         if (req.file) {
-            imageUrl = `/uploads/user/${req.file.filename}`;
+            avatarUrl = `/uploads/user/${req.file.filename}`;
         }
 
         const updateData = {
             email: req.body.email,
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            phoneNumber: req.body.phoneNumber,
+            fullName: req.body.fullName || buildFullName(req.body.firstName, req.body.lastName),
+            phone: req.body.phone || req.body.phoneNumber,
             address: req.body.address,
             gender: req.body.gender, // Không convert, giữ nguyên chuỗi
-            image: imageUrl,
+            avatar: avatarUrl,
             role: req.body.role,
         };
 
         // Remove undefined fields so they aren't updated
-        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === undefined || updateData[key] === "") delete updateData[key];
+        });
 
         console.log("Data to Service:", updateData);
 

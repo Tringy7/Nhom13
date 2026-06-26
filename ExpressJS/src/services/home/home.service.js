@@ -1,7 +1,22 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Promotion, Product, Brand, ProductImage } = db;
+const { Product, Brand } = db;
+const { Op } = db.Sequelize;
+
+const productAttributes = [
+  'id',
+  'name',
+  'price',
+  'thumbnail',
+  'stock',
+  'sold',
+  'category',
+  'brandId',
+  'isActive',
+  'createdAt',
+  'updatedAt'
+];
 
 const productInclude = [
   {

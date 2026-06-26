@@ -42,7 +42,6 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
   const review = await ProductReview.create({
     userId,
     productId,
-    orderId,
     rating,
     comment
   });

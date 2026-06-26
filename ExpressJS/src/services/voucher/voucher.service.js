@@ -182,12 +182,8 @@ const receiveVoucher = async (userId, voucherId) => {
   return userVoucher;
 };
 
-<<<<<<< HEAD
-const applyVoucher = async (userId, voucherId, orderTotal) => {
-=======
 const applyVoucher = async (userId, rewardCode, orderTotal) => {
   const { UserVoucher, Voucher } = db;
->>>>>>> permission/manager
   const userVoucher = await UserVoucher.findOne({
     where: {
       userId,
