@@ -2,7 +2,7 @@ export const USER_ROLE = Object.freeze({
     ADMIN: 'admin',
     USER: 'user',
     MANAGER: 'manager',
-    ADMIN: 'admin'
+    SHIPPER: 'shipper'
 });
 
 export const USER_GENDER = Object.freeze({

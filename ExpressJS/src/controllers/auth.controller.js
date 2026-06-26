@@ -44,6 +44,7 @@ let login = async (req, res) => {
     const role = user.role.toLowerCase();
     let redirectURI = "/api/home";
     if (role === "admin") redirectURI = "/admin/dashboard";
+    else if (role === "manager") redirectURI = "/manager/dashboard";
     else if (role === "user") redirectURI = "/api/home";
 
     return res.json({
