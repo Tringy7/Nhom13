@@ -8,28 +8,28 @@ const router = express.Router();
 router.post(
   '/api/cart/add',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   cartController.addToCart
 );
 
 router.delete(
   '/api/cart/:cartItemId',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   cartController.deleteCartItem
 );
 
 router.patch(
   '/api/cart/items/:cartItemId',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   cartController.updateCartItem
 );
 
 router.get(
   '/api/cart',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   cartController.getCart
 );
 

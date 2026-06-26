@@ -7,33 +7,33 @@ const router = express.Router();
 router.post(
   '/api/order/add',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   orderController.createOrder
 );
 
 router.post(
   '/api/orders/:orderId/items/:itemId',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   orderController.cancelOrderItem
 );
 
 router.delete(
   '/api/order/:orderId/cancel',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
  orderController.cancelOrder);
 
 router.get(
   '/api/orders',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   orderController.getOrders);
 
 router.get(
   '/api/orders/:orderId',
   verifyToken,
-  authorize("user", "admin"),
+  authorize("user", "manager", "admin"),
   orderController.getOrderById);
 
 router.get(
