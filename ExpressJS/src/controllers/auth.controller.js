@@ -44,7 +44,6 @@ let login = async (req, res) => {
     const role = user.role.toLowerCase();
     let redirectURI = "/api/home";
     if (role === "admin") redirectURI = "/admin/dashboard";
-    else if (role === "manager") redirectURI = "/manager/dashboard";
     else if (role === "user") redirectURI = "/api/home";
 
     return res.json({
@@ -116,7 +115,13 @@ let forgotPassword = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const otp = generateOTP();
-    await sendPasswordResetEmail(email, otp, user.fullName || "User");
+
+    try {
+      await sendPasswordResetEmail(email, otp, user.fullName || "User");
+    } catch (emailError) {
+      console.error("Failed to send password reset email:", emailError);
+      return res.status(500).json({ message: "Failed to send OTP email. Please try again later." });
+    }
 
     await ResetOtp.destroy({ where: { email } });
     await ResetOtp.create({ email, otp, expiresAt: getOTPExpiry() });
@@ -189,7 +194,7 @@ let register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
-    
+
     sendOtpEmail(lowerCaseEmail, otp).catch(console.error);
 
     otpStore.set(lowerCaseEmail, {
@@ -278,17 +283,17 @@ let editUserProfile = async (req, res) => {
 };
 
 let getProfile = async (req, res) => {
-    try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ['password'] }
-        });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
 export default {

@@ -156,8 +156,8 @@ export const sendOrderSuccessEmail = async (email, order) => {
 
                         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:24px 0;">
                             <p style="margin:8px 0;">
-                                <strong>Tạm tính:</strong>
-                                ${Number(order.originalTotalPrice).toLocaleString('vi-VN')} VNĐ
+                                <strong>Tổng tiền:</strong>
+                                ${Number(order.totalAmount).toLocaleString('vi-VN')} VNĐ
                             </p>
 
                             ${discountRow}
