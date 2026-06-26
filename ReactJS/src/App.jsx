@@ -14,11 +14,14 @@ import Products from "./components/pages/products.jsx";
 import CartPage from "./components/pages/cart.jsx";
 import CheckoutPage from "./components/pages/checkout.jsx";
 import OrderHistoryPage from "./components/pages/orderHistory.jsx";
+import OrderDetail from "./components/pages/orderDetail.jsx";
 import RewardsPage from "./components/pages/rewards.jsx";
+import WishlistPage from "./components/pages/wishlist.jsx"; // Import WishlistPage
 import ProtectedRoute from "./components/routes/ProtectedRoute.jsx";
 import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 import VnPayReturn from "./components/pages/VnPayReturn.jsx";
+import AboutPage from "./components/pages/AboutPage.jsx";
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 
@@ -39,6 +42,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/payment/failed" element={<PaymentFailedPage />} />
         <Route path="/payment/vnpay-return" element={<VnPayReturn />} />
@@ -48,8 +52,10 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout/new" element={<CheckoutPage />} />
           <Route path="/orders" element={<OrderHistoryPage />} />
+          <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/history" element={<OrderHistoryPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} /> {/* Add Wishlist Route */}
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/user/edit-profile" element={<UserEditProfile />} />
         </Route>

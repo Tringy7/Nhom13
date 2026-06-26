@@ -5,14 +5,13 @@ import { getMyVouchersApi, getAvailableVouchersApi, receiveVoucherApi, getReward
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 // --- STYLES ---
 const styles = {
     pageWrapper: { background: '#f5f7fb', minHeight: '100vh', padding: '40px 0', fontFamily: 'Inter, sans-serif' },
     container: { maxWidth: 1200, margin: '0 auto', padding: '0 24px' },
     headerCard: { background: 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)', borderRadius: 24, padding: '40px 48px', color: '#fff', marginBottom: 32, boxShadow: '0 20px 40px rgba(37, 99, 235, 0.2)' },
-    pointCard: { background: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: '24px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' },
+    pointCard: { background: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: '24px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,0.2)' },
     contentCard: { background: '#fff', borderRadius: 24, padding: '24px 32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' },
     couponCard: { background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', transition: 'all 0.3s ease', display: 'flex' },
     couponIconWrapper: { width: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '2px dashed #e5e7eb' },
@@ -48,7 +47,7 @@ const RewardsPage = () => {
             setRewardHistory(historyRes.data || []);
         } catch (error) {
             message.error('Lỗi khi tải dữ liệu trang ưu đãi.');
-            console.error("Error fetching rewards data:", error); // Added for debugging
+            console.error("Error fetching rewards data:", error);
         } finally {
             setLoading(false);
         }
@@ -58,7 +57,7 @@ const RewardsPage = () => {
         try {
             await receiveVoucherApi(voucherId);
             message.success('Lưu voucher thành công!');
-            fetchData(); // Tải lại dữ liệu để cập nhật danh sách
+            fetchData();
         } catch (error) {
             message.error(error.response?.data?.message || 'Không thể lưu voucher này.');
         }
@@ -69,14 +68,11 @@ const RewardsPage = () => {
     // --- RENDER FUNCTIONS ---
 
     const renderVoucher = (data, isOwned = false) => {
-        // Nếu là voucher sở hữu (isOwned), data là { voucher, status }.
-        // Nếu là voucher để săn (isOwned=false), data là object voucher thuần.
         const voucher = isOwned ? data.voucher : data;
         const { id, title, description, discountType, discountValue, minOrderValue, endDate, code } = voucher;
     
         const isExpired = new Date(endDate) < new Date();
-        
-        const isDisabled = isOwned && (!data.status || isExpired);
+        const isDisabled = isOwned && (data.isUsed || isExpired);
     
         let discountText = '';
         if (discountType === 'PERCENT') {
@@ -92,9 +88,17 @@ const RewardsPage = () => {
                         <GiftOutlined style={{ fontSize: 32, color: isDisabled ? '#9ca3af' : '#4f46e5' }} />
                     </div>
                     <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Title level={5} style={{ margin: 0 }}>{title}</Title>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Mã: {code}</Text>
-                        <Paragraph style={{ flex: 1, margin: '8px 0' }}>{description}</Paragraph>
+                        <Title level={5} style={{ margin: 0 }}>{discountText}</Title>
+                        <Text type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>Mã: {code}</Text>
+                        
+                        <Paragraph style={{ margin: '4px 0', flex: 1 }}>{description}</Paragraph>
+                        
+                        {minOrderValue > 0 && 
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                Áp dụng cho đơn hàng từ {formatCurrency(minOrderValue)}đ
+                            </Text>
+                        }
+
                         <Divider style={{ margin: '8px 0' }} />
                         <Row justify="space-between" align="middle">
                             <Text style={{ fontSize: 12, color: isExpired ? '#ef4444' : '#6b7280' }}>
@@ -102,7 +106,7 @@ const RewardsPage = () => {
                             </Text>
                             {isOwned ? (
                                 <Button type="primary" ghost disabled={isDisabled} onClick={() => navigate('/products')}>
-                                    {isDisabled ? (isExpired ? 'Hết hạn' : 'Đã dùng') : 'Dùng ngay'}
+                                    {isExpired ? 'Hết hạn' : (data.isUsed ? 'Đã dùng' : 'Dùng ngay')}
                                 </Button>
                             ) : (
                                 <Button icon={<PlusOutlined />} onClick={() => handleReceiveVoucher(id)}>
@@ -142,8 +146,48 @@ const RewardsPage = () => {
         return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin size="large" /></div>;
     }
     
-    const validVouchers = myVouchers.filter(uv => uv.status && new Date(uv.voucher.endDate) >= new Date());
-    const usedOrExpiredVouchers = myVouchers.filter(uv => !uv.status || new Date(uv.voucher.endDate) < new Date());
+    const validVouchers = myVouchers.filter(uv => !uv.isUsed && new Date(uv.voucher.endDate) >= new Date());
+    const usedOrExpiredVouchers = myVouchers.filter(uv => uv.isUsed || new Date(uv.voucher.endDate) < new Date());
+
+    const tabItems = [
+        {
+            key: 'my-vouchers',
+            label: 'Ví Voucher của tôi',
+            children: (
+                <div style={{ paddingTop: 24 }}>
+                    <Title level={4}>Voucher khả dụng ({validVouchers.length})</Title>
+                    {validVouchers.length > 0 ? (
+                        <Row gutter={[24, 24]}>{validVouchers.map(uv => renderVoucher(uv, true))}</Row>
+                    ) : <Empty description="Bạn chưa có voucher nào." />}
+                    <Divider />
+                    <Title level={4}>Voucher hết hạn / đã dùng ({usedOrExpiredVouchers.length})</Title>
+                    {usedOrExpiredVouchers.length > 0 ? (
+                        <Row gutter={[24, 24]}>{usedOrExpiredVouchers.map(uv => renderVoucher(uv, true))}</Row>
+                    ) : <Empty description="Không có voucher hết hạn." />}
+                </div>
+            ),
+        },
+        {
+            key: 'discover',
+            label: 'Săn Voucher',
+            children: (
+                <div style={{ paddingTop: 24 }}>
+                    {availableVouchers.length > 0 ? (
+                        <Row gutter={[24, 24]}>{availableVouchers.map(v => renderVoucher(v, false))}</Row>
+                    ) : <Empty description="Hiện chưa có voucher nào để săn." />}
+                </div>
+            ),
+        },
+        {
+            key: 'history',
+            label: 'Lịch sử điểm',
+            children: (
+                <div style={{ paddingTop: 24 }}>
+                    {renderHistory()}
+                </div>
+            ),
+        },
+    ];
 
     return (
         <div style={styles.pageWrapper}>
@@ -169,33 +213,7 @@ const RewardsPage = () => {
 
                 {/* Main Content */}
                 <div style={styles.contentCard}>
-                    <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
-                        <TabPane tab="Ví Voucher của tôi" key="my-vouchers">
-                            <div style={{ paddingTop: 24 }}>
-                                <Title level={4}>Voucher khả dụng ({validVouchers.length})</Title>
-                                {validVouchers.length > 0 ? (
-                                    <Row gutter={[24, 24]}>{validVouchers.map(uv => renderVoucher(uv, true))}</Row>
-                                ) : <Empty description="Bạn chưa có voucher nào." />}
-                                <Divider />
-                                <Title level={4}>Voucher hết hạn / đã dùng ({usedOrExpiredVouchers.length})</Title>
-                                {usedOrExpiredVouchers.length > 0 ? (
-                                    <Row gutter={[24, 24]}>{usedOrExpiredVouchers.map(uv => renderVoucher(uv, true))}</Row>
-                                ) : <Empty description="Không có voucher hết hạn." />}
-                            </div>
-                        </TabPane>
-                        <TabPane tab="Săn Voucher" key="discover">
-                            <div style={{ paddingTop: 24 }}>
-                                {availableVouchers.length > 0 ? (
-                                    <Row gutter={[24, 24]}>{availableVouchers.map(v => renderVoucher(v, false))}</Row>
-                                ) : <Empty description="Hiện chưa có voucher nào để săn." />}
-                            </div>
-                        </TabPane>
-                        <TabPane tab="Lịch sử điểm" key="history">
-                            <div style={{ paddingTop: 24 }}>
-                                {renderHistory()}
-                            </div>
-                        </TabPane>
-                    </Tabs>
+                    <Tabs activeKey={activeTab} onChange={setActiveTab} size="large" items={tabItems} />
                 </div>
             </div>
         </div>

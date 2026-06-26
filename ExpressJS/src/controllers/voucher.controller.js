@@ -61,13 +61,13 @@ const receiveVoucher = async (req, res) => {
 const applyVoucher = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { rewardCode, orderTotal } = req.body;
+    const { voucherId, orderTotal } = req.body;
 
-    if (!rewardCode || !orderTotal) {
+    if (!voucherId || !orderTotal) {
       return res.status(400).json({ message: 'Vui lòng cung cấp mã voucher và tổng giá trị đơn hàng.' });
     }
 
-    const result = await voucherService.applyVoucher(userId, rewardCode, orderTotal);
+    const result = await voucherService.applyVoucher(userId, voucherId, orderTotal);
     res.status(200).json({
       message: 'Áp dụng voucher thành công.',
       data: result

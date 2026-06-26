@@ -3,15 +3,15 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Order extends Model {
     static associate(entities) {
-      Order.belongsTo(entities.User, { foreignKey: 'userId', as: 'customer' });
-      Order.belongsTo(entities.User, { foreignKey: 'shipperId', as: 'shipper' });
-      Order.belongsTo(entities.Voucher, { foreignKey: 'voucherId', as: 'voucher' });
-      Order.hasMany(entities.OrderDetail, { foreignKey: 'orderId', as: 'details' });
-      Order.hasMany(entities.Review, { foreignKey: 'orderId', as: 'reviews' });
-      Order.hasOne(entities.OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
-
-      // Establishes the one-to-one relationship with Payment
-      Order.hasOne(entities.Payment, { foreignKey: 'orderId', as: 'payment' });
+      const { User, Voucher, OrderDetail, Review, OrderCancellationRequest, Payment } = entities;
+      
+      Order.belongsTo(User, { foreignKey: 'userId', as: 'customer' });
+      Order.belongsTo(User, { foreignKey: 'shipperId', as: 'shipper' });
+      Order.belongsTo(Voucher, { foreignKey: 'voucherId', as: 'voucher' });
+      Order.hasMany(OrderDetail, { foreignKey: 'orderId', as: 'details' });
+      Order.hasMany(Review, { foreignKey: 'orderId', as: 'reviews' });
+      Order.hasOne(OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
+      Order.hasOne(Payment, { foreignKey: 'orderId', as: 'payment' });
     }
   }
   Order.init({
@@ -29,6 +29,29 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: 'Users', key: 'id' }
+    },
+    fullName: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    phoneNumber: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    subtotal: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    voucherDiscount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    pointsDiscount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0
     },
     totalAmount: {
       type: DataTypes.DECIMAL(15, 2),

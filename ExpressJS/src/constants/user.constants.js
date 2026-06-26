@@ -1,7 +1,6 @@
 const USER_ROLE = Object.freeze({
     ADMIN: 'admin',
     USER: 'user',
-    VENDOR: 'vendor',
     MANAGER: 'manager',
     ADMIN: 'admin'
 });

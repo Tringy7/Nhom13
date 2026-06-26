@@ -1,44 +1,37 @@
 'use strict';
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('OrderDetails', {
+    await queryInterface.createTable('promotions', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      orderId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Orders',
-          key: 'id'
-        }
-      },
-      productId: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-          model: 'Products',
-          key: 'id'
-        }
-      },
-      productName: {
+      name: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      quantity: {
+      description: {
+        type: Sequelize.TEXT,
+        allowNull: true
+      },
+      discountRate: {
         type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+      },
+      startDate: {
+        type: Sequelize.DATE,
         allowNull: false
       },
-      price: {
-        type: Sequelize.DECIMAL(10, 2),
+      endDate: {
+        type: Sequelize.DATE,
         allowNull: false
       },
-      status: {
-        type: DataTypes.BOOLEAN_TYPE,
-        allowNull: false
+      isActive: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: true
       },
       createdAt: {
         allowNull: false,
@@ -51,6 +44,6 @@ module.exports = {
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('OrderDetails');
+    await queryInterface.dropTable('promotions');
   }
 };

@@ -21,8 +21,9 @@ export const receiveVoucherApi = (voucherId) => {
 };
 
 // Áp dụng thử một mã voucher để xem trước giá trị giảm
-export const applyVoucherApi = (rewardCode, orderTotal) => {
-    return api.post('/api/vouchers/apply', { rewardCode, orderTotal });
+// Sửa lại key từ 'voucherId' thành 'rewardCode' để khớp với backend
+export const applyVoucherApi = (voucherId, orderTotal) => {
+    return api.post('/api/vouchers/apply', { voucherId, orderTotal });
 };
 
 // Lấy số dư điểm thưởng hiện tại

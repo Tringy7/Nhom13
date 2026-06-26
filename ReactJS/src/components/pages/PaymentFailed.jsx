@@ -11,7 +11,7 @@ const PaymentFailed = () => {
             title="Thanh toán thất bại!"
             subTitle="Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại."
             extra={[
-                <Button type="primary" key="console" onClick={() => navigate('/checkout')}>
+                <Button type="primary" key="console" onClick={() => navigate('/checkout/new')}>
                     Thử lại
                 </Button>,
                 <Button key="buy" onClick={() => navigate('/')}>

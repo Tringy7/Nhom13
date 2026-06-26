@@ -1,60 +1,99 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Product, Brand } = db;
+const { Product, Brand, ProductImage, Promotion } = db;
 
-// Simplified include for product queries
+// Update include for product queries
 const productInclude = [
   {
     model: Brand,
     as: 'brand',
     attributes: ['id', 'name']
+  },
+  {
+    model: ProductImage,
+    as: 'images',
+    attributes: ['imageUrl']
+  },
+  {
+    model: Promotion,
+    as: 'promotions',
+    attributes: ['id', 'name', 'description', 'discountRate', 'startDate', 'endDate', 'isActive'],
+    through: { attributes: [] } // Exclude join table attributes
   }
 ];
-
-// This function is no longer relevant as Promotion model is removed.
-// It can be replaced with fetching banners or other featured content if needed.
-const getFeaturedContent = async () => {
-  // Placeholder for future implementation (e.g., fetching banners)
-  return [];
-};
 
 const getBestSellingProducts = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
   
-  // The concept of "best-selling" (sold field) was removed for simplification.
-  // We will order by creation date as a substitute.
-  // A more advanced implementation could calculate sales from the OrderDetail table.
+  // Use the 'sold' field for "best-selling"
   return Product.findAndCountAll({
     offset,
     limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    order: [['sold', 'DESC']],
+    where: { isActive: true },
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'createdAt'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getAllProducts = async (options = {}) => {
-  const { page = 1, limit = 12, search = '', sort = 'default', categoryId, brandId } = options;
+  const {
+    page = 1,
+    limit = 12,
+    search = '',
+    sort = 'default',
+    category,
+    brandId,
+    minPrice,
+    maxPrice,
+    ram
+  } = options;
+
   const offset = (page - 1) * limit;
+  const { Op } = db.Sequelize;
 
+  // ── Sort ──────────────────────────────────────────────
   let order = [['createdAt', 'DESC']];
-  if (sort === 'price-asc') order = [['price', 'ASC']];
-  if (sort === 'price-desc') order = [['price', 'DESC']];
+  if (sort === 'price-asc')    order = [['price', 'ASC']];
+  if (sort === 'price-desc')   order = [['price', 'DESC']];
+  if (sort === 'best-selling') order = [['sold', 'DESC']];
 
-  let whereClause = {};
+  // ── Where clause ──────────────────────────────────────
+  const whereClause = { isActive: true };
+
+  // Search theo tên
   if (search) {
-    whereClause.name = {
-      [db.Sequelize.Op.iLike]: `%${search}%` // Use iLike for case-insensitive search
-    };
+    whereClause.name = { [Op.iLike]: `%${search}%` };
   }
-  if (categoryId) {
-    whereClause.categoryId = categoryId;
+
+  // Filter category (hỗ trợ 1 giá trị hoặc mảng)
+  if (category) {
+    const categories = Array.isArray(category) ? category : [category];
+    whereClause.category = { [Op.in]: categories };
   }
+
+  // Filter brandId (hỗ trợ 1 giá trị hoặc mảng)
   if (brandId) {
-    whereClause.brandId = brandId;
+    const brandIds = Array.isArray(brandId)
+        ? brandId.map(Number)
+        : [Number(brandId)];
+    whereClause.brandId = { [Op.in]: brandIds };
+  }
+
+  // Filter price range
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    whereClause.price = {};
+    if (minPrice !== undefined) whereClause.price[Op.gte] = minPrice;
+    if (maxPrice !== undefined) whereClause.price[Op.lte] = maxPrice;
+  }
+
+  // Filter RAM (hỗ trợ 1 giá trị hoặc mảng)
+  if (ram) {
+    const rams = Array.isArray(ram) ? ram.map(Number) : [Number(ram)];
+    whereClause.ram = { [Op.in]: rams };
   }
 
   return Product.findAndCountAll({
@@ -62,21 +101,21 @@ const getAllProducts = async (options = {}) => {
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'images', 'stock', 'status', 'categoryId', 'brandId'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'ram', 'category', 'createdAt'],
     include: productInclude,
     distinct: true
   });
 };
 
 const getHomePageData = async () => {
-  // Fetch best-selling (or newest) products for the home page
-  const [bestProducts] = await Promise.all([
-    getBestSellingProducts({ page: 1, limit: 10 })
+  const [bestSellingProducts, promotions] = await Promise.all([
+    getBestSellingProducts({ page: 1, limit: 10 }),
+    Promotion.findAll({ where: { isActive: true }, limit: 4 })
   ]);
 
   return {
-    // promotions field is removed
-    bestSellingProducts: bestProducts
+    promotions,
+    bestSellingProducts
   };
 };
 

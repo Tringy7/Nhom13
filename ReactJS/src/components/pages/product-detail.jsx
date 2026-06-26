@@ -15,10 +15,6 @@ import {
     Tabs,
     Tag,
     Space,
-    Rate,
-    Drawer,
-    Input,
-    Avatar,
     Empty
 } from 'antd';
 import {
@@ -28,21 +24,17 @@ import {
     HeartOutlined,
     EyeOutlined,
     MessageOutlined,
-    GiftOutlined,
-    StarOutlined,
-    SendOutlined
+    GiftOutlined
 } from '@ant-design/icons';
 import { getProductDetailApi } from '../util/api/product.api';
 import {
     addViewedProductApi,
     getProductInsightsApi,
     getSimilarProductsApi,
-    submitReviewApi,
     toggleFavoriteApi
 } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import { addToCart } from '../util/api/cart.api';
-import { getOrders } from '../util/api/order.api'; // Sẽ được sử dụng trong hàm mới
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -82,20 +74,12 @@ const ProductDetail = () => {
     const [selectedImage, setSelectedImage] = useState('');
     const [insights, setInsights] = useState(null);
     const [similarProducts, setSimilarProducts] = useState([]);
-    const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
-    const [reviewRating, setReviewRating] = useState(0);
-    const [reviewComment, setReviewComment] = useState('');
-    const [reviewOrderId, setReviewOrderId] = useState(null);
-    const [reviewSubmitting, setReviewSubmitting] = useState(false);
-    const [deliveredOrders, setDeliveredOrders] = useState([]);
-    const [loadingOrders, setLoadingOrders] = useState(false); // State mới để quản lý loading orders
 
     const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            // === SỬA LỖI: Xóa getOrders() khỏi Promise.all ban đầu ===
             const [productRes, insightsRes, similarRes] = await Promise.all([
                 getProductDetailApi(id),
                 getProductInsightsApi(id),
@@ -125,28 +109,6 @@ const ProductDetail = () => {
     useEffect(() => {
         if (id) loadData();
     }, [id]);
-
-    // === SỬA LỖI: Tạo hàm mới để xử lý việc mở drawer và fetch orders ===
-    const handleOpenReviewDrawer = async () => {
-        setReviewDrawerOpen(true);
-        setLoadingOrders(true);
-        try {
-            const ordersRes = await getOrders();
-            const orderRows = ordersRes?.data || ordersRes || [];
-            const available = orderRows.filter((order) => {
-                if (order.status !== 'DELIVERED') return false;
-                return (order.items || []).some((item) => Number(item.productId) === Number(id));
-            });
-            setDeliveredOrders(available);
-            if (available.length > 0) {
-                setReviewOrderId(available[0].id);
-            }
-        } catch (error) {
-            message.error('Không thể tải lịch sử mua hàng của bạn.');
-        } finally {
-            setLoadingOrders(false);
-        }
-    };
 
     const handleAddToCart = async () => {
         try {
@@ -192,37 +154,8 @@ const ProductDetail = () => {
         }
     };
 
-    const handleSubmitReview = async () => {
-        if (!reviewOrderId) return message.warning('Vui lòng chọn đơn hàng đã mua');
-        if (!reviewRating) return message.warning('Vui lòng chọn số sao');
-
-        setReviewSubmitting(true);
-        try {
-            const res = await submitReviewApi(id, {
-                orderId: reviewOrderId,
-                rating: reviewRating,
-                comment: reviewComment
-            });
-            const data = res?.data || res;
-            const reward = data?.reward;
-            const rewardText = reward?.type === 'coupon'
-                ? `Bạn nhận mã giảm giá ${reward.token} (${reward.value}%)`
-                : `Bạn nhận ${reward?.value || 0} điểm tích lũy`;
-
-            message.success(`Đánh giá thành công. ${rewardText}`);
-            setReviewComment('');
-            setReviewRating(0);
-            setReviewDrawerOpen(false);
-            await loadData();
-        } catch (error) {
-            message.error(error?.response?.data?.message || 'Không gửi được đánh giá');
-        } finally {
-            setReviewSubmitting(false);
-        }
-    };
-
-    const reviewItems = useMemo(() => insights?.reviews || [], [insights]);
     const productImages = useMemo(() => product?.images || [], [product]);
+    const promotions = useMemo(() => product?.promotions || [], [product]);
 
     const tabItems = [
         {
@@ -244,6 +177,14 @@ const ProductDetail = () => {
                         <Col span={16}><Text strong>{product?.brand?.name || 'N/A'}</Text></Col>
                     </Row>
                     <Row style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                        <Col span={8}><Text type="secondary" strong>Loại</Text></Col>
+                        <Col span={16}><Text strong>{product?.category || 'N/A'}</Text></Col>
+                    </Row>
+                    <Row style={{ padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <Col span={8}><Text type="secondary" strong>RAM</Text></Col>
+                        <Col span={16}><Text strong>{product?.ram ? `${product.ram} GB` : 'N/A'}</Text></Col>
+                    </Row>
+                    <Row style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
                         <Col span={8}><Text type="secondary" strong>Kho hàng</Text></Col>
                         <Col span={16}><Text strong>{product?.stock || 0}</Text></Col>
                     </Row>
@@ -256,27 +197,10 @@ const ProductDetail = () => {
         },
         {
             key: '3',
-            label: 'Reviews',
+            label: 'Comments',
             children: (
-                <div style={{ padding: '16px 0' }}>
-                    {reviewItems.length === 0 ? (
-                        <Empty description="Chưa có đánh giá nào" />
-                    ) : (
-                        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                            {reviewItems.map((rv) => (
-                                <Card key={rv.id} size="small" style={{ borderRadius: 12 }}>
-                                    <Space align="center" style={{ marginBottom: 8 }}>
-                                        <Avatar src={rv.user?.image ? getImageUrl(rv.user.image) : undefined}>
-                                            {(rv.user?.firstName || 'U').charAt(0)}
-                                        </Avatar>
-                                        <Text strong>{`${rv.user?.firstName || ''} ${rv.user?.lastName || ''}`.trim() || 'User'}</Text>
-                                        <Rate disabled value={Number(rv.rating)} style={{ fontSize: 14 }} />
-                                    </Space>
-                                    <Text>{rv.comment || 'Không có nhận xét chi tiết.'}</Text>
-                                </Card>
-                            ))}
-                        </Space>
-                    )}
+                <div style={{ padding: '12px 0' }}>
+                    <Empty description="Chưa có bình luận nào." />
                 </div>
             )
         }
@@ -307,7 +231,6 @@ const ProductDetail = () => {
                 .thumbnail-item:hover { transform: translateY(-2px); }
                 .related-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.08) !important; }
                 .summary-chip { display:flex; align-items:center; gap:8px; }
-                .review-panel .ant-drawer-body { padding: 0 !important; }
             `}</style>
 
             <div style={styles.container}>
@@ -362,12 +285,7 @@ const ProductDetail = () => {
                             </Space>
 
                             <Space split={<Divider type="vertical" />} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-                                <Space>
-                                    <Rate disabled value={Number(insights?.avgRating || 0)} allowHalf style={{ fontSize: 14, color: '#f59e0b' }} />
-                                    <Text type="secondary">({insights?.reviewCount || 0} Reviews)</Text>
-                                </Space>
                                 <Text type="secondary">{insights?.buyerCount || product.sold || 0} Đã mua</Text>
-                                <Text type="secondary">{insights?.commentCount || 0} Bình luận</Text>
                             </Space>
 
                             <Space size={10} wrap style={{ marginBottom: 18 }}>
@@ -375,6 +293,19 @@ const ProductDetail = () => {
                                 <div style={styles.metricBox} className="summary-chip"><MessageOutlined /> <Text>{insights?.commentCount || 0} nhận xét</Text></div>
                                 <div style={styles.metricBox} className="summary-chip"><GiftOutlined /> <Text>Đánh giá nhận thưởng</Text></div>
                             </Space>
+
+                            {promotions.length > 0 && (
+                                <div style={{ marginBottom: 24 }}>
+                                    <Title level={5} style={{ marginBottom: 8 }}>Khuyến mãi</Title>
+                                    <Space direction="vertical" size={4}>
+                                        {promotions.map(promo => (
+                                            <Tag key={promo.id} color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+                                                {promo.name} - Giảm {promo.discountRate}%
+                                            </Tag>
+                                        ))}
+                                    </Space>
+                                </div>
+                            )}
 
                             <div style={styles.priceBox}>
                                 <Text style={styles.priceText}>{formatPrice(product.price)}</Text>
@@ -399,20 +330,14 @@ const ProductDetail = () => {
                             </Space>
 
                             <Row gutter={12}>
-                                <Col span={8}>
+                                <Col span={12}>
                                     <Button size="large" block icon={<ShoppingCartOutlined />} onClick={handleAddToCart} disabled={product.stock <= 0} style={{ ...styles.actionButton, color: '#2563eb', borderColor: '#2563eb', background: '#fff' }}>
                                         Thêm giỏ
                                     </Button>
                                 </Col>
-                                <Col span={8}>
+                                <Col span={12}>
                                     <Button type="primary" size="large" block onClick={handleBuyNow} disabled={product.stock <= 0} style={{ ...styles.actionButton, background: '#0f172a', borderColor: '#0f172a' }}>
                                         Mua ngay
-                                    </Button>
-                                </Col>
-                                <Col span={8}>
-                                    {/* === SỬA LỖI: Cập nhật onClick để gọi hàm mới === */}
-                                    <Button size="large" block icon={<StarOutlined />} onClick={handleOpenReviewDrawer} style={{ ...styles.actionButton, color: '#4338ca', borderColor: '#c7d2fe', background: '#eef2ff' }}>
-                                        Đánh giá
                                     </Button>
                                 </Col>
                             </Row>
@@ -450,78 +375,6 @@ const ProductDetail = () => {
                     </Row>
                 </div>
             </div>
-
-            <Drawer
-                title="Submit Review"
-                placement="right"
-                open={reviewDrawerOpen}
-                onClose={() => setReviewDrawerOpen(false)}
-                className="review-panel"
-                size="default"
-            >
-                <div style={{ padding: 20, background: '#f8fafc', minHeight: '100%' }}>
-                    <Card variant="borderless" styles={{ body: { padding: 14 } }} style={{ borderRadius: 14, marginBottom: 16 }}>
-                        <Space>
-                            <Image src={getImageUrl(product.thumbnail || productImages?.[0]?.imageUrl)} preview={false} width={70} height={70} style={{ borderRadius: 10, objectFit: 'contain', background: '#f1f5f9' }} />
-                            <div>
-                                <Text strong>{product.name}</Text>
-                                <div><Text type="secondary">Đã mua thành công mới được đánh giá</Text></div>
-                            </div>
-                        </Space>
-                    </Card>
-
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Bạn đánh giá sản phẩm này thế nào?</Text>
-                    <Rate value={reviewRating} onChange={setReviewRating} style={{ fontSize: 30, marginBottom: 16 }} />
-
-                    <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Nhận xét của bạn</Text>
-                    <Input.TextArea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        rows={5}
-                        placeholder="Hãy chia sẻ trải nghiệm sử dụng sản phẩm..."
-                        style={{ borderRadius: 12, marginBottom: 16 }}
-                    />
-
-                    <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Chọn đơn hàng đã mua</Text>
-                    {/* === SỬA LỖI: Thêm trạng thái loading cho orders === */}
-                    {loadingOrders ? <Spin /> : deliveredOrders.length === 0 ? (
-                        <Empty description="Bạn chưa mua sản phẩm này" />
-                    ) : (
-                        <Space direction="vertical" style={{ width: '100%', marginBottom: 20 }}>
-                            {deliveredOrders.map((od) => (
-                                <Button
-                                    key={od.id}
-                                    type={reviewOrderId === od.id ? 'primary' : 'default'}
-                                    block
-                                    onClick={() => setReviewOrderId(od.id)}
-                                    style={{ justifyContent: 'space-between' }}
-                                >
-                                    <span>Đơn #{String(od.id).padStart(6, '0')}</span>
-                                    <span>{new Date(od.createdAt).toLocaleDateString('vi-VN')}</span>
-                                </Button>
-                            ))}
-                        </Space>
-                    )}
-
-                    <Card size="small" style={{ borderRadius: 12, marginBottom: 16, background: '#eef2ff', borderColor: '#c7d2fe' }}>
-                        <Space>
-                            <GiftOutlined style={{ color: '#4338ca' }} />
-                            <Text>Đánh giá thành công sẽ nhận điểm tích lũy hoặc mã giảm giá.</Text>
-                        </Space>
-                    </Card>
-
-                    <Button
-                        type="primary"
-                        block
-                        icon={<SendOutlined />}
-                        loading={reviewSubmitting}
-                        onClick={handleSubmitReview}
-                        style={{ height: 48, borderRadius: 999, background: '#2563eb', borderColor: '#2563eb' }}
-                    >
-                        Submit Review
-                    </Button>
-                </div>
-            </Drawer>
         </div>
     );
 };

@@ -11,14 +11,10 @@ import {
 } from "../services/auth/otpService.js";
 import { sendPasswordResetEmail } from "../services/auth/mailService.js";
 
-const { User, RefreshToken, ResetOtp } = db;
+const { User, ResetOtp } = db;
 
-// Lưu OTP tạm thời trong memory (cho đăng ký)
 const otpStore = new Map();
 
-/* =========================
-   LOGIN
-========================= */
 let login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -36,28 +32,19 @@ let login = async (req, res) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    await RefreshToken.create({
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      revoked: false,
+    await user.update({
+      refreshToken,
+      refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      lastLoginAt: new Date(),
     });
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-    const role = user.role;
-    let redirectURI = "/";
+    const role = user.role.toLowerCase();
+    let redirectURI = "/api/home";
     if (role === "admin") redirectURI = "/admin/dashboard";
-    else if (role === "user") redirectURI = "/user/dashboard";
+    else if (role === "user") redirectURI = "/api/home";
 
     return res.json({
       message: "Login success",
@@ -71,60 +58,29 @@ let login = async (req, res) => {
   }
 };
 
-/* =========================
-   REFRESH TOKEN (ROTATION)
-========================= */
 let refresh = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
-    if (!token) {
-      return res.sendStatus(401);
-    }
+    if (!token) return res.sendStatus(401);
 
-    const storedToken = await RefreshToken.findOne({
-      where: { token, revoked: false },
-    });
-    if (!storedToken) {
+    const user = await User.findOne({ where: { refreshToken: token } });
+    if (!user || user.refreshTokenExpiresAt < new Date()) {
       return res.sendStatus(403);
     }
 
     jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
       if (err) return res.sendStatus(403);
 
-      const userId = decoded.id;
-      const user = await User.findByPk(userId);
-      if (!user) return res.sendStatus(403);
+      const newAccessToken = generateAccessToken(user);
+      const newRefreshToken = generateRefreshToken(user);
 
-      await RefreshToken.update({ revoked: true }, { where: { token } });
-
-      const newAccessToken = jwt.sign(
-        { id: user.id, role: user.role, email: user.email },
-        process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "15m" }
-      );
-      const newRefreshToken = jwt.sign(
-        { id: user.id, role: user.role, email: user.email },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      await RefreshToken.create({
-        token: newRefreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        revoked: false,
+      await user.update({
+        refreshToken: newRefreshToken,
+        refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
-      res.cookie("accessToken", newAccessToken, {
-        httpOnly: true,
-        sameSite: "strict",
-        maxAge: 15 * 60 * 1000,
-      });
-      res.cookie("refreshToken", newRefreshToken, {
-        httpOnly: true,
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
+      res.cookie("refreshToken", newRefreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.json({ message: "Token refreshed", accessToken: newAccessToken });
     });
@@ -134,14 +90,14 @@ let refresh = async (req, res) => {
   }
 };
 
-/* =========================
-   LOGOUT
-========================= */
 let logout = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
     if (token) {
-      await RefreshToken.update({ revoked: true }, { where: { token } });
+      const user = await User.findOne({ where: { refreshToken: token } });
+      if (user) {
+        await user.update({ refreshToken: null, refreshTokenExpiresAt: null });
+      }
     }
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
@@ -152,30 +108,19 @@ let logout = async (req, res) => {
   }
 };
 
-/* =========================
-   FORGOT PASSWORD - SEND OTP
-========================= */
 let forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const otp = generateOTP();
-    const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
-    await ResetOtp.create({ email, otp, expiresAt });
+    await ResetOtp.create({ email, otp, expiresAt: getOTPExpiry() });
 
-    const tempTokenSecret = process.env.TEMP_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET;
-    const tempToken = jwt.sign(
-      { email, purpose: "password-reset" },
-      tempTokenSecret,
-      { expiresIn: "10m" }
-    );
+    const tempToken = jwt.sign({ email, purpose: "password-reset" }, process.env.TEMP_TOKEN_SECRET, { expiresIn: "10m" });
 
     return res.json({ message: "OTP sent", tempToken });
   } catch (error) {
@@ -184,71 +129,45 @@ let forgotPassword = async (req, res) => {
   }
 };
 
-/* =========================
-   RESET PASSWORD - VERIFY OTP & UPDATE
-========================= */
 let resetPassword = async (req, res) => {
   try {
     const { email, otp, tempToken, newPassword } = req.body;
 
-    const tempTokenSecret = process.env.TEMP_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET;
-    let decoded;
-    try {
-      decoded = jwt.verify(tempToken, tempTokenSecret);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired temp token" });
-    }
+    const decoded = jwt.verify(tempToken, process.env.TEMP_TOKEN_SECRET);
     if (decoded.email !== email || decoded.purpose !== "password-reset") {
       return res.status(400).json({ message: "Invalid temp token" });
     }
 
     const storedOtp = await ResetOtp.findOne({ where: { email } });
-    if (!storedOtp) {
-      return res.status(400).json({ message: "OTP not found" });
-    }
-    if (isOTPExpired(storedOtp.expiresAt)) {
-      await ResetOtp.destroy({ where: { email } });
-      return res.status(400).json({ message: "OTP expired" });
-    }
-    if (!verifyOTPCode(otp, storedOtp.otp)) {
-      return res.status(400).json({ message: "Invalid OTP" });
+    if (!storedOtp || isOTPExpired(storedOtp.expiresAt) || !verifyOTPCode(otp, storedOtp.otp)) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.update({ password: hashedPassword }, { where: { email } });
-
     await ResetOtp.destroy({ where: { email } });
 
     const user = await User.findOne({ where: { email } });
     const accessToken = generateAccessToken(user);
 
-    return res.status(200).json({
-      message: "Password reset successful",
-      accessToken,
-    });
+    return res.status(200).json({ message: "Password reset successful", accessToken });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-/* =========================
-   RESEND OTP (FORGOT PASSWORD)
-========================= */
 let resendOtp = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const otp = generateOTP();
-    const expiresAt = getOTPExpiry();
-    await sendPasswordResetEmail(email, otp, user.firstName || "User");
+    await sendPasswordResetEmail(email, otp, user.fullName || "User");
 
     await ResetOtp.destroy({ where: { email } });
-    await ResetOtp.create({ email, otp, expiresAt });
+    await ResetOtp.create({ email, otp, expiresAt: getOTPExpiry() });
 
     return res.json({ message: "OTP resent" });
   } catch (error) {
@@ -257,117 +176,58 @@ let resendOtp = async (req, res) => {
   }
 };
 
-/* =========================
-   REGISTER - GỬI OTP
-========================= */
 let register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
+    const { email, password, fullName } = req.body;
     const lowerCaseEmail = email.toLowerCase();
 
     const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
     if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email này đã được đăng ký.'
-      });
+      return res.status(409).json({ success: false, message: 'Email này đã được đăng ký.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
-
-    // Gửi email bất đồng bộ
-    sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
-      console.error("Send OTP email failed:", mailError);
-      // Ghi log lỗi nhưng không block response trả về cho user
-    });
+    const otp = generateOTP();
+    
+    sendOtpEmail(lowerCaseEmail, otp).catch(console.error);
 
     otpStore.set(lowerCaseEmail, {
       otp,
-      otpExpiry,
-      userData: { email: lowerCaseEmail, password: hashedPassword, firstName, lastName, phoneNumber, address, gender }
+      otpExpiry: getOTPExpiry(),
+      userData: { email: lowerCaseEmail, password: hashedPassword, fullName }
     });
 
-    console.log(lowerCaseEmail, otp)
-
-    return res.status(200).json({
-      success: true,
-      message: `Mã OTP đã được gửi tới ${lowerCaseEmail}. Vui lòng kiểm tra hộp thư.`
-    });
+    return res.status(200).json({ success: true, message: `Mã OTP đã được gửi tới ${lowerCaseEmail}.` });
   } catch (error) {
     console.error('Register error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server, vui lòng thử lại sau.'
-    });
+    return res.status(500).json({ success: false, message: 'Lỗi server, vui lòng thử lại sau.' });
   }
 };
 
-/* =========================
-   VERIFY REGISTRATION OTP
-========================= */
 let verifyRegistrationOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const lowerCaseEmail = email.toLowerCase();
-    console.log(lowerCaseEmail, otp)
 
     const record = otpStore.get(lowerCaseEmail);
-    console.log(record)
-    if (!record) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không tìm thấy yêu cầu đăng ký cho email này.'
-      });
+    if (!record || isOTPExpired(record.otpExpiry) || record.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Mã OTP không chính xác hoặc đã hết hạn.' });
     }
 
-    if (Date.now() > record.otpExpiry) {
-      otpStore.delete(lowerCaseEmail);
-      return res.status(400).json({
-        success: false,
-        message: 'Mã OTP đã hết hạn. Vui lòng đăng ký lại.'
-      });
-    }
-
-    if (record.otp !== otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mã OTP không chính xác.'
-      });
-    }
-
-    // Tạo user vào database
-    const newUser = await User.create({
-      ...record.userData,
-      roleId: 'R3',      // tuỳ theo model của bạn
-      role: 'user'       // nếu dùng role string
-    });
-
+    const newUser = await User.create({ ...record.userData, role: 'USER' });
     otpStore.delete(lowerCaseEmail);
 
     return res.status(201).json({
       success: true,
       message: 'Đăng ký tài khoản thành công!',
-      data: {
-        id: newUser.id,
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-      }
+      data: { id: newUser.id, email: newUser.email, fullName: newUser.fullName }
     });
   } catch (error) {
     console.error('Verify OTP error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server, vui lòng thử lại sau.'
-    });
+    return res.status(500).json({ success: false, message: 'Lỗi server, vui lòng thử lại sau.' });
   }
 };
 
-/* =========================
-   RESEND REGISTRATION OTP
-========================= */
 let resendRegistrationOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -375,150 +235,59 @@ let resendRegistrationOtp = async (req, res) => {
 
     const record = otpStore.get(lowerCaseEmail);
     if (!record) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không tìm thấy yêu cầu đăng ký. Vui lòng đăng ký lại.'
-      });
+      return res.status(400).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký.' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300) * 1000;
-    
-    // Gửi email bất đồng bộ
-    sendOtpEmail(lowerCaseEmail, otp).catch(mailError => {
-      console.error("Resend OTP email failed:", mailError);
-      // Ghi log lỗi nhưng không block response trả về cho user
-    });
+    const otp = generateOTP();
+    sendOtpEmail(lowerCaseEmail, otp).catch(console.error);
+    otpStore.set(lowerCaseEmail, { ...record, otp, otpExpiry: getOTPExpiry() });
 
-    otpStore.set(lowerCaseEmail, { ...record, otp, otpExpiry });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Đã gửi lại mã OTP. Vui lòng kiểm tra hộp thư.'
-    });
+    return res.status(200).json({ success: true, message: 'Đã gửi lại mã OTP.' });
   } catch (error) {
     console.error('Resend OTP error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server, vui lòng thử lại sau.'
-    });
+    return res.status(500).json({ success: false, message: 'Lỗi server, vui lòng thử lại sau.' });
   }
 };
 
-/* =========================
-   EDIT USER PROFILE
-========================= */
 let editUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId } = req.body;
+    const { fullName, phone, address, gender } = req.body;
+    const avatar = req.file ? `/uploads/avatars/${req.file.filename}` : undefined;
 
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) {
-        return res.status(409).json({ message: "Email already exists" });
-      }
-    }
-
     await user.update({
-      email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
+      fullName: fullName || user.fullName,
+      phone: phone || user.phone,
       address: address || user.address,
       gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
+      avatar: avatar || user.avatar,
     });
 
-    return res.json({
-      message: "Profile updated successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
-        role: user.role,
-      },
-    });
+    const { password, ...userResponse } = user.get({ plain: true });
+    return res.json({ message: "Profile updated successfully", user: userResponse });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-/* =========================
-   EDIT ADMIN PROFILE
-========================= */
-let editAdminProfile = async (req, res) => {
-  try {
-    const adminId = req.user.id;
-    const { userId } = req.params;
-    const { email, firstName, lastName, phoneNumber, address, gender, image, positionId, role } = req.body;
-
-    const targetUserId = userId ? parseInt(userId) : adminId;
-    const user = await User.findByPk(targetUserId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+let getProfile = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: { exclude: ['password'] }
+        });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
     }
-
-    if (targetUserId !== adminId && user.role === "admin") {
-      return res.status(403).json({ message: "Cannot edit other admin profiles" });
-    }
-
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) {
-        return res.status(409).json({ message: "Email already exists" });
-      }
-    }
-
-    const updateData = {
-      email: email || user.email,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      phoneNumber: phoneNumber || user.phoneNumber,
-      address: address || user.address,
-      gender: gender !== undefined ? gender : user.gender,
-      image: image || user.image,
-      positionId: positionId || user.positionId,
-    };
-
-    if (role && targetUserId !== adminId) {
-      updateData.role = role;
-    }
-
-    await user.update(updateData);
-
-    return res.json({
-      message: "Profile updated successfully",
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        gender: user.gender,
-        image: user.image,
-        positionId: user.positionId,
-        role: user.role,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Server error" });
-  }
 };
 
 export default {
@@ -527,10 +296,10 @@ export default {
   logout,
   forgotPassword,
   resetPassword,
-  resendOtp,                  // Gửi lại OTP cho quên mật khẩu
-  register,                  // Đăng ký - gửi OTP
-  verifyRegistrationOtp,     // Xác thực OTP đăng ký
-  resendRegistrationOtp,     // Gửi lại OTP đăng ký
+  resendOtp,
+  register,
+  verifyRegistrationOtp,
+  resendRegistrationOtp,
   editUserProfile,
-  editAdminProfile,
+  getProfile
 };
