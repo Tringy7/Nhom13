@@ -31,15 +31,15 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  const test2 = await UserVoucher.findAll({ where: { userId, status: true } });
-  console.log(`Test 2 (userId & status): Found ${test2.length} records.`);
+  const test2 = await UserVoucher.findAll({ where: { userId, isUsed: false } });
+  console.log(`Test 2 (userId & isUsed): Found ${test2.length} records.`);
   if (test2.length === 0) {
-      console.log(">>> LỖI: Không tìm thấy voucher nào có status = true (chưa sử dụng).");
+      console.log(">>> LỖI: Không tìm thấy voucher nào có isUsed = false (chưa sử dụng).");
       return [];
   }
 
   const test3 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
@@ -54,7 +54,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   }
 
   const test4 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
@@ -72,7 +72,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   }
 
   const test5 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
@@ -90,7 +90,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   }
 
   const test6 = await UserVoucher.findAll({
-    where: { userId, status: true },
+    where: { userId, isUsed: false },
     include: [{
       model: Voucher,
       as: 'voucher',
@@ -112,7 +112,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   const userVouchers = await UserVoucher.findAll({
     where: {
       userId,
-      status: true,
+      isUsed: false,
     },
     include: [{
       model: Voucher,
@@ -175,14 +175,14 @@ const receiveVoucher = async (userId, voucherId) => {
     userId,
     voucherId,
     code,
-    status: true, // status: true means 'not used'
+    isUsed: false,
     receivedAt: new Date()
   });
 
   return userVoucher;
 };
 
-const applyVoucher = async (userId, rewardCode, orderTotal) => {
+const applyVoucher = async (userId, voucherId, orderTotal) => {
   const { UserVoucher, Voucher } = db;
   const userVoucher = await UserVoucher.findOne({
     where: {

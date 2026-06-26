@@ -373,18 +373,18 @@ const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
   });
 };
 
-const handleCancelRequest = async (adminId, orderId, approve) => {
-    const { Order } = db;
-    const order = await Order.findByPk(orderId);
-    if (!order) throw new Error('Không tìm thấy đơn hàng');
-
-    await order.update({
-        orderStatus: status,
-        shipperId: shipperId || order.shipperId
-    });
-
-    return order;
-};
+// const handleCancelRequest = async (adminId, orderId, approve) => {
+//     const { Order } = db;
+//     const order = await Order.findByPk(orderId);
+//     if (!order) throw new Error('Không tìm thấy đơn hàng');
+//
+//     await order.update({
+//         orderStatus: status,
+//         shipperId: shipperId || order.shipperId
+//     });
+//
+//     return order;
+// };
 
 const handleCancelRequest = async (adminId, requestId, { approve, adminNotes = '' }) => {
     const request = await OrderCancellationRequest.findByPk(requestId, { include: [Order] });

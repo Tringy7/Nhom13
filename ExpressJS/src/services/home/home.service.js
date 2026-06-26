@@ -1,73 +1,39 @@
 'use strict';
 import db from '../../entities/index.js';
 
-const { Product, Brand } = db;
-const { Op } = db.Sequelize;
+const { Product, Brand, ProductImage, Promotion } = db;
 
-const productAttributes = [
-  'id',
-  'name',
-  'price',
-  'thumbnail',
-  'stock',
-  'sold',
-  'category',
-  'brandId',
-  'isActive',
-  'createdAt',
-  'updatedAt'
-];
-
+// Update include for product queries
 const productInclude = [
   {
-    model: db.Brand,
+    model: Brand,
     as: 'brand',
     attributes: ['id', 'name']
   },
   {
-    model: db.ProductImage,
+    model: ProductImage,
     as: 'images',
-    attributes: ['id', 'imageUrl']
+    attributes: ['imageUrl']
+  },
+  {
+    model: Promotion,
+    as: 'promotions',
+    attributes: ['id', 'name', 'description', 'discountRate', 'startDate', 'endDate', 'isActive'],
+    through: { attributes: [] } // Exclude join table attributes
   }
 ];
-
-const getPromotions = async (options = {}) => {
-  const { page = 1, limit = 10 } = options;
-  const offset = (page - 1) * limit;
-  console.log(db);
-console.log('Promotion:', Promotion);
-console.log('Product:', Product);
-console.log('Brand:', Brand);
-console.log('ProductImage:', ProductImage);
-
-  return Promotion.findAll({
-     where: {
-      isActive: true
-    },
-    offset,
-    limit,
-    order: [['createdAt', 'DESC']],
-    attributes: ['id', 'title', 'discountPercent', 'image', 'createdAt'],
-    include: [
-      {
-        model: Product,
-        as: 'products',
-        attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
-        include: productInclude,
-        through: { attributes: [] }
-      }
-    ]
-  });
-};
 
 const getBestSellingProducts = async (options = {}) => {
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
+
+  // Use the 'sold' field for "best-selling"
   return Product.findAndCountAll({
     offset,
     limit,
     order: [['sold', 'DESC']],
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId'],
+    where: { isActive: true },
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'createdAt'],
     include: productInclude,
     distinct: true
   });
@@ -130,12 +96,12 @@ const getAllProducts = async (options = {}) => {
     whereClause.ram = { [Op.in]: rams };
   }
 
-  return db.Product.findAndCountAll({
+  return Product.findAndCountAll({
     where: whereClause,
     offset,
     limit,
     order,
-    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'category', 'brandId', 'createdAt'],
+    attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'ram', 'category', 'createdAt'],
     include: productInclude,
     distinct: true
   });

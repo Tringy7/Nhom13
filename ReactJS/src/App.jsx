@@ -57,7 +57,7 @@ function App() {
     !location.pathname.startsWith('/manager') && 
     !location.pathname.startsWith("/admin");
   
-  const authRoutes = ['/login', '/register', '/forgot-password'];
+  // const authRoutes = ['/login', '/register', '/forgot-password'];
 
   return (
     <>
