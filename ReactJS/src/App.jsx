@@ -110,7 +110,7 @@ function App() {
         </Route>
 
         {/* Manager Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['manager', 'admin']} />}>
           <Route path="/manager/dashboard" element={<ManagerDashboard />} />
           <Route path="/manager/products" element={<ManagerProducts />} />
           <Route path="/manager/products/new" element={<ManagerProductEdit />} />
@@ -121,6 +121,15 @@ function App() {
           <Route path="/manager/promotions" element={<ManagerPromotions />} />
           <Route path="/manager/cancellations" element={<ManagerCancellations />} />
         </Route>
+
+        {/* 403 Forbidden Page */}
+        <Route path="/403" element={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+            <h1 style={{ fontSize: '6rem', margin: 0, color: '#e53e3e' }}>403</h1>
+            <p style={{ fontSize: '1.2rem', color: '#555' }}>Bạn không có quyền truy cập trang này.</p>
+            <a href="/" style={{ marginTop: '16px', color: '#2563eb', fontSize: '1rem' }}>← Về trang chủ</a>
+          </div>
+        } />
       </Routes>
       {showHeaderFooter && <Footer />}
     </>

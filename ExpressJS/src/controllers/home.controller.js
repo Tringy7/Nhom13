@@ -1,4 +1,5 @@
 import homeService from '../services/home/home.service.js';
+import db from '../entities/index.js';
 
 const getHomePage = async (req, res) => {
   try {
@@ -65,8 +66,45 @@ const getAllProducts = async (req, res) => {
   }
 };
 
+const getPublicBrands = async (req, res) => {
+  try {
+    const brands = await db.Brand.findAll({ order: [['name', 'ASC']] });
+    return res.json({ success: true, data: brands });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi khi tải danh sách hãng' });
+  }
+};
+
+const getPublicCategories = async (req, res) => {
+  try {
+    await db.Category.sync();
+    const count = await db.Category.count();
+    if (count === 0) {
+      const { Op } = db.Sequelize;
+      const rows = await db.Product.findAll({
+        attributes: [[db.Sequelize.fn('DISTINCT', db.Sequelize.col('category')), 'category']],
+        where: { category: { [Op.ne]: null } },
+        raw: true
+      });
+      const names = rows.map(r => r.category).filter(Boolean);
+      for (const name of names) {
+        await db.Category.findOrCreate({ where: { name: name.trim().toUpperCase() } });
+      }
+    }
+
+    const categories = await db.Category.findAll({ order: [['name', 'ASC']] });
+    const data = categories.map(c => c.name);
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error in getPublicCategories:", error);
+    return res.status(500).json({ success: false, message: 'Lỗi khi tải danh mục' });
+  }
+};
+
 export default {
   getHomePage,
   getBestSellingProducts,
-  getAllProducts
+  getAllProducts,
+  getPublicBrands,
+  getPublicCategories
 };

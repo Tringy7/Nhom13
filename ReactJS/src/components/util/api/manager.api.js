@@ -21,6 +21,9 @@ export const createBrandApi = (data) => axios.post('/api/manager/brands', data);
 export const updateBrandApi = (id, data) => axios.put(`/api/manager/brands/${id}`, data);
 export const deleteBrandApi = (id) => axios.delete(`/api/manager/brands/${id}`);
 export const getCategoriesApi = () => axios.get('/api/manager/categories');
+export const createCategoryApi = (data) => axios.post('/api/manager/categories', data);
+export const updateCategoryApi = (oldName, data) => axios.put(`/api/manager/categories/${oldName}`, data);
+export const deleteCategoryApi = (name) => axios.delete(`/api/manager/categories/${name}`);
 
 // Orders
 export const getOrdersApi = (params) => axios.get('/api/manager/orders', { params });

@@ -20,8 +20,13 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (allowedRoles.length > 0 && !allowedRoles.includes(auth.user.role)) {
-        return <Navigate to="/403" replace />;
+    if (allowedRoles.length > 0) {
+        const userRole = String(auth.user?.role || '').toLowerCase();
+        const hasPermission = allowedRoles.some(role => String(role || '').toLowerCase() === userRole);
+        console.log('[ProtectedRoute] role check:', { userRole, allowedRoles, hasPermission });
+        if (!hasPermission) {
+            return <Navigate to="/403" replace />;
+        }
     }
 
     return <Outlet />;

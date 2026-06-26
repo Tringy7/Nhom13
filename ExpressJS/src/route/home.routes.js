@@ -8,4 +8,6 @@ const router = express.Router();
 router.get('/api/home', homeController.getHomePage);
 router.get('/api/products/bestselling', homeController.getBestSellingProducts);
 router.get('/api/products', homeController.getAllProducts);
+router.get('/api/brands', homeController.getPublicBrands);
+router.get('/api/categories', homeController.getPublicCategories);
 export default router;

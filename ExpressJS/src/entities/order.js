@@ -8,10 +8,11 @@ export default (sequelize, DataTypes) => {
       Order.belongsTo(User, { foreignKey: 'userId', as: 'customer' });
       Order.belongsTo(User, { foreignKey: 'shipperId', as: 'shipper' });
       Order.belongsTo(Voucher, { foreignKey: 'voucherId', as: 'voucher' });
-      Order.hasMany(OrderDetail, { foreignKey: 'orderId', as: 'details' });
-      Order.hasMany(Review, { foreignKey: 'orderId', as: 'reviews' });
-      Order.hasOne(OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
-      Order.hasOne(Payment, { foreignKey: 'orderId', as: 'payment' });
+      Order.hasMany(entities.OrderDetail, { foreignKey: 'orderId', as: 'details' });
+      Order.hasMany(entities.Review, { foreignKey: 'orderId', as: 'reviews' });
+      Order.hasOne(entities.OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
+      Order.hasOne(entities.Payment, { foreignKey: 'orderId', as: 'payment' });
+      Order.hasMany(entities.OrderStatusHistory, { foreignKey: 'orderId', as: 'statusHistory' });
     }
   }
   Order.init({

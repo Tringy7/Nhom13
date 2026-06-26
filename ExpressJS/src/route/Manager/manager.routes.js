@@ -27,6 +27,9 @@ router.post("/api/manager/brands", managerController.createBrand);
 router.put("/api/manager/brands/:id", managerController.updateBrand);
 router.delete("/api/manager/brands/:id", managerController.deleteBrand);
 router.get("/api/manager/categories", managerController.getCategories);
+router.post("/api/manager/categories", managerController.createCategory);
+router.put("/api/manager/categories/:oldName", managerController.updateCategory);
+router.delete("/api/manager/categories/:name", managerController.deleteCategory);
 
 // Order Fulfillment
 router.get("/api/manager/orders", managerController.getOrders);
