@@ -3,9 +3,8 @@ import { Op } from 'sequelize';
 import db from '../../entities/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const { User, Voucher, UserVoucher, RewardTransaction } = db;
-
 const getMyVouchers = async (userId) => {
+  const { UserVoucher, Voucher } = db;
   const userVouchers = await UserVoucher.findAll({
     where: { userId }, 
     include: [{
@@ -21,10 +20,10 @@ const getMyVouchers = async (userId) => {
 };
 
 const getCheckoutVouchers = async (userId, orderTotal) => {
+  const { UserVoucher, Voucher } = db;
   console.log("--- DEBUG VOUCHER START ---");
   console.log(`Input: userId=${userId}, orderTotal=${orderTotal}`);
 
-  // Test 1: Lọc theo userId
   const test1 = await UserVoucher.findAll({ where: { userId } });
   console.log(`Test 1 (userId only): Found ${test1.length} records.`);
   if (test1.length === 0) {
@@ -32,7 +31,6 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  // Test 2: Thêm điều kiện status
   const test2 = await UserVoucher.findAll({ where: { userId, status: true } });
   console.log(`Test 2 (userId & status): Found ${test2.length} records.`);
   if (test2.length === 0) {
@@ -40,7 +38,6 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  // Test 3: Join với Voucher và lọc theo isActive
   const test3 = await UserVoucher.findAll({
     where: { userId, status: true },
     include: [{
@@ -56,7 +53,6 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  // Test 4: Thêm điều kiện startDate
   const test4 = await UserVoucher.findAll({
     where: { userId, status: true },
     include: [{
@@ -75,7 +71,6 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       return [];
   }
 
-  // Test 5: Thêm điều kiện endDate
   const test5 = await UserVoucher.findAll({
     where: { userId, status: true },
     include: [{
@@ -92,10 +87,8 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
   console.log(`Test 5 (include & endDate): Found ${test5.length} records.`);
   if (test5.length === 0) {
       console.log(">>> LỖI: Dữ liệu bị lọc hết bởi điều kiện 'endDate'. Các voucher có thể đã hết hạn.");
-      // We don't return here, to allow the next test to run
   }
 
-  // Test 6: Thêm điều kiện minOrderValue
   const test6 = await UserVoucher.findAll({
     where: { userId, status: true },
     include: [{
@@ -143,6 +136,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
 };
 
 const getAvailableVouchers = async () => {
+  const { Voucher } = db;
   const available = await Voucher.findAll({
     where: {
       isActive: true,
@@ -158,6 +152,7 @@ const getAvailableVouchers = async () => {
 };
 
 const receiveVoucher = async (userId, voucherId) => {
+  const { Voucher, UserVoucher } = db;
   const voucher = await Voucher.findOne({
     where: { id: voucherId, isActive: true }
   });
@@ -187,7 +182,12 @@ const receiveVoucher = async (userId, voucherId) => {
   return userVoucher;
 };
 
+<<<<<<< HEAD
 const applyVoucher = async (userId, voucherId, orderTotal) => {
+=======
+const applyVoucher = async (userId, rewardCode, orderTotal) => {
+  const { UserVoucher, Voucher } = db;
+>>>>>>> permission/manager
   const userVoucher = await UserVoucher.findOne({
     where: {
       userId,
@@ -238,6 +238,7 @@ const applyVoucher = async (userId, voucherId, orderTotal) => {
 };
 
 const getRewardBalance = async (userId) => {
+  const { User } = db;
   const user = await User.findByPk(userId, {
     attributes: ['points']
   });
@@ -245,6 +246,7 @@ const getRewardBalance = async (userId) => {
 };
 
 const getRewardHistory = async (userId) => {
+  const { RewardTransaction } = db;
   const history = await RewardTransaction.findAll({
     where: { userId },
     order: [

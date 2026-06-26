@@ -15,8 +15,9 @@ const router = express.Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 10,
-  message: "Too many login attempts"
+  max: 100,
+  skip: () => process.env.NODE_ENV === 'development', // Bỏ qua khi dev
+  message: "Too many login attempts, please try again later"
 });
 
 const editProfileLimiter = rateLimit({

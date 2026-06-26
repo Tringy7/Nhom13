@@ -1,4 +1,4 @@
-const ORDER_STATUS = Object.freeze({
+export const ORDER_STATUS = Object.freeze({
     NEW: 'NEW',
     CONFIRMED: 'CONFIRMED',
     PREPARING: 'PREPARING',

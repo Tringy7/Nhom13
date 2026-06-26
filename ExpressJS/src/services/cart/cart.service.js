@@ -1,8 +1,7 @@
 import db from '../../entities/index.js';
 
-const { Cart, CartItem, Product } = db;
-
 const getCart = async (userId) => {
+    const { Cart, CartItem, Product } = db;
     let cart = await Cart.findOne({
         where: { userId },
         include: [{
@@ -26,6 +25,7 @@ const getCart = async (userId) => {
 };
 
 const addToCart = async (userId, productId, quantity = 1) => {
+    const { Cart, CartItem, Product } = db;
     const product = await Product.findByPk(productId);
     if (!product) throw new Error('Sản phẩm không tồn tại');
     if (product.stock < quantity) throw new Error('Số lượng sản phẩm trong kho không đủ');
@@ -53,6 +53,7 @@ const addToCart = async (userId, productId, quantity = 1) => {
 };
 
 const updateCartItem = async (userId, cartItemId, quantity) => {
+    const { Cart, CartItem, Product } = db;
     const cartItem = await CartItem.findOne({
         where: { id: cartItemId },
         include: [
@@ -65,8 +66,6 @@ const updateCartItem = async (userId, cartItemId, quantity) => {
     
     const newQuantity = Number(quantity);
     if (isNaN(newQuantity) || newQuantity < 1) {
-        // If quantity is invalid, we can choose to delete the item or throw an error.
-        // Let's throw an error as per the prompt's strictness.
         throw new Error('Số lượng không hợp lệ');
     }
 
@@ -80,6 +79,7 @@ const updateCartItem = async (userId, cartItemId, quantity) => {
 };
 
 const deleteCartItem = async (userId, cartItemId) => {
+    const { Cart, CartItem } = db;
     const cartItem = await CartItem.findOne({
         where: { id: cartItemId },
         include: [{ model: Cart, as: 'cart', where: { userId } }]

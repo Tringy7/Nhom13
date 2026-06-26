@@ -1,5 +1,5 @@
-const nodemailer = require("nodemailer");
-const dotenv = require("dotenv");
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 	}
 });
 
-const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
+export const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
 	const htmlContent = `
 		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 			<h2 style="color: #333;">Dat lai mat khau</h2>
@@ -38,7 +38,7 @@ const sendPasswordResetEmail = async (email, otp, firstName = "User") => {
 	});
 };
 
-const testEmailConnection = async () => {
+export const testEmailConnection = async () => {
 	try {
 		await transporter.verify();
 		return true;
@@ -48,8 +48,4 @@ const testEmailConnection = async () => {
 	}
 };
 
-module.exports = {
-	sendPasswordResetEmail,
-	testEmailConnection,
-	transporter
-};
+export { transporter };

@@ -20,6 +20,7 @@ import orderRoutes from './order.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import profileRoutes from './profile.routes.js';
 import paymentRoutes from './payment.routes.js';
+import managerRoutes from './Manager/manager.routes.js'; // Import manager routes
 
 let router = express.Router();
 
@@ -55,6 +56,7 @@ let initWebRoutes = (app) => {
     app.use('/', voucherRoutes);
     app.use('/', profileRoutes);
     app.use('/', paymentRoutes); // Sử dụng payment routes
+    app.use('/', managerRoutes); // Register manager routes
 
 
     return app.use('/', router);

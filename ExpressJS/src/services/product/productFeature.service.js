@@ -14,6 +14,7 @@ const {
 const { Op } = db.Sequelize;
 
 const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
+  const { Order, OrderItem } = db;
   const order = await Order.findOne({
     where: { id: orderId, userId, orderStatus: 'DELIVERED' },
     include: [{ model: OrderDetail, as: 'details', where: { productId }, required: true }]
@@ -25,6 +26,7 @@ const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
 };
 
 const submitReview = async (userId, productId, { orderId, rating, comment = '' }) => {
+  const { ProductReview, User, Coupon } = db;
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Điểm đánh giá phải từ 1 đến 5');
   }
@@ -71,7 +73,39 @@ const getWishlist = async (userId) => {
   return wishlistItems.map((item) => item.product).filter(Boolean);
 };
 
+const addViewedProduct = async (userId, productId) => {
+  const { ProductView, Product, ProductImage, Brand } = db;
+  await ProductView.create({ userId, productId, viewedAt: new Date() });
+
+  const recent = await ProductView.findAll({
+    where: { userId },
+    include: [{
+      model: Product,
+      as: 'product',
+      attributes: ['id', 'name', 'price', 'thumbnail', 'sold'],
+      include: [
+        { model: ProductImage, as: 'images', attributes: ['id', 'imageUrl'] },
+        { model: Brand, as: 'brand', attributes: ['id', 'name'] }
+      ]
+    }],
+    order: [['viewedAt', 'DESC']],
+    limit: 12
+  });
+
+  const unique = [];
+  const seen = new Set();
+  for (const item of recent) {
+    if (item.product && !seen.has(item.product.id)) {
+      seen.add(item.product.id);
+      unique.push(item.product);
+    }
+  }
+
+  return unique;
+};
+
 const getReviewsByProduct = async (productId) => {
+  const { ProductReview, User } = db;
   const reviews = await ProductReview.findAll({
     where: { productId },
     include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'avatar'] }],

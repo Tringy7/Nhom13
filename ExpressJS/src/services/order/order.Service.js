@@ -239,6 +239,7 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
 };
 
 const getOrders = async (userId) => {
+    const { Order, OrderItem, Product, Payment } = db;
     return Order.findAll({
         where: { userId },
         include: [
@@ -307,32 +308,73 @@ const requestCancelOrder = async (userId, orderId, reason) => {
     return cancellationRequest;
 };
 
-const getAdminOrders = async (statusFilter) => {
-    const whereClause = statusFilter ? { orderStatus: statusFilter } : {};
-    return Order.findAll({
-        where: whereClause,
-        include: [
-            { model: User, as: 'customer', attributes: ['id', 'fullName', 'email'] }
-        ],
-        order: [['createdAt', 'DESC']]
-    });
-};
+const cancelOrder = async (userId, orderId) => {
+  const { Order } = db;
+  const order = await Order.findOne({ where: { id: orderId, userId } });
+  if (!order) throw new Error('Không tìm thấy đơn hàng');
 
+  if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.status)) {
+    throw new Error('Chỉ có thể hủy đơn hàng ở trạng thái mới hoặc đã xác nhận.');
+  }
+
+  return transitionOrderStatus(order, ORDER_STATUS.CANCELLED, {
+    changedBy: userId,
+    note: 'Người dùng đã hủy đơn hàng.'
+  });
+};
+  
+const getAdminOrders = async () => {
+  const { Order, User, OrderItem, Product } = db;
+  return Order.findAll({
+    include: [
+      { model: User, as: 'customer', attributes: ['id', 'fullName', 'email'] },
+      { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product', attributes: ['id', 'name'] }] }
+    ],
+    order: [['createdAt', 'DESC']]
+  });
+};
+  
 const getAdminOrderById = async (orderId) => {
-    const order = await Order.findOne({
-        where: { id: orderId },
-        include: [
-            { model: User, as: 'customer' },
-            { model: OrderDetail, as: 'details' },
-            { model: Payment, as: 'payment' },
-            { model: OrderCancellationRequest, as: 'cancellationRequest' }
-        ]
-    });
-    if (!order) throw new Error('Không tìm thấy đơn hàng');
-    return order;
+  const { Order, User, OrderItem, Product } = db;
+  const order = await Order.findOne({
+    where: { id: orderId },
+    include: [
+      { model: User, as: 'customer' },
+      { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product' }] }
+    ]
+  });
+  if (!order) throw new Error('Không tìm thấy đơn hàng');
+  return order;
+};
+  
+const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
+  const { Order } = db;
+  const order = await Order.findByPk(orderId);
+  if (!order) throw new Error('Không tìm thấy đơn hàng');
+
+  const allowedTransitions = {
+    [ORDER_STATUS.NEW]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PREPARING, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.PREPARING]: [ORDER_STATUS.SHIPPING, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.SHIPPING]: [ORDER_STATUS.DELIVERED],
+    [ORDER_STATUS.DELIVERED]: [],
+    [ORDER_STATUS.CANCELLED]: [],
+    [ORDER_STATUS.CANCEL_REQUEST]: [ORDER_STATUS.CANCELLED]
+  };
+
+  const allowed = allowedTransitions[order.status] || [];
+  if (!allowed.includes(nextStatus)) {
+    throw new Error(`Không thể chuyển từ trạng thái ${order.status} sang ${nextStatus}`);
+  }
+
+  return transitionOrderStatus(order, nextStatus, {
+    changedBy: adminId,
+    note
+  });
 };
 
-const updateOrderStatus = async (adminId, orderId, { status, shipperId = null }) => {
+const handleCancelRequest = async (adminId, orderId, approve) => {
+    const { Order } = db;
     const order = await Order.findByPk(orderId);
     if (!order) throw new Error('Không tìm thấy đơn hàng');
 
