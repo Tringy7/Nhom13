@@ -14,6 +14,23 @@ export const loginValidationRules = [
     .withMessage("Password không được để trống"),
 ];
 
+export const registerValidationRules = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email không được để trống")
+    .isEmail()
+    .withMessage("Email không hợp lệ"),
+  body("password")
+    .notEmpty()
+    .withMessage("Password không được để trống")
+    .isLength({ min: 6 })
+    .withMessage("Password tối thiểu 6 ký tự"),
+  body("fullName")
+    .notEmpty()
+    .withMessage("Full name không được để trống"),
+];
+
 export const forgotPasswordValidationRules = [
   body("email")
     .trim()
@@ -71,17 +88,11 @@ export const editProfileValidationRules = [
     .isEmail()
     .withMessage("Email không hợp lệ"),
 
-  body("firstName")
+  body("fullName")
     .optional()
     .trim()
     .isLength({ max: 50 })
     .withMessage("Tên không được vượt quá 50 ký tự"),
-
-  body("lastName")
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage("Họ không được vượt quá 50 ký tự"),
 
   body("phoneNumber")
     .optional()

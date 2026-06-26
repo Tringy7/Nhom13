@@ -137,7 +137,11 @@ let forgotPassword = async (req, res) => {
 
 let resetPassword = async (req, res) => {
   try {
-    const { email, otp, tempToken, newPassword } = req.body;
+    const { email, otp, tempToken, newPassword, confirmPassword } = req.body;
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
 
     const decoded = jwt.verify(tempToken, process.env.TEMP_TOKEN_SECRET);
     if (decoded.email !== email || decoded.purpose !== "password-reset") {
@@ -216,8 +220,24 @@ let verifyRegistrationOtp = async (req, res) => {
     const lowerCaseEmail = email.toLowerCase();
 
     const record = otpStore.get(lowerCaseEmail);
-    if (!record || isOTPExpired(record.otpExpiry) || record.otp !== otp) {
-      return res.status(400).json({ success: false, message: 'Mã OTP không chính xác hoặc đã hết hạn.' });
+
+    if (!record) {
+      return res.status(400).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký.' });
+    }
+
+    if (isOTPExpired(record.otpExpiry)) {
+      otpStore.delete(lowerCaseEmail);
+      return res.status(400).json({ success: false, message: 'Mã OTP đã hết hạn, vui lòng đăng ký lại.' });
+    }
+
+    if (String(record.otp) !== String(otp)) {
+      return res.status(400).json({ success: false, message: 'Mã OTP không chính xác.' });
+    }
+
+    const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
+    if (existingUser) {
+      otpStore.delete(lowerCaseEmail);
+      return res.status(409).json({ success: false, message: 'Email này đã được đăng ký.' });
     }
 
     const newUser = await User.create({ ...record.userData, role: 'USER' });

@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 
 import {
   loginValidationRules,
+  registerValidationRules,
   forgotPasswordValidationRules,
   resendOtpValidationRules,
   resetPasswordValidationRules,
@@ -33,6 +34,13 @@ router.post(
   loginValidationRules,
   validate,
   authController.login
+);
+
+router.post(
+  "/api/auth/register",
+  registerValidationRules,
+  validate,
+  authController.register
 );
 
 router.post(

@@ -4,17 +4,16 @@ import {
     ShoppingCartOutlined,
     SearchOutlined,
     MenuOutlined,
-    GiftOutlined,
+    HeartOutlined,
 } from '@ant-design/icons';
-import { Button, Drawer, Dropdown } from 'antd';
+import { Button, Drawer } from 'antd';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/auth.context';
-import { logoutApi } from '../util/api/auth.api'; // Thêm dòng này
 
 const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { auth, dispatch } = useContext(AuthContext);
+    const { auth } = useContext(AuthContext);
     const [current, setCurrent] = useState('home');
     const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
@@ -23,52 +22,15 @@ const Header = () => {
         setCurrent(currentPath);
     }, [location]);
 
-    const handleLogout = async () => {
-        try {
-            await logoutApi(); // Gọi API logout để clear cookie phía backend
-        } catch (error) {
-            console.error("Logout error", error);
-        } finally {
-            setCurrent("home");
-            dispatch({ type: 'LOGOUT' });
-            navigate("/login");
-        }
-    };
-
     const mainMenuItems = [
         { label: 'Home', key: 'home', path: '/home' },
         { label: 'Shop', key: 'products', path: '/products' },
         { label: 'Orders', key: 'history', path: '/history' },
         { label: 'Rewards', key: 'rewards', path: '/rewards' },
-        { label: 'About', key: 'about', path: '#' }
+        { label: 'About', key: 'about', path: '/about' }
     ];
 
     const isAdmin = String(auth.user?.role || '').toLowerCase() === 'admin';
-    const isManagerOrAdmin = ['admin', 'manager'].includes(String(auth.user?.role || '').toLowerCase());
-
-    const profileMenuItems = [
-        ...(isAdmin ? [{
-            key: 'admin-orders',
-            label: <Link to="/admin/orders" style={{ fontSize: '13px', fontWeight: 500 }}>Admin Orders</Link>,
-        }] : []),
-        ...(isManagerOrAdmin ? [{
-            key: 'manager-dashboard',
-            label: <Link to="/manager/dashboard" style={{ fontSize: '13px', fontWeight: 500 }}>Manager Dashboard</Link>,
-        }] : []),
-        {
-            key: 'profile',
-            label: <Link to="/user/profile" style={{ fontSize: '13px', fontWeight: 500 }}>My Profile</Link>,
-        },
-        {
-            key: 'rewards',
-            label: <Link to="/rewards" style={{ fontSize: '13px', fontWeight: 500 }}>My Rewards</Link>,
-        },
-        {
-            key: 'logout',
-            danger: true,
-            label: <span onClick={handleLogout} style={{ fontSize: '13px', fontWeight: 500 }}>Logout</span>,
-        },
-    ];
 
     return (
         <div className="header-wrapper">
@@ -205,18 +167,20 @@ const Header = () => {
                         <SearchOutlined style={{ fontSize: '18px' }} />
                     </button>
 
+                    <Link to="/wishlist" className="icon-btn">
+                        <HeartOutlined style={{ fontSize: '18px' }} />
+                    </Link>
+
                     <Link to="/cart" className="icon-btn">
                         <ShoppingCartOutlined style={{ fontSize: '18px' }} />
                     </Link>
 
                     {auth.isAuthenticated ? (
-                        <Dropdown menu={{ items: profileMenuItems }} placement="bottomRight" trigger={['click']}>
-                            <button className="icon-btn desktop-only">
-                                <UserOutlined style={{ fontSize: '18px' }} />
-                            </button>
-                        </Dropdown>
+                        <Link to={isAdmin ? "/admin/profile" : "/user/profile"} className="icon-btn desktop-only">
+                            <UserOutlined style={{ fontSize: '18px' }} />
+                        </Link>
                     ) : (
-                        <Button type="text" onClick={() => navigate('/login')} style={{ fontWeight: 600 }}>Login</Button>
+                        <Button type="text" onClick={() => navigate('/login')} style={{fontWeight: 600}}>Login</Button>
                     )}
 
                     <Button
@@ -258,22 +222,9 @@ const Header = () => {
 
                     {auth.isAuthenticated ? (
                         <>
-                            {isAdmin && (
-                                <Link to="/admin/orders" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
-                                    Admin Orders
-                                </Link>
-                            )}
-                            {isManagerOrAdmin && (
-                                <Link to="/manager/dashboard" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
-                                    Manager Dashboard
-                                </Link>
-                            )}
-                            <Link to="/user/profile" style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
+                            <Link to={isAdmin ? "/admin/profile" : "/user/profile"} style={{ fontSize: '16px', fontWeight: 600, color: '#666', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
                                 Profile
                             </Link>
-                            <span onClick={() => { handleLogout(); setIsDrawerVisible(false); }} style={{ fontSize: '16px', fontWeight: 600, color: '#ff4d4f', cursor: 'pointer' }}>
-                                Logout
-                            </span>
                         </>
                     ) : (
                         <Link to="/login" style={{ fontSize: '16px', fontWeight: 600, color: '#111', textDecoration: 'none' }} onClick={() => setIsDrawerVisible(false)}>
