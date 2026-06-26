@@ -5,12 +5,12 @@ const getModels = () => {
     const {
         Product, Brand, ProductImage, Order, OrderDetail, User,
         Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Sequelize
+        OrderStatusHistory, Payment, Category, Sequelize
     } = db;
     return {
         Product, Brand, ProductImage, Order, OrderDetail, User,
         Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Sequelize,
+        OrderStatusHistory, Payment, Category, Sequelize,
         sequelize: db.sequelize
     };
 };
@@ -220,21 +220,93 @@ const deleteBrand = async (id) => {
     return { success: true };
 };
 
-const getCategories = async () => {
-    const { Product, Sequelize } = getModels();
-    const categories = await Product.findAll({
-        attributes: [
-            [Sequelize.fn('DISTINCT', Sequelize.col('category')), 'category']
-        ],
-        where: {
-            category: {
-                [Sequelize.Op.ne]: null
-            }
-        },
-        raw: true
-    });
-    return categories.map(c => c.category).filter(Boolean);
+const ensureCategoriesTable = async () => {
+    const { Category, Product, Sequelize } = getModels();
+    await Category.sync();
+    // Seed from Product unique categories if Category table is empty
+    const count = await Category.count();
+    if (count === 0) {
+        const categories = await Product.findAll({
+            attributes: [
+                [Sequelize.fn('DISTINCT', Sequelize.col('category')), 'category']
+            ],
+            where: {
+                category: {
+                    [Sequelize.Op.ne]: null
+                }
+            },
+            raw: true
+        });
+        const names = categories.map(c => c.category).filter(Boolean);
+        for (const name of names) {
+            await Category.findOrCreate({ where: { name: name.trim().toUpperCase() } });
+        }
+    }
 };
+
+const ensureOrderStatusHistoryTable = async () => {
+    const { OrderStatusHistory } = getModels();
+    await OrderStatusHistory.sync();
+};
+
+const getCategories = async () => {
+    const { Category } = getModels();
+    await ensureCategoriesTable();
+    const categories = await Category.findAll({ order: [['name', 'ASC']] });
+    return categories.map(c => c.name);
+};
+
+const createCategory = async (name) => {
+    const { Category } = getModels();
+    await ensureCategoriesTable();
+    if (!name || !name.trim()) throw new Error('Tên danh mục không hợp lệ');
+    const normalized = name.trim().toUpperCase();
+    const [category, created] = await Category.findOrCreate({
+        where: { name: normalized }
+    });
+    if (!created) throw new Error('Danh mục đã tồn tại');
+    return category;
+};
+
+const updateCategory = async (oldName, newName) => {
+    const { Category, Product } = getModels();
+    await ensureCategoriesTable();
+    if (!newName || !newName.trim()) throw new Error('Tên danh mục mới không hợp lệ');
+    const normalized = newName.trim().toUpperCase();
+
+    // Check if new category already exists
+    const exists = await Category.findOne({ where: { name: normalized } });
+    if (exists && normalized !== oldName) {
+        throw new Error('Tên danh mục mới đã tồn tại');
+    }
+
+    // Update Category record
+    await Category.update({ name: normalized }, { where: { name: oldName } });
+
+    // Update associated products
+    await Product.update(
+        { category: normalized },
+        { where: { category: oldName } }
+    );
+    return { oldName, newName: normalized };
+};
+
+const deleteCategory = async (name) => {
+    const { Category, Product } = getModels();
+    await ensureCategoriesTable();
+
+    // Delete from category master list
+    await Category.destroy({ where: { name } });
+
+    // Set category to null for associated products
+    await Product.update(
+        { category: null },
+        { where: { category: name } }
+    );
+    return { success: true };
+};
+
+
 
 /* =========================================================================
    ORDERS
@@ -289,6 +361,7 @@ const getOrderById = async (id) => {
 
 const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
     const { Order, OrderStatusHistory, sequelize } = getModels();
+    await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
@@ -317,6 +390,7 @@ const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
 
 const assignShipper = async (id, shipperId, shipperFee = 30000, adminId = null) => {
     const { Order, OrderStatusHistory, User, sequelize } = getModels();
+    await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
@@ -504,6 +578,7 @@ const getCancellationRequests = async () => {
 
 const processCancellationRequest = async (id, status, adminNotes = "", adminId = null) => {
     const { OrderCancellationRequest, Order, OrderStatusHistory, sequelize } = getModels();
+    await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
@@ -651,6 +726,9 @@ export default {
     updateBrand,
     deleteBrand,
     getCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
     getOrders,
     getOrderById,
     updateOrderStatus,

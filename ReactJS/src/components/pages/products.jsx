@@ -2,25 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Typography, Button, Empty, Input, Select, Pagination, Breadcrumb, Image, Tag, Skeleton, message, Checkbox, Slider, Space } from 'antd';
 import { HomeOutlined, DownOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getAllProductsStoreApi } from '../util/api/product.api';
+import { getAllProductsStoreApi, getPublicBrandsApi, getPublicCategoriesApi } from '../util/api/product.api';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Paragraph, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
-const CATEGORIES = ['GAMING', 'BUSINESS'];
-const BRANDS = [
-    { label: 'AORUS',  value: '1' },
-    { label: 'ASUS',   value: '2' },
-    { label: 'DELL',   value: '3' },
-    { label: 'LENOVO', value: '5' },
-    { label: 'MSI',    value: '6' },
-    { label: 'APPLE',  value: '7' },
-];
 const RAM_OPTIONS = [8, 16, 32];
 const PAGE_SIZE   = 8;
 const PRICE_MAX   = 100000000;
+
 
 const ProductsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -28,6 +20,29 @@ const ProductsPage = () => {
 
     const [products, setProducts] = useState({ rows: [], count: 0 });
     const [loading,  setLoading]  = useState(true);
+    const [availableBrands, setAvailableBrands] = useState([]);
+    const [availableCategories, setAvailableCategories] = useState([]);
+
+    useEffect(() => {
+        const fetchFilters = async () => {
+            try {
+                const [brandsRes, categoriesRes] = await Promise.all([
+                    getPublicBrandsApi(),
+                    getPublicCategoriesApi()
+                ]);
+                if (brandsRes.success) {
+                    setAvailableBrands(brandsRes.data.map(b => ({ label: b.name, value: String(b.id) })));
+                }
+                if (categoriesRes.success) {
+                    setAvailableCategories(categoriesRes.data);
+                }
+            } catch (err) {
+                console.error("Lỗi khi tải bộ lọc", err);
+            }
+        };
+        fetchFilters();
+    }, []);
+
 
     // --- Read all filters from URL ---
     const page       = parseInt(searchParams.get('page'))   || 1;
@@ -195,7 +210,7 @@ const ProductsPage = () => {
                     style={{ width: '100%' }}
                 >
                     <Space direction="vertical" style={{ width: '100%' }}>
-                        {CATEGORIES.map(cat => (
+                        {availableCategories.map(cat => (
                             <Checkbox key={cat} value={cat}>{cat}</Checkbox>
                         ))}
                     </Space>
@@ -210,7 +225,7 @@ const ProductsPage = () => {
                     style={{ width: '100%' }}
                 >
                     <Space direction="vertical" style={{ width: '100%' }}>
-                        {BRANDS.map(b => (
+                        {availableBrands.map(b => (
                             <Checkbox key={b.value} value={b.value}>{b.label}</Checkbox>
                         ))}
                     </Space>

@@ -331,36 +331,50 @@ const Orders = () => {
                                 columns={[
                                     {
                                         title: 'Sản phẩm',
-                                        render: (_, item) => (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                <img 
-                                                    src={item.product?.thumbnail ? `${import.meta.env.VITE_BACKEND_URL}${item.product.thumbnail}` : 'https://placehold.co/40'} 
-                                                    alt="item" 
-                                                    style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
-                                                />
-                                                <Text strong style={{ fontSize: '13px' }}>{item.product?.name}</Text>
-                                            </div>
-                                        )
+                                        render: (_, item) => {
+                                            const isCancelled = item.status === 'CANCELLED';
+                                            return (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: isCancelled ? 0.55 : 1 }}>
+                                                    <img 
+                                                        src={item.product?.thumbnail ? `${import.meta.env.VITE_BACKEND_URL}${item.product.thumbnail}` : 'https://placehold.co/40'} 
+                                                        alt="item" 
+                                                        style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
+                                                    />
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <Text strong style={{ fontSize: '13px', textDecoration: isCancelled ? 'line-through' : 'none' }}>{item.product?.name}</Text>
+                                                        {isCancelled && <Tag color="error" style={{ width: 'fit-content', marginTop: 4, fontSize: '10px', padding: '0 4px', lineHeight: '1.5' }}>Đã hủy</Tag>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
                                     },
                                     {
                                         title: 'Đơn giá',
                                         dataIndex: 'price',
-                                        render: (price) => <Text>{formatCurrency(Number(price))}</Text>
+                                        render: (price, item) => <Text style={{ textDecoration: item.status === 'CANCELLED' ? 'line-through' : 'none', opacity: item.status === 'CANCELLED' ? 0.55 : 1 }}>{formatCurrency(Number(price))}</Text>
                                     },
                                     {
                                         title: 'Số lượng',
                                         dataIndex: 'quantity',
-                                        render: (q) => <Text>{q} cái</Text>
+                                        render: (q, item) => <Text style={{ textDecoration: item.status === 'CANCELLED' ? 'line-through' : 'none', opacity: item.status === 'CANCELLED' ? 0.55 : 1 }}>{q} cái</Text>
                                     },
                                     {
                                         title: 'Tổng',
-                                        render: (_, item) => <Text strong>{formatCurrency(Number(item.price) * item.quantity)}</Text>
+                                        render: (_, item) => <Text strong style={{ textDecoration: item.status === 'CANCELLED' ? 'line-through' : 'none', opacity: item.status === 'CANCELLED' ? 0.55 : 1 }}>{formatCurrency(Number(item.price) * item.quantity)}</Text>
                                     }
                                 ]}
                                 dataSource={selectedOrder.details || []}
                                 pagination={false}
                                 rowKey="id"
                                 size="small"
+                                onRow={(record) => {
+                                    if (record.status === 'CANCELLED') {
+                                        return {
+                                            style: { backgroundColor: '#fafafa', color: '#8c8c8c' }
+                                        };
+                                    }
+                                    return {};
+                                }}
                                 style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
                             />
                         </div>

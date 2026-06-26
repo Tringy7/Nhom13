@@ -102,6 +102,37 @@ const getCategories = async (req, res) => {
     }
 };
 
+const createCategory = async (req, res) => {
+    try {
+        const { name } = req.body;
+        const data = await managerService.createCategory(name);
+        return res.status(201).json({ success: true, data });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const updateCategory = async (req, res) => {
+    try {
+        const { oldName } = req.params;
+        const { newName } = req.body;
+        const data = await managerService.updateCategory(decodeURIComponent(oldName), newName);
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const deleteCategory = async (req, res) => {
+    try {
+        const { name } = req.params;
+        await managerService.deleteCategory(decodeURIComponent(name));
+        return res.status(200).json({ success: true, message: 'Xóa danh mục thành công' });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 const getOrders = async (req, res) => {
     try {
         const data = await managerService.getOrders(req.query);
@@ -268,6 +299,9 @@ export default {
     updateBrand,
     deleteBrand,
     getCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
     getOrders,
     getOrderById,
     updateOrderStatus,

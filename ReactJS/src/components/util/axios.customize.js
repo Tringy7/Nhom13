@@ -34,9 +34,15 @@ instance.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const requestUrl = originalRequest?.url || '';
+        const status = error?.response?.status;
 
         const isPublic = PUBLIC_AUTH_PATHS.some(path => requestUrl.includes(path));
-        if (error?.response?.status !== 401 || isPublic || originalRequest._retry) {
+
+        // Backend trả 403 khi token hết hạn (jwt.verify expired), hoặc 401 khi không có token
+        // Cần xử lý cả hai để tự động refresh token
+        const shouldRefresh = (status === 401 || status === 403) && !isPublic && !originalRequest._retry;
+
+        if (!shouldRefresh) {
             return Promise.reject(error);
         }
 
@@ -63,6 +69,8 @@ instance.interceptors.response.use(
 
         } catch (refreshError) {
             processQueue(refreshError, null);
+            // Refresh thất bại → force logout
+            window.dispatchEvent(new Event('force_logout'));
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;

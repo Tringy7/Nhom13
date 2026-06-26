@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Button, Divider, Form, Input, notification, Typography } from 'antd';
 import { loginApi } from '../util/api/auth.api';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,7 +9,16 @@ const { Title, Text } = Typography;
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const { dispatch } = useContext(AuthContext);
+    const { dispatch, auth } = useContext(AuthContext);
+    const [pendingRedirect, setPendingRedirect] = useState(null);
+
+    // Sau khi dispatch LOGIN xong và auth state đã cập nhật, mới navigate
+    useEffect(() => {
+        if (pendingRedirect && auth.isAuthenticated) {
+            navigate(pendingRedirect, { replace: true });
+            setPendingRedirect(null);
+        }
+    }, [auth.isAuthenticated, pendingRedirect, navigate]);
 
     const onFinish = async (values) => {
         const { email, password } = values;
@@ -20,9 +29,11 @@ const LoginPage = () => {
                 const role = res?.role || res?.user?.role || '';
                 const redirectPath = role.toLowerCase() === 'admin'
                     ? '/admin/dashboard'
-                    : role.toLowerCase() === 'user'
-                        ? '/'
-                        : res.redirectURI || '/';
+                    : role.toLowerCase() === 'manager'
+                        ? '/manager/dashboard'
+                        : role.toLowerCase() === 'user'
+                            ? '/home'
+                            : res.redirectURI || '/';
 
                 dispatch({
                     type: 'LOGIN',
@@ -41,7 +52,8 @@ const LoginPage = () => {
                     placement: "topRight"
                 });
 
-                navigate(redirectPath);
+                // Đặt pending redirect → useEffect sẽ navigate sau khi auth state được cập nhật
+                setPendingRedirect(redirectPath);
                 return;
             }
 
@@ -98,7 +110,7 @@ const LoginPage = () => {
                 }
                 `}
             </style>
-            
+
             <div style={styles.shape1} />
             <div style={styles.shape2} />
             <div style={styles.shape3} />
@@ -127,9 +139,9 @@ const LoginPage = () => {
                             { type: 'email', message: 'Please enter a valid email!' }
                         ]}
                     >
-                        <Input 
-                            prefix={<MailOutlined style={{ color: '#94a3b8' }} />} 
-                            placeholder="Email address" 
+                        <Input
+                            prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
+                            placeholder="Email address"
                             style={styles.input}
                         />
                     </Form.Item>
@@ -138,9 +150,9 @@ const LoginPage = () => {
                         name="password"
                         rules={[{ required: true, message: 'Please input your password!' }]}
                     >
-                        <Input.Password 
-                            prefix={<LockOutlined style={{ color: '#94a3b8' }} />} 
-                            placeholder="Password" 
+                        <Input.Password
+                            prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+                            placeholder="Password"
                             style={styles.input}
                         />
                     </Form.Item>
@@ -152,9 +164,9 @@ const LoginPage = () => {
                     </div>
 
                     <Form.Item>
-                        <Button 
-                            type="primary" 
-                            htmlType="submit" 
+                        <Button
+                            type="primary"
+                            htmlType="submit"
                             className="login-btn"
                             style={styles.button}
                         >

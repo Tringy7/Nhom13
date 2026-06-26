@@ -37,3 +37,11 @@ export const getAllProductsStoreApi = (params = {}) => {
 
     return axios.get(`/api/products?${query.toString()}`);
 };
+
+export const getPublicBrandsApi = () => {
+    return axios.get('/api/brands');
+};
+
+export const getPublicCategoriesApi = () => {
+    return axios.get('/api/categories');
+};

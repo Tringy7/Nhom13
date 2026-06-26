@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Modal, Space, Popconfirm, Card, Row, Col, Typography, message, List, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, TagsOutlined } from '@ant-design/icons';
 import ManagerLayout from './ManagerLayout.jsx';
-import { getBrandsApi, createBrandApi, updateBrandApi, deleteBrandApi, getCategoriesApi } from '../../util/api/manager.api';
+import { 
+    getBrandsApi, createBrandApi, updateBrandApi, deleteBrandApi, 
+    getCategoriesApi, createCategoryApi, updateCategoryApi, deleteCategoryApi 
+} from '../../util/api/manager.api';
 
 const { Title, Text } = Typography;
 
@@ -11,11 +14,16 @@ const Brands = () => {
     const [brands, setBrands] = useState([]);
     const [categories, setCategories] = useState([]);
     
-    // Modal state
+    // Brand Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
     const [brandName, setBrandName] = useState('');
     const [brandLogo, setBrandLogo] = useState('');
+
+    // Category Modal state
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(null);
+    const [categoryName, setCategoryName] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -86,6 +94,53 @@ const Brands = () => {
         }
     };
 
+    const handleOpenCategoryModal = (category = null) => {
+        if (category) {
+            setEditingCategory(category);
+            setCategoryName(category);
+        } else {
+            setEditingCategory(null);
+            setCategoryName('');
+        }
+        setIsCategoryModalOpen(true);
+    };
+
+    const handleSaveCategory = async () => {
+        if (!categoryName.trim()) {
+            return message.warning("Tên danh mục không được để trống!");
+        }
+
+        try {
+            let res;
+            if (editingCategory) {
+                res = await updateCategoryApi(editingCategory, { newName: categoryName });
+            } else {
+                res = await createCategoryApi({ name: categoryName });
+            }
+
+            if (res.success) {
+                message.success(editingCategory ? "Cập nhật danh mục thành công" : "Tạo danh mục mới thành công");
+                setIsCategoryModalOpen(false);
+                fetchData();
+            }
+        } catch (err) {
+            message.error(err.response?.data?.message || "Không thể lưu danh mục");
+        }
+    };
+
+    const handleDeleteCategory = async (name) => {
+        try {
+            const res = await deleteCategoryApi(name);
+            if (res.success) {
+                message.success("Xóa danh mục thành công");
+                fetchData();
+            }
+        } catch (err) {
+            message.error(err.response?.data?.message || "Không thể xóa danh mục này");
+        }
+    };
+
+
     const columns = [
         {
             title: 'Logo',
@@ -148,6 +203,17 @@ const Brands = () => {
                 <Col xs={24} lg={8} style={{ marginBottom: 24 }}>
                     <Card 
                         title={<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TagsOutlined /><span>Các danh mục hiện tại</span></div>} 
+                        extra={
+                            <Button 
+                                type="primary" 
+                                size="small"
+                                icon={<PlusOutlined />} 
+                                onClick={() => handleOpenCategoryModal()}
+                                style={{ borderRadius: 6 }}
+                            >
+                                Thêm
+                            </Button>
+                        }
                         bordered={false} 
                         style={{ borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.01)' }}
                         loading={loading}
@@ -155,13 +221,39 @@ const Brands = () => {
                         <List
                             dataSource={categories}
                             renderItem={item => (
-                                <List.Item style={{ padding: '12px 0' }}>
+                                <List.Item 
+                                    style={{ padding: '8px 0' }}
+                                    actions={[
+                                        <Button 
+                                            type="text" 
+                                            size="small" 
+                                            icon={<EditOutlined style={{ fontSize: 12 }} />} 
+                                            onClick={() => handleOpenCategoryModal(item)}
+                                            key="edit"
+                                        />,
+                                        <Popconfirm
+                                            title="Bạn có chắc chắn muốn xóa danh mục này? Tất cả các sản phẩm thuộc danh mục này sẽ chuyển về chưa phân loại."
+                                            onConfirm={() => handleDeleteCategory(item)}
+                                            okText="Xóa"
+                                            cancelText="Hủy"
+                                            okButtonProps={{ danger: true }}
+                                            key="delete"
+                                        >
+                                            <Button 
+                                                type="text" 
+                                                danger 
+                                                size="small" 
+                                                icon={<DeleteOutlined style={{ fontSize: 12 }} />} 
+                                            />
+                                        </Popconfirm>
+                                    ]}
+                                >
                                     <Tag color="purple" style={{ fontSize: '13px', padding: '4px 12px', borderRadius: 8 }}>
                                         {item}
                                     </Tag>
                                 </List.Item>
                             )}
-                            locale={{ emptyText: "Chưa có danh mục nào được gán cho sản phẩm" }}
+                            locale={{ emptyText: "Chưa có danh mục nào" }}
                         />
                     </Card>
                 </Col>
@@ -223,8 +315,31 @@ const Brands = () => {
                     </div>
                 </div>
             </Modal>
+
+            {/* Edit/Create Category Modal */}
+            <Modal
+                title={editingCategory ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
+                open={isCategoryModalOpen}
+                onOk={handleSaveCategory}
+                onCancel={() => setIsCategoryModalOpen(false)}
+                okText="Lưu lại"
+                cancelText="Hủy"
+                destroyOnClose
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+                    <div>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>Tên danh mục</Text>
+                        <Input 
+                            placeholder="Ví dụ: LAPTOP GAMING, ULTRABOOK..." 
+                            value={categoryName}
+                            onChange={(e) => setCategoryName(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </Modal>
         </ManagerLayout>
     );
 };
 
 export default Brands;
+
