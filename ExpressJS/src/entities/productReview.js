@@ -23,6 +23,10 @@ export default (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false
     },
+    orderId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
     rating: {
       type: DataTypes.INTEGER,
       allowNull: false

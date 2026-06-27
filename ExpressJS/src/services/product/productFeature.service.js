@@ -14,7 +14,6 @@ const {
 const { Op } = db.Sequelize;
 
 const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
-  const { Order, OrderItem } = db;
   const order = await Order.findOne({
     where: { id: orderId, userId, orderStatus: 'DELIVERED' },
     include: [{ model: OrderDetail, as: 'details', where: { productId }, required: true }]
@@ -42,6 +41,7 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
   const review = await ProductReview.create({
     userId,
     productId,
+    orderId,
     rating,
     comment
   });

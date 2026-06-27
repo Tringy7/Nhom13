@@ -13,7 +13,7 @@ const getMyVouchers = async (userId) => {
       required: true
     }],
     order: [
-      ['receivedAt', 'DESC']
+      ['createdAt', 'DESC']
     ]
   });
   return userVouchers;
@@ -174,9 +174,7 @@ const receiveVoucher = async (userId, voucherId) => {
   const userVoucher = await UserVoucher.create({
     userId,
     voucherId,
-    code,
-    isUsed: false,
-    receivedAt: new Date()
+    isUsed: false
   });
 
   return userVoucher;

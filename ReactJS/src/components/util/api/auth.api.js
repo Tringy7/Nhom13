@@ -15,12 +15,13 @@ export const logoutApi = () => {
     return axios.post(URL_API);
 };
 
-export const registerApi = (email, password, fullName) => {
+export const registerApi = (email, password, fullName, role = 'user') => {
     const URL_API = "/api/auth/register";
     const data = {
         email,
         password,
         fullName,
+        role,
     };
     return axios.post(URL_API, data);
 };

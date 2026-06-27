@@ -11,11 +11,7 @@ router.get('/api/products/:id/similar', productFeatureController.getSimilarProdu
 // Routes requiring user authentication
 router.post('/api/products/:id/reviews', verifyToken, authorize('user', 'admin'), productFeatureController.submitReview);
 router.post('/api/products/:id/favorite', verifyToken, authorize('user', 'admin'), productFeatureController.toggleFavorite);
+router.post('/api/products/:id/viewed', verifyToken, productFeatureController.addViewedProduct);
 router.get('/api/user/wishlist', verifyToken, authorize('user', 'admin'), productFeatureController.getWishlist);
-
-// Removed routes related to ProductView, Coupon, and discount previews as the features were simplified
-// - POST /api/products/:id/viewed
-// - GET /api/user/coupons
-// - POST /api/checkout/discount/preview
 
 export default router;

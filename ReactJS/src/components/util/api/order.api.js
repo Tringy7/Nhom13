@@ -18,10 +18,28 @@ export const getOrderById = (orderId) => {
     return axios.get(URL_API);
 };
 
-// Huỷ đơn hàng
-export const cancelOrderApi = (orderId) => {
+// Huỷ đơn hàng trực tiếp (trong vòng 30p & đơn mới)
+export const cancelOrderApi = (orderId, reason) => {
     const URL_API = `/api/order/${orderId}/cancel`;
-    return axios.delete(URL_API);
+    return axios.delete(URL_API, { data: { reason } });
+};
+
+// Gửi yêu cầu hủy đơn hàng cho shop
+export const requestCancelOrderApi = (orderId, reason) => {
+    const URL_API = `/api/order/${orderId}/cancel-request`;
+    return axios.post(URL_API, { reason });
+};
+
+// Gửi đánh giá hệ thống
+export const submitOrderFeedbackApi = (orderId, data) => {
+    const URL_API = `/api/orders/${orderId}/feedback`;
+    return axios.post(URL_API, data);
+};
+
+// Gửi đánh giá shipper
+export const submitShipperFeedbackApi = (orderId, data) => {
+    const URL_API = `/api/orders/${orderId}/shipper-feedback`;
+    return axios.post(URL_API, data);
 };
 
 // Hủy một item trong đơn hàng

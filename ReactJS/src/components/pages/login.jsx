@@ -31,9 +31,11 @@ const LoginPage = () => {
                     ? '/admin/dashboard'
                     : role.toLowerCase() === 'manager'
                         ? '/manager/dashboard'
-                        : role.toLowerCase() === 'user'
-                            ? '/home'
-                            : res.redirectURI || '/';
+                        : role.toLowerCase() === 'shipper'
+                            ? '/shipper/dashboard'
+                            : role.toLowerCase() === 'user'
+                                ? '/home'
+                                : res.redirectURI || '/';
 
                 dispatch({
                     type: 'LOGIN',
@@ -179,10 +181,17 @@ const LoginPage = () => {
                     <Text type="secondary" style={{ fontSize: '13px' }}>OR</Text>
                 </Divider>
 
-                <div style={{ textAlign: "center", marginBottom: '20px' }}>
+                <div style={{ textAlign: "center", marginBottom: '16px' }}>
                     <Text style={{ color: '#475569', fontSize: '14px' }}>Don't have an account? </Text>
                     <Link to="/register" style={{ color: '#7c3aed', fontWeight: 600, fontSize: '14px' }}>
                         Create one now
+                    </Link>
+                </div>
+
+                <div style={{ textAlign: "center", marginBottom: '20px' }}>
+                    <Text style={{ color: '#475569', fontSize: '14px' }}>Want to be a Shipper? </Text>
+                    <Link to="/register-shipper" style={{ color: '#16a34a', fontWeight: 600, fontSize: '14px' }}>
+                        Sign Up Shipper
                     </Link>
                 </div>
 

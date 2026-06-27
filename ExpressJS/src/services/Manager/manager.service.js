@@ -4,13 +4,13 @@ import db from "../../entities/index.js";
 const getModels = () => {
     const {
         Product, Brand, ProductImage, Order, OrderDetail, User,
-        Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Category, Sequelize
+        Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
+        OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction
     } = db;
     return {
         Product, Brand, ProductImage, Order, OrderDetail, User,
-        Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Category, Sequelize,
+        Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
+        OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction,
         sequelize: db.sequelize
     };
 };
@@ -344,7 +344,7 @@ const getOrders = async (query = {}) => {
 };
 
 const getOrderById = async (id) => {
-    const { Order, User, OrderDetail, Product, Payment } = getModels();
+    const { Order, User, OrderDetail, Product, Payment, OrderCancellationRequest, Voucher } = getModels();
     return await Order.findByPk(id, {
         include: [
             { model: User, as: 'customer', attributes: ['id', 'fullName', 'email', 'phone'] },
@@ -354,24 +354,30 @@ const getOrderById = async (id) => {
                 as: 'details',
                 include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'thumbnail', 'price'] }]
             },
-            { model: Payment, as: 'payment' }
+            { model: Payment, as: 'payment' },
+            { model: OrderCancellationRequest, as: 'cancellationRequest' },
+            { model: Voucher, as: 'voucher' }
         ]
     });
 };
 
 const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
-    const { Order, OrderStatusHistory, sequelize } = getModels();
+    const { Order, OrderDetail, Product, User, UserVoucher, RewardTransaction, OrderStatusHistory, sequelize } = getModels();
     await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
-        const order = await Order.findByPk(id);
+        const order = await Order.findOne({
+            where: { id },
+            include: [{ model: OrderDetail, as: 'details' }],
+            transaction: t
+        });
         if (!order) {
             throw new Error("Đơn hàng không tồn tại");
         }
 
         const oldStatus = order.orderStatus;
-        await order.update({ orderStatus: status }, { transaction: t });
+        await order.update({ orderStatus: status, note: notes || order.note }, { transaction: t });
 
         await OrderStatusHistory.create({
             orderId: id,
@@ -379,6 +385,36 @@ const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
             note: notes || `Trạng thái đơn hàng thay đổi từ ${oldStatus} sang ${status}`,
             changedBy: adminId
         }, { transaction: t });
+
+        if (status === 'CANCELLED') {
+            for (const detail of order.details || []) {
+                if (detail.status !== 'CANCELLED') {
+                    await detail.update({ status: 'CANCELLED' }, { transaction: t });
+                    await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+                }
+            }
+
+            if (order.pointsDiscount > 0) {
+                const user = await User.findByPk(order.userId, { transaction: t });
+                if (user) {
+                    await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                    await RewardTransaction.create({
+                        userId: order.userId,
+                        type: 'EARN',
+                        points: Math.ceil(order.pointsDiscount),
+                        description: `Hoàn điểm do hủy đơn hàng #${order.id}`,
+                        orderId: order.id
+                    }, { transaction: t });
+                }
+            }
+
+            if (order.voucherId) {
+                const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+                if (userVoucher) {
+                    await userVoucher.update({ isUsed: false }, { transaction: t });
+                }
+            }
+        }
 
         await t.commit();
         return await getOrderById(id);
@@ -406,7 +442,7 @@ const assignShipper = async (id, shipperId, shipperFee = 30000, adminId = null) 
 
         await order.update({
             shipperId: parseInt(shipperId),
-            shipperFee: parseFloat(shipperFee),
+            shipperFee: 30000,
             orderStatus: 'SHIPPING'
         }, { transaction: t });
 
@@ -577,12 +613,12 @@ const getCancellationRequests = async () => {
 };
 
 const processCancellationRequest = async (id, status, adminNotes = "", adminId = null) => {
-    const { OrderCancellationRequest, Order, OrderStatusHistory, sequelize } = getModels();
+    const { OrderCancellationRequest, Order, OrderDetail, Product, User, UserVoucher, RewardTransaction, OrderStatusHistory, sequelize } = getModels();
     await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
-        const request = await OrderCancellationRequest.findByPk(id);
+        const request = await OrderCancellationRequest.findByPk(id, { transaction: t });
         if (!request) {
             throw new Error("Yêu cầu hủy đơn không tồn tại");
         }
@@ -599,10 +635,42 @@ const processCancellationRequest = async (id, status, adminNotes = "", adminId =
         }, { transaction: t });
 
         if (status === 'APPROVED') {
-            await Order.update(
-                { orderStatus: 'CANCELLED' },
-                { where: { id: request.orderId }, transaction: t }
-            );
+            const order = await Order.findOne({
+                where: { id: request.orderId },
+                include: [{ model: OrderDetail, as: 'details' }],
+                transaction: t
+            });
+            if (order) {
+                await order.update({ orderStatus: 'CANCELLED', note: adminNotes || order.note }, { transaction: t });
+
+                for (const detail of order.details || []) {
+                    if (detail.status !== 'CANCELLED') {
+                        await detail.update({ status: 'CANCELLED' }, { transaction: t });
+                        await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+                    }
+                }
+
+                if (order.pointsDiscount > 0) {
+                    const user = await User.findByPk(order.userId, { transaction: t });
+                    if (user) {
+                        await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                        await RewardTransaction.create({
+                            userId: order.userId,
+                            type: 'EARN',
+                            points: Math.ceil(order.pointsDiscount),
+                            description: `Hoàn điểm do hủy đơn hàng #${order.id}`,
+                            orderId: order.id
+                        }, { transaction: t });
+                    }
+                }
+
+                if (order.voucherId) {
+                    const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+                    if (userVoucher) {
+                        await userVoucher.update({ isUsed: false }, { transaction: t });
+                    }
+                }
+            }
 
             await OrderStatusHistory.create({
                 orderId: request.orderId,
@@ -611,7 +679,7 @@ const processCancellationRequest = async (id, status, adminNotes = "", adminId =
                 changedBy: adminId
             }, { transaction: t });
         } else {
-            // Restore back to CONFIRMED or keep as is, but request is rejected
+            // Restore back to CONFIRMED
             await Order.update(
                 { orderStatus: 'CONFIRMED' },
                 { where: { id: request.orderId }, transaction: t }

@@ -43,7 +43,7 @@ const CheckoutPage = () => {
     const [pointsError, setPointsError] = useState(null);
 
     const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const shippingFee = 0;
+    const shippingFee = 30000;
     const pointsDiscount = Number(pointsToUse) || 0;
     const total = Math.max(0, subtotal + shippingFee - voucherDiscount - pointsDiscount);
 
@@ -100,14 +100,14 @@ const CheckoutPage = () => {
 
     // Step 2: A separate useEffect to populate the form when userInfo is available
     useEffect(() => {
-        if (userInfo) {
+        if (userInfo && !loading) {
             form.setFieldsValue({
                 fullName: userInfo.fullName || '',
                 phoneNumber: userInfo.phone || '',
                 shippingAddress: userInfo.address || ''
             });
         }
-    }, [userInfo, form]);
+    }, [userInfo, loading, form]);
 
 
     useEffect(() => {
@@ -245,8 +245,8 @@ const CheckoutPage = () => {
                 <Form form={form} layout="vertical" onFinish={handleConfirmOrder} size="large">
                     <Row gutter={[40, 40]}>
                         <Col xs={24} lg={15}>
-                            <Space direction="vertical" size={32} style={{ width: '100%' }}>
-                                <Card title={<Space><EnvironmentOutlined /> <Text strong>Thông tin giao hàng</Text></Space>} bordered={false} style={styles.card}>
+                            <Space orientation="vertical" size={32} style={{ width: '100%' }}>
+                                <Card title={<Space><EnvironmentOutlined /> <Text strong>Thông tin giao hàng</Text></Space>} variant="borderless" style={styles.card}>
                                     <Row gutter={24}>
                                         <Col span={12}><Form.Item name="fullName" rules={[{ required: true }]}><Input prefix={<UserOutlined />} placeholder="Họ và tên" style={styles.input} /></Form.Item></Col>
                                         <Col span={12}><Form.Item name="phoneNumber" rules={[{ required: true }]}><Input prefix={<PhoneOutlined />} placeholder="Số điện thoại" style={styles.input} /></Form.Item></Col>
@@ -255,7 +255,7 @@ const CheckoutPage = () => {
                                     <Form.Item name="note"><Input.TextArea placeholder="Ghi chú (tùy chọn)" style={{...styles.input, height: 'auto' }} /></Form.Item>
                                 </Card>
 
-                                <Card title={<Text strong>Sản phẩm</Text>} bordered={false} style={styles.card}>
+                                <Card title={<Text strong>Sản phẩm</Text>} variant="borderless" style={styles.card}>
                                     {orderItems.map((item, idx) => (
                                         <Row key={idx} gutter={16} align="middle" style={{ padding: '12px 0', borderBottom: idx < orderItems.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
                                             <Col><Image src={getImageUrl(item.image)} width={64} height={64} style={{ objectFit: 'contain', borderRadius: 8, background: '#f9fafb' }} /></Col>
@@ -265,9 +265,9 @@ const CheckoutPage = () => {
                                     ))}
                                 </Card>
 
-                                <Card title={<Space><WalletOutlined /> <Text strong>Phương thức thanh toán</Text></Space>} bordered={false} style={styles.card}>
+                                <Card title={<Space><WalletOutlined /> <Text strong>Phương thức thanh toán</Text></Space>} variant="borderless" style={styles.card}>
                                     <Radio.Group onChange={(e) => setPaymentMethod(e.target.value)} value={paymentMethod} style={{ width: '100%' }}>
-                                        <Space direction="vertical" style={{ width: '100%' }}>
+                                        <Space orientation="vertical" style={{ width: '100%' }}>
                                             <div style={{ padding: '16px', border: `1px solid ${paymentMethod === 'COD' ? '#4f46e5' : '#e5e7eb'}`, borderRadius: 12, cursor: 'pointer' }} onClick={() => setPaymentMethod('COD')}>
                                                 <Radio value="COD"><Text strong>Thanh toán khi nhận hàng (COD)</Text></Radio>
                                                 <Paragraph type="secondary" style={{ marginLeft: 28, marginBottom: 0 }}>Thanh toán bằng tiền mặt khi shipper giao hàng.</Paragraph>
@@ -288,7 +288,7 @@ const CheckoutPage = () => {
                         </Col>
 
                         <Col xs={24} lg={9}>
-                            <Card bordered={false} style={styles.summaryCard} bodyStyle={{ padding: 32 }}>
+                            <Card variant="borderless" style={styles.summaryCard} styles={{ body: { padding: 32 } }}>
                                 <div style={{ ...styles.voucherRow, marginBottom: 24 }} onClick={() => setIsVoucherModalVisible(true)}>
                                     <Space><TagOutlined style={{ color: '#2563eb' }} /> <Text strong>Mã giảm giá</Text></Space>
                                     <Space>
@@ -323,7 +323,7 @@ const CheckoutPage = () => {
                                 </div>
 
                                 <Title level={4} style={{ marginBottom: 20 }}>Tóm tắt đơn hàng</Title>
-                                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                                <Space orientation="vertical" size={16} style={{ width: '100%' }}>
                                     <Row justify="space-between"><Text type="secondary">Tạm tính</Text><Text>{formatPrice(subtotal)}</Text></Row>
                                     <Row justify="space-between"><Text type="secondary">Phí vận chuyển</Text><Text>{formatPrice(shippingFee)}</Text></Row>
                                     {voucherDiscount > 0 && <Row justify="space-between"><Text style={{ color: '#22c55e' }}>Voucher giảm</Text><Text style={{ color: '#22c55e' }}>- {formatPrice(voucherDiscount)}</Text></Row>}
@@ -358,7 +358,7 @@ const CheckoutPage = () => {
                 open={isVoucherModalVisible}
                 onCancel={() => setIsVoucherModalVisible(false)}
                 footer={null}
-                bodyStyle={{ maxHeight: '60vh', overflowY: 'auto', padding: '24px 8px' }}
+                styles={{ body: { maxHeight: '60vh', overflowY: 'auto', padding: '24px 8px' } }}
             >
                 {myVouchers.length > 0 ? myVouchers.map(uv => (
                     <div key={uv.id}>

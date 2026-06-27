@@ -22,6 +22,8 @@ import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 import VnPayReturn from "./components/pages/VnPayReturn.jsx";
 import AboutPage from "./components/pages/AboutPage.jsx";
+import ShipperDashboard from "./components/pages/shipper/ShipperDashboard.jsx";
+import RegisterShipperPage from "./components/pages/register-shipper.jsx";
 
 // Manager imports
 import ManagerDashboard from "./components/pages/Manager/dashboard.jsx";
@@ -54,8 +56,9 @@ function App() {
   const showHeaderFooter =
     !authRoutes.includes(location.pathname) &&
     !location.pathname.startsWith("/payment") &&
-    !location.pathname.startsWith('/manager') && 
-    !location.pathname.startsWith("/admin");
+    !location.pathname.startsWith('/manager') &&
+    !location.pathname.startsWith("/admin") &&
+    !location.pathname.startsWith("/shipper");
   
   // const authRoutes = ['/login', '/register', '/forgot-password'];
 
@@ -68,6 +71,7 @@ function App() {
         <Route path="/home"           element={<HomePage />} />
         <Route path="/login"          element={<LoginPage />} />
         <Route path="/register"       element={<RegisterPage />} />
+        <Route path="/register-shipper" element={<RegisterShipperPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/products" element={<Products />} />
@@ -120,6 +124,11 @@ function App() {
           <Route path="/manager/vouchers" element={<ManagerVouchers />} />
           <Route path="/manager/promotions" element={<ManagerPromotions />} />
           <Route path="/manager/cancellations" element={<ManagerCancellations />} />
+        </Route>
+
+        {/* Shipper Routes */}
+        <Route element={<ProtectedRoute allowedRoles={['shipper', 'admin', 'manager']} />}>
+          <Route path="/shipper/dashboard" element={<ShipperDashboard />} />
         </Route>
 
         {/* 403 Forbidden Page */}

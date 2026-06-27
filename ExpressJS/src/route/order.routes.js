@@ -22,7 +22,15 @@ router.delete(
   '/api/order/:orderId/cancel',
   verifyToken,
   authorize("user", "manager", "admin"),
- orderController.cancelOrder);
+  orderController.cancelOrder
+);
+
+router.post(
+  '/api/order/:orderId/cancel-request',
+  verifyToken,
+  authorize("user", "manager", "admin"),
+  orderController.requestCancelOrder
+);
 
 router.get(
   '/api/orders',
@@ -35,6 +43,20 @@ router.get(
   verifyToken,
   authorize("user", "manager", "admin"),
   orderController.getOrderById);
+
+router.post(
+  '/api/orders/:orderId/feedback',
+  verifyToken,
+  authorize("user", "manager", "admin"),
+  orderController.submitOrderFeedback
+);
+
+router.post(
+  '/api/orders/:orderId/shipper-feedback',
+  verifyToken,
+  authorize("user", "manager", "admin"),
+  orderController.submitShipperFeedback
+);
 
 router.get(
   '/api/admin/orders',
@@ -63,4 +85,41 @@ router.patch(
   authorize('admin'),
   orderController.handleCancelRequest
 );
+
+// ── Shipper Routes ──────────────────────────────────────────────────
+router.get(
+  '/api/shipper/orders',
+  verifyToken,
+  authorize('shipper', 'admin', 'manager'),
+  orderController.getShipperOrders
+);
+
+router.patch(
+  '/api/shipper/orders/:orderId/accept',
+  verifyToken,
+  authorize('shipper', 'admin', 'manager'),
+  orderController.acceptOrder
+);
+
+router.patch(
+  '/api/shipper/orders/:orderId/delivered',
+  verifyToken,
+  authorize('shipper', 'admin', 'manager'),
+  orderController.markDelivered
+);
+
+router.patch(
+  '/api/shipper/orders/:orderId/failed',
+  verifyToken,
+  authorize('shipper', 'admin', 'manager'),
+  orderController.markDeliveryFailed
+);
+
+router.get(
+  '/api/shipper/stats',
+  verifyToken,
+  authorize('shipper', 'admin', 'manager'),
+  orderController.getShipperStats
+);
+
 export default router;
