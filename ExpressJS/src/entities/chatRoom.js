@@ -4,7 +4,7 @@ export default (sequelize, DataTypes) => {
   class Conversation extends Model {
     static associate(entities) {
       Conversation.belongsTo(entities.User, { foreignKey: 'userId', as: 'user' });
-      Conversation.belongsTo(entities.User, { foreignKey: 'adminId', as: 'admin' });
+      Conversation.belongsTo(entities.User, { foreignKey: 'assignedManagerId', as: 'assignedManager' });
       Conversation.hasMany(entities.Message, { foreignKey: 'conversationId', as: 'messages' });
     }
   }
@@ -14,10 +14,15 @@ export default (sequelize, DataTypes) => {
       allowNull: false,
       references: { model: 'Users', key: 'id' }
     },
-    adminId: {
+    assignedManagerId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: { model: 'Users', key: 'id' }
+    },
+    status: {
+      type: DataTypes.ENUM('Pending', 'Assigned', 'Resolved'),
+      allowNull: false,
+      defaultValue: 'Pending'
     }
   }, {
     sequelize,

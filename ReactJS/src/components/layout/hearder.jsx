@@ -27,6 +27,7 @@ const Header = () => {
         { label: 'Shop', key: 'products', path: '/products' },
         { label: 'Orders', key: 'history', path: '/history' },
         { label: 'Rewards', key: 'rewards', path: '/rewards' },
+        { label: 'Chat', key: 'chat', path: '/chat' },
         { label: 'About', key: 'about', path: '/about' }
     ];
 

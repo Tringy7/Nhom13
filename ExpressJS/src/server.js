@@ -1,18 +1,22 @@
+
 import express from "express";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import { createServer } from "http";
 import { fileURLToPath } from "url";
 import path from "path";
 import viewEngine from "./config/viewEngine.js";
 import initWebRoutes from "./route/web.js";
 import connectDB from "./config/configdb.js";
+import initSocket from "./socket.js";
 import db from "./entities/index.js"; // Import db
 
 // config dotenv
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -46,6 +50,9 @@ viewEngine(app);
 // routes
 initWebRoutes(app);
 
+// socket.io
+const io = initSocket(httpServer);
+
 // port
 const port = process.env.PORT || 8080;
 
@@ -53,7 +60,7 @@ const port = process.env.PORT || 8080;
 const startServer = async () => {
     try {
         await connectDB();
-        app.listen(port, () => {
+        httpServer.listen(port, () => {
             console.log(
                 `Backend Nodejs is running on port: ${port}`
             );

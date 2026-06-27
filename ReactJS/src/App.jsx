@@ -22,6 +22,7 @@ import PaymentSuccessPage from "./components/pages/PaymentSuccess.jsx";
 import PaymentFailedPage from "./components/pages/PaymentFailed.jsx";
 import VnPayReturn from "./components/pages/VnPayReturn.jsx";
 import AboutPage from "./components/pages/AboutPage.jsx";
+import ChatPage from "./components/pages/ChatPage.jsx";
 
 // Manager imports
 import ManagerDashboard from "./components/pages/Manager/dashboard.jsx";
@@ -87,6 +88,7 @@ function App() {
           <Route path="/wishlist" element={<WishlistPage />} /> {/* Add Wishlist Route */}
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/user/edit-profile" element={<UserEditProfile />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* ── Admin Routes (dùng ProtectedRoute có sẵn + AdminLayout) ─── */}
