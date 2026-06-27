@@ -2,7 +2,7 @@ import { Op, fn, col, literal } from "sequelize";
 import db from "../../entities/index.js";
 import bcrypt from "bcryptjs";
 
-const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, Product, SystemSetting } = db;
+const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, Product, SystemSetting, sequelize } = db;
 
 const ROLE = {
   ADMIN: "admin",
@@ -18,6 +18,12 @@ const ORDER_STATUS = {
   DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
   CANCEL_REQUEST: "CANCEL_REQUEST",
+};
+
+const ORDER_DETAIL_STATUS = {
+    EXISTED: 'EXISTED',
+    CANCELLED: 'CANCELLED',
+    PENDING: 'PENDING'
 };
 
 const SYSTEM_SETTING_DEFAULTS = [
@@ -286,45 +292,88 @@ export const getOrderById = async (id) => {
 
 // ─── CANCEL REQUESTS ─────────────────────────────────────────────────────────
 export const getCancelRequests = async ({ page = 1, limit = 10, status = "" }) => {
-  const offset = (page - 1) * limit;
-  const where = {};
-  if (status) where.status = status;
+    const offset = (page - 1) * limit;
+    const where = {};
+    if (status) where.status = status;
 
-  const { count, rows } = await OrderCancellationRequest.findAndCountAll({
-    where,
-    include: [
-      { model: Order, as: "order" },
-      { model: User, as: "user", attributes: ["id","fullName","email"] },
-    ],
-    limit: +limit, offset,
-    order: [["createdAt", "DESC"]],
-    distinct: true,
-  });
-  return { total: count, page: +page, limit: +limit, data: rows };
+    const { count, rows } = await OrderCancellationRequest.findAndCountAll({
+        where,
+        include: [
+            { model: Order, as: "order" },
+            { model: User, as: "user", attributes: ["id", "fullName", "email"] },
+            {
+                model: OrderDetail,
+                as: "orderDetail",
+                include: [{ model: Product, as: "product" }]
+            }
+        ],
+        limit: +limit, offset,
+        order: [["createdAt", "DESC"]],
+        distinct: true,
+    });
+    return { total: count, page: +page, limit: +limit, data: rows };
 };
 
 export const approveCancelRequest = async (id, adminId) => {
-  const request = await OrderCancellationRequest.findByPk(id, {
-    include: [{ model: Order, as: "order" }],
-  });
-  if (!request) throw new Error("Request not found");
-  if (request.status !== "PENDING") throw new Error("Request already processed");
-  await request.update({ status: "APPROVED", approvedBy: adminId, processedAt: new Date() });
-  await request.order.update({ orderStatus: ORDER_STATUS.CANCELLED });
-  return request;
+    const t = await sequelize.transaction();
+    try {
+        const request = await OrderCancellationRequest.findByPk(id, {
+            include: [{ model: Order, as: "order", include: [{ model: OrderDetail, as: 'details' }] }],
+            transaction: t
+        });
+
+        if (!request) throw new Error("Request not found");
+        if (request.status !== "PENDING") throw new Error("Request already processed");
+
+        await request.update({ status: "APPROVED", approvedBy: adminId, processedAt: new Date() }, { transaction: t });
+
+        const orderDetail = await OrderDetail.findByPk(request.orderDetailId, { transaction: t });
+        if (orderDetail) {
+            await orderDetail.update({ status: ORDER_DETAIL_STATUS.CANCELLED }, { transaction: t });
+        }
+
+        const allItemsCancelled = request.order.details.every(
+            detail => detail.id === request.orderDetailId || detail.status === ORDER_DETAIL_STATUS.CANCELLED
+        );
+
+        if (allItemsCancelled) {
+            await request.order.update({ orderStatus: ORDER_STATUS.CANCELLED }, { transaction: t });
+        }
+
+        await t.commit();
+        return request;
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
 };
 
-export const rejectCancelRequest = async (id, adminId, adminNotes) => {
-  const request = await OrderCancellationRequest.findByPk(id, {
-    include: [{ model: Order, as: "order" }],
-  });
-  if (!request) throw new Error("Request not found");
-  if (request.status !== "PENDING") throw new Error("Request already processed");
-  await request.update({ status: "REJECTED", approvedBy: adminId, adminNotes, processedAt: new Date() });
-  if (request.order?.orderStatus === ORDER_STATUS.CANCEL_REQUEST) {
-    await request.order.update({ orderStatus: ORDER_STATUS.CONFIRMED });
-  }
-  return request;
+export const rejectCancelRequest = async (id, adminId, rejectionReason) => {
+    const t = await sequelize.transaction();
+    try {
+        const request = await OrderCancellationRequest.findByPk(id, { transaction: t });
+
+        if (!request) throw new Error("Request not found");
+        if (request.status !== "PENDING") throw new Error("Request already processed");
+
+        await request.update({
+            status: "REJECTED",
+            approvedBy: adminId,
+            rejectionReason,
+            processedAt: new Date()
+        }, { transaction: t });
+
+        const orderDetail = await OrderDetail.findByPk(request.orderDetailId, { transaction: t });
+        if (orderDetail) {
+            await orderDetail.update({ status: ORDER_DETAIL_STATUS.EXISTED }, { transaction: t });
+        }
+
+        await t.commit();
+        return request;
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
 };
 
 // ─── REVENUE ─────────────────────────────────────────────────────────────────

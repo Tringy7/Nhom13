@@ -89,41 +89,24 @@ const getOrderById = async (req, res) => {
   }
 };
 
-const cancelOrderItem = async (req, res) => {
-  try {
-    const userId = req.user?.id ?? req.user?.userId;
-    const { orderId, itemId } = req.params;
-    const updatedOrder = await orderService.cancelOrderItem(userId, orderId, parseInt(itemId, 10));
-    return res.status(200).json({
-      success: true,
-      message: 'Hủy sản phẩm thành công.',
-      data: updatedOrder
-    });
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+const requestCancelOrderItem = async (req, res) => {
+    try {
+        const userId = req.user?.id ?? req.user?.userId;
+        const { orderId, detailId } = req.params;
+        const { reason } = req.body;
 
-const cancelOrder = async (req, res) => {
-  try {
-    const userId = req.user?.id ?? req.user?.userId;
-    const { orderId } = req.params;
+        await orderService.requestCancelOrderItem(userId, orderId, parseInt(detailId, 10), reason);
 
-    const result = await orderService.cancelOrder(userId, orderId);
-
-    return res.status(200).json({
-      success: true,
-      message: result.message
-    });
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
+        return res.status(201).json({
+            success: true,
+            message: 'Gửi yêu cầu hủy sản phẩm thành công.'
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
 };
 
 const getAdminOrders = async (req, res) => {
@@ -205,8 +188,7 @@ export default {
   createOrder,
   getOrders,
   getOrderById,
-  cancelOrderItem,
-  cancelOrder,
+  requestCancelOrderItem,
   getAdminOrders,
   getAdminOrderById,
   updateOrderStatus,
