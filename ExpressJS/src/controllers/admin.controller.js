@@ -34,6 +34,23 @@ export const unlockShipper        = async (req, res) => { try { await adminServi
 // Orders
 export const getOrders            = async (req, res) => { try { ok(res, await adminService.getOrders(req.query)); } catch(e) { err(res, e); } };
 export const getOrderById         = async (req, res) => { try { ok(res, await adminService.getOrderById(req.params.id)); } catch(e) { err(res, e); } };
+export const updateOrderStatus    = async (req, res) => { try { ok(res, await adminService.updateOrderStatus(req.params.id, req.body.status, req.body.note, req.user.id), "Order status updated"); } catch(e) { err(res, e); } };
+
+// Products
+export const getProducts          = async (req, res) => { try { ok(res, await adminService.getProducts(req.query)); } catch(e) { err(res, e); } };
+export const getProductById       = async (req, res) => { try { ok(res, await adminService.getProductById(req.params.id)); } catch(e) { err(res, e); } };
+export const createProduct        = async (req, res) => { try { ok(res, await adminService.createProduct(req.body), "Product created", 201); } catch(e) { err(res, e); } };
+export const updateProduct        = async (req, res) => { try { ok(res, await adminService.updateProduct(req.params.id, req.body), "Product updated"); } catch(e) { err(res, e); } };
+export const deleteProduct        = async (req, res) => { try { ok(res, await adminService.deleteProduct(req.params.id), "Product deleted"); } catch(e) { err(res, e); } };
+export const toggleProductActive  = async (req, res) => { try { ok(res, await adminService.toggleProductActive(req.params.id), "Product status updated"); } catch(e) { err(res, e); } };
+export const getBrands            = async (req, res) => { try { ok(res, await adminService.getBrands()); } catch(e) { err(res, e); } };
+export const getCategories        = async (req, res) => { try { ok(res, await adminService.getCategories()); } catch(e) { err(res, e); } };
+
+// Vouchers
+export const getVouchers          = async (req, res) => { try { ok(res, await adminService.getVouchers()); } catch(e) { err(res, e); } };
+export const createVoucher        = async (req, res) => { try { ok(res, await adminService.createVoucher(req.body), "Voucher created", 201); } catch(e) { err(res, e); } };
+export const updateVoucher        = async (req, res) => { try { ok(res, await adminService.updateVoucher(req.params.id, req.body), "Voucher updated"); } catch(e) { err(res, e); } };
+export const deleteVoucher        = async (req, res) => { try { ok(res, await adminService.deleteVoucher(req.params.id), "Voucher deleted"); } catch(e) { err(res, e); } };
 
 // Cancel Requests
 export const getCancelRequests    = async (req, res) => { try { ok(res, await adminService.getCancelRequests(req.query)); } catch(e) { err(res, e); } };

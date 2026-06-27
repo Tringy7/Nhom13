@@ -2,11 +2,13 @@ import { Layout, Menu, Avatar, Dropdown, Space, Typography } from "antd";
 import {
   DashboardOutlined, UserOutlined, TeamOutlined,
   CarOutlined, ShoppingCartOutlined, FileExclamationOutlined,
-  BarChartOutlined, LogoutOutlined, SettingOutlined
+  BarChartOutlined, LogoutOutlined, SettingOutlined,
+  GiftOutlined, LaptopOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/auth.context";
+import "../styles/admin.css";
 
 const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
@@ -16,6 +18,8 @@ const menuItems = [
   { key: "/admin/users", icon: <UserOutlined />, label: "Users" },
   { key: "/admin/managers", icon: <TeamOutlined />, label: "Managers" },
   { key: "/admin/shippers", icon: <CarOutlined />, label: "Shippers" },
+  { key: "/admin/products", icon: <LaptopOutlined />, label: "Products" },
+  { key: "/admin/vouchers", icon: <GiftOutlined />, label: "Vouchers" },
   { key: "/admin/orders", icon: <ShoppingCartOutlined />, label: "Orders" },
   { key: "/admin/cancel-requests", icon: <FileExclamationOutlined />, label: "Cancel Requests" },
   { key: "/admin/revenue", icon: <BarChartOutlined />, label: "Revenue" },
@@ -39,29 +43,34 @@ const AdminLayout = () => {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider width={220} theme="dark">
-        <div style={{ padding: "20px 16px", color: "#fff", fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>
-          UTESHOP
+    <Layout className="admin-shell">
+      <Sider width={270} theme="light" className="admin-sider">
+        <div className="admin-brand">
+          <div className="admin-brand-mark">U</div>
+          <div>
+            <div className="admin-brand-title">UTESHOP</div>
+            <div className="admin-brand-subtitle">Admin Console</div>
+          </div>
         </div>
         <Menu
-          theme="dark"
+          theme="light"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
+          className="admin-menu"
         />
       </Sider>
       <Layout>
-        <Header style={{ background: "#fff", padding: "0 24px", display: "flex", justifyContent: "flex-end", alignItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
+        <Header className="admin-header">
           <Dropdown menu={dropdownItems}>
-            <Space style={{ cursor: "pointer" }}>
+            <Space className="admin-account">
               <Avatar icon={<UserOutlined />} />
               <Text strong>{user?.fullName || user?.name || "Admin"}</Text>
             </Space>
           </Dropdown>
         </Header>
-        <Content style={{ margin: 24, padding: 24, background: "#fff", borderRadius: 8, minHeight: 360 }}>
+        <Content className="admin-content">
           <Outlet />
         </Content>
       </Layout>
