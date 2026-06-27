@@ -42,6 +42,8 @@ import AdminUsersPage from "./components/pages/admin/AdminUsersPage.jsx";
 import AdminManagerPage from "./components/pages/admin/AdminManagerPage.jsx";
 import AdminShipperPage from "./components/pages/admin/AdminShipperPage.jsx";
 import AdminOrderPage from "./components/pages/admin/AdminOrderPage.jsx";
+import AdminProductPage from "./components/pages/admin/AdminProductPage.jsx";
+import AdminVoucherPage from "./components/pages/admin/AdminVoucherPage.jsx";
 import AdminCancelRequestPage from "./components/pages/admin/AdminCancelRequestPage.jsx";
 import AdminRevenuePage from "./components/pages/admin/AdminRevenuePage.jsx";
 import AdminSettingsPage from "./components/pages/admin/AdminSettingsPage.jsx";
@@ -101,6 +103,8 @@ function App() {
             <Route path="users"          element={<AdminUsersPage />} />
             <Route path="managers"       element={<AdminManagerPage />} />
             <Route path="shippers"       element={<AdminShipperPage />} />
+            <Route path="products"       element={<AdminProductPage />} />
+            <Route path="vouchers"       element={<AdminVoucherPage />} />
             <Route path="orders"         element={<AdminOrderPage />} />
             <Route path="cancel-requests" element={<AdminCancelRequestPage />} />
             <Route path="revenue"        element={<AdminRevenuePage />} />

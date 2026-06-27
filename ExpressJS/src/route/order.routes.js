@@ -12,10 +12,10 @@ router.post(
 );
 
 router.post(
-  '/api/orders/:orderId/items/:itemId',
+  '/api/orders/:orderId/items/:detailId/cancel-request',
   verifyToken,
   authorize("user", "manager", "admin"),
-  orderController.cancelOrderItem
+  orderController.requestCancelOrderItem
 );
 
 router.delete(

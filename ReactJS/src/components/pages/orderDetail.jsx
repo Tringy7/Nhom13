@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert, Modal } from 'antd';
 import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { getOrderById, cancelOrderItemApi, cancelOrderApi, requestCancelOrderApi, submitOrderFeedbackApi, submitShipperFeedbackApi } from '../util/api/order.api';
+import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert, Modal, Form, Select } from 'antd';
+import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { getOrderById, requestCancelOrderItemApi } from '../util/api/order.api';
 import { submitReviewApi } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import styled, { keyframes } from 'styled-components';
@@ -24,7 +27,8 @@ const ORDER_STATUS = Object.freeze({
 
 const ORDER_DETAIL_STATUS = Object.freeze({
     EXISTED: 'EXISTED',
-    CANCELLED: 'CANCELLED'
+    CANCELLED: 'CANCELLED',
+    PENDING: 'PENDING'
 });
 
 const STATUS_STEPS = [
@@ -182,8 +186,80 @@ const Connector = styled.div`
 
 // --- UI COMPONENTS ---
 
-const OrderStatusTracker = ({ order }) => {
-    const status = order.orderStatus;
+const CancelRequestModal = ({ open, onCancel, onSubmit, item }) => {
+    const [form] = Form.useForm();
+    const [reason, setReason] = useState('');
+
+    const handleOk = () => {
+        form.validateFields().then(values => {
+            onSubmit(item.id, values);
+            form.resetFields();
+        }).catch(info => {
+            console.log('Validate Failed:', info);
+        });
+    };
+
+    const handleReasonChange = (value) => {
+        setReason(value);
+    };
+
+    return (
+        <Modal
+            title="Cancel Product"
+            open={open}
+            onOk={handleOk}
+            onCancel={onCancel}
+            footer={[
+                <Button key="back" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button key="submit" type="primary" onClick={handleOk}>
+                    Submit Request
+                </Button>,
+            ]}
+        >
+            {item && (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <Image width={64} height={64} src={getImageUrl(item.product?.thumbnail) || null} style={{ borderRadius: 8, objectFit: 'cover' }} />
+                        <div>
+                            <Text strong>{item.productName}</Text>
+                            <br />
+                            <Text style={{ color: '#595959' }}>Qty: {item.quantity}</Text>
+                        </div>
+                    </div>
+                    <Form form={form} layout="vertical" name="cancel_request_form" style={{ marginTop: 24 }}>
+                        <Form.Item
+                            name="reason"
+                            label="Reason"
+                            rules={[{ required: true, message: 'Please select a reason!' }]}
+                        >
+                            <Select placeholder="Select a reason" onChange={handleReasonChange}>
+                                <Select.Option value="Changed my mind">Changed my mind</Select.Option>
+                                <Select.Option value="Ordered by mistake">Ordered by mistake</Select.Option>
+                                <Select.Option value="Found cheaper elsewhere">Found cheaper elsewhere</Select.Option>
+                                <Select.Option value="Delivery takes too long">Delivery takes too long</Select.Option>
+                                <Select.Option value="Want to change another product">Want to change another product</Select.Option>
+                                <Select.Option value="Other">Other</Select.Option>
+                            </Select>
+                        </Form.Item>
+                        {reason === 'Other' && (
+                            <Form.Item
+                                name="otherReason"
+                                rules={[{ required: true, message: 'Please provide a reason!' }]}
+                            >
+                                <TextArea rows={4} placeholder="Please provide a reason" />
+                            </Form.Item>
+                        )}
+                    </Form>
+                </Space>
+            )}
+        </Modal>
+    );
+};
+
+
+const OrderStatusTracker = ({ status }) => {
     if (status === ORDER_STATUS.CANCELLED || status === ORDER_STATUS.CANCEL_REQUEST) {
         const isCancelled = status === ORDER_STATUS.CANCELLED;
         const reasonText = order.cancellationRequest?.reason 
@@ -260,9 +336,10 @@ const OrderHeader = ({ order }) => {
     );
 };
 
-const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) => {
-    const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus);
+const ProductItem = ({ item, orderStatus, onReview, onCancelItem }) => {
+    const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus) && item.status === ORDER_DETAIL_STATUS.EXISTED;
     const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
+    const isPending = item.status === ORDER_DETAIL_STATUS.PENDING;
 
     const itemStyle = isCancelled ? { opacity: 0.5, textDecoration: 'line-through' } : {};
 
@@ -279,7 +356,7 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) =
                     <Text style={{ fontSize: 16 }}>{formatPrice(Number(item.price) * item.quantity)}</Text>
                     <div style={{ marginTop: 8 }}>
                         <Space>
-                            {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && (
+                            {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && !isPending && (
                                 <>
                                     {hasReview ? (
                                         <Space direction="vertical" align="end" size={2}>
@@ -292,12 +369,22 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) =
                                     <Button size="small" icon={<ShoppingCartOutlined />} type="default">Buy Again</Button>
                                 </>
                             )}
-                            {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Cancel</Button>}
+                            {canCancel && <Button size="small" danger onClick={() => onCancelItem(item)}>Cancel</Button>}
+                            {isPending && <Tag icon={<ClockCircleOutlined />} color="warning">Pending Cancellation</Tag>}
                             {isCancelled && <Tag color="red">Cancelled</Tag>}
                         </Space>
                     </div>
                 </div>
             </div>
+            {item.cancellationRequest?.status === 'REJECTED' && (
+                <Alert
+                    message="Cancellation rejected"
+                    description={`Reason: ${item.cancellationRequest.rejectionReason}`}
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+            )}
             <Divider style={{ margin: 0 }} />
         </>
     );
@@ -311,20 +398,11 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
         <CardBase>
             <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Purchased Products ({details.length})</Title>
             <div style={{ margin: '0 -24px' }}>
-                {itemsToShow.map(item => {
-                    const hasReview = productReviews.find(r => r.productId === item.productId);
-                    return (
-                        <div key={item.id} style={{ padding: '0 24px' }}>
-                            <ProductItem 
-                                item={item} 
-                                orderStatus={orderStatus} 
-                                onReview={() => onReview(item)} 
-                                onCancelItem={() => onCancelItem(item.id)} 
-                                hasReview={hasReview}
-                            />
-                        </div>
-                    );
-                })}
+                {itemsToShow.map(item => (
+                    <div key={item.id} style={{ padding: '0 24px' }}>
+                        <ProductItem item={item} orderStatus={orderStatus} onReview={() => onReview(item)} onCancelItem={onCancelItem} />
+                    </div>
+                ))}
             </div>
             {details.length > 3 && (
                 <Button type="link" onClick={() => setIsCollapsed(!isCollapsed)} style={{ marginTop: 16, padding: 0 }}>
@@ -679,7 +757,7 @@ const OrderSummary = ({ order }) => {
     );
 };
 
-const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit }) => {
+const ReviewDrawer = ({ open, product, orderId, orderDate, onClose, onSubmit }) => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [imageList, setImageList] = useState([]);
@@ -702,19 +780,19 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
     };
 
     useEffect(() => {
-        if (visible) {
+        if (open) {
             setRating(0);
             setComment('');
             setImageList([]);
         }
-    }, [visible]);
+    }, [open]);
 
     return (
         <Drawer
             title="Submit Review"
             placement="right"
             onClose={onClose}
-            open={visible}
+            open={open}
             width={480}
             closeIcon={<CloseOutlined />}
             footer={
@@ -802,11 +880,8 @@ const OrderDetailPage = () => {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [reviewDrawer, setReviewDrawer] = useState({ visible: false, product: null });
-    const [cancelReason, setCancelReason] = useState('');
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    const [cancelType, setCancelType] = useState('direct'); // 'direct' or 'request'
-    const [cancelReasonInput, setCancelReasonInput] = useState('');
+    const [reviewDrawer, setReviewDrawer] = useState({ open: false, product: null });
+    const [cancelModal, setCancelModal] = useState({ open: false, item: null });
 
     const fetchOrder = async () => {
         setLoading(true);
@@ -824,8 +899,8 @@ const OrderDetailPage = () => {
         fetchOrder();
     }, [id]);
 
-    const handleOpenReview = (product) => setReviewDrawer({ visible: true, product });
-    const handleCloseReview = () => setReviewDrawer({ visible: false, product: null });
+    const handleOpenReview = (product) => setReviewDrawer({ open: true, product });
+    const handleCloseReview = () => setReviewDrawer({ open: false, product: null });
 
     const handleReviewSubmit = async (reviewData) => {
         try {
@@ -838,13 +913,18 @@ const OrderDetailPage = () => {
         }
     };
 
-    const handleCancelItem = async (itemId) => {
+    const handleOpenCancelModal = (item) => setCancelModal({ open: true, item });
+    const handleCloseCancelModal = () => setCancelModal({ open: false, item: null });
+
+    const handleCancelRequestSubmit = async (itemId, values) => {
+        const reason = values.reason === 'Other' ? values.otherReason : values.reason;
         try {
-            await cancelOrderItemApi(id, itemId);
-            message.success('Item has been cancelled.');
+            await requestCancelOrderItemApi(id, itemId, { reason });
+            message.success('Request submitted successfully');
+            handleCloseCancelModal();
             fetchOrder();
         } catch (error) {
-            message.error('Failed to cancel item.');
+            message.error('Failed to submit cancellation request.');
         }
     };
 
@@ -900,29 +980,7 @@ const OrderDetailPage = () => {
                 <MainGrid>
                     <LeftColumn>
                         <OrderHeader order={order} />
-                        {order.cancellationRequest?.status === 'REJECTED' && (
-                            <Alert
-                                type="error"
-                                showIcon
-                                message="Yêu cầu hủy đơn bị từ chối"
-                                description={
-                                    <div>
-                                        <p>Yêu cầu hủy đơn hàng của bạn đã bị từ chối bởi cửa hàng.</p>
-                                        {order.cancellationRequest.adminNotes && (
-                                            <p style={{ fontWeight: 500, margin: '4px 0 0' }}>
-                                                Lý do từ chối: {order.cancellationRequest.adminNotes}
-                                            </p>
-                                        )}
-                                    </div>
-                                }
-                                style={{ marginBottom: 16 }}
-                            />
-                        )}
-                        <ProductListCard details={order.details} orderStatus={order.orderStatus} productReviews={order.productReviews} onReview={handleOpenReview} onCancelItem={handleCancelItem} />
-                        <CancelOrderCard
-                            order={order}
-                            onCancelInitiated={handleCancelInitiated}
-                        />
+                        <ProductListCard details={order.details} orderStatus={order.orderStatus} onReview={handleOpenReview} onCancelItem={handleOpenCancelModal} />
                         {order.orderStatus === ORDER_STATUS.DELIVERED && (
                             <>
                                 <FeedbackSystemCard orderId={order.id} existingFeedback={order.feedbacks?.find(f => f.targetType === 'ORDER')} />
@@ -940,7 +998,7 @@ const OrderDetailPage = () => {
             </Container>
 
             <ReviewDrawer
-                visible={reviewDrawer.visible}
+                open={reviewDrawer.open}
                 product={reviewDrawer.product}
                 orderId={order.id}
                 orderDate={order.createdAt}
@@ -948,33 +1006,12 @@ const OrderDetailPage = () => {
                 onSubmit={handleReviewSubmit}
             />
 
-            <Modal
-                title={cancelType === 'direct' ? "Xác nhận hủy đơn hàng" : "Gửi yêu cầu hủy đơn hàng"}
-                open={isCancelModalOpen}
-                onOk={handleConfirmCancel}
-                onCancel={() => setIsCancelModalOpen(false)}
-                okText="Xác nhận"
-                cancelText="Hủy"
-                destroyOnClose
-            >
-                <div style={{ marginTop: 16 }}>
-                    {cancelType === 'request' && (
-                        <Text style={{ display: 'block', marginBottom: 12, color: '#595959', fontSize: 13 }}>
-                            Bạn đã quá thời gian hủy trực tiếp hoặc shop đang chuẩn bị hàng.
-                            Vui lòng nhập lý do để gửi yêu cầu hủy cho shop xét duyệt.
-                        </Text>
-                    )}
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                        Lý do hủy đơn hàng <Text type="danger">*</Text>
-                    </Text>
-                    <Input.TextArea
-                        rows={4}
-                        placeholder={cancelType === 'direct' ? "Nhập lý do hủy đơn trực tiếp..." : "Nhập lý do gửi yêu cầu hủy đơn..."}
-                        value={cancelReasonInput}
-                        onChange={(e) => setCancelReasonInput(e.target.value)}
-                    />
-                </div>
-            </Modal>
+            <CancelRequestModal
+                open={cancelModal.open}
+                item={cancelModal.item}
+                onCancel={handleCloseCancelModal}
+                onSubmit={handleCancelRequestSubmit}
+            />
         </PageWrapper>
     );
 };

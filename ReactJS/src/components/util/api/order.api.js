@@ -46,6 +46,10 @@ export const submitShipperFeedbackApi = (orderId, data) => {
 export const cancelOrderItemApi = (orderId, itemId) => {
     const URL_API = `/api/orders/${orderId}/items/${itemId}`;
     return axios.post(URL_API);
+// Gửi yêu cầu hủy một item trong đơn hàng
+export const requestCancelOrderItemApi = (orderId, itemId, data) => {
+    const URL_API = `/api/orders/${orderId}/items/${itemId}/cancel-request`;
+    return axios.post(URL_API, data);
 };
 
 export const getAdminOrders = () => {

@@ -40,9 +40,19 @@ export default (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 0
     },
+    status: {
+      type: DataTypes.ENUM('ACTIVE', 'INACTIVE', 'EXPIRED'),
+      allowNull: false,
+      defaultValue: 'ACTIVE'
+    },
     isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.getDataValue('status') === 'ACTIVE';
+      },
+      set(value) {
+        this.setDataValue('status', value ? 'ACTIVE' : 'INACTIVE');
+      }
     }
   }, {
     sequelize,

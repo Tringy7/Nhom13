@@ -7,6 +7,7 @@ export default (sequelize, DataTypes) => {
     static associate(entities) {
       OrderDetail.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });
       OrderDetail.belongsTo(entities.Product, { foreignKey: 'productId', as: 'product' });
+      OrderDetail.hasOne(entities.OrderCancellationRequest, { foreignKey: 'orderDetailId', as: 'cancellationRequest' });
     }
   }
   OrderDetail.init({

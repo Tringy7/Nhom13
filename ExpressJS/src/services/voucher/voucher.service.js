@@ -43,7 +43,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
     include: [{
       model: Voucher,
       as: 'voucher',
-      where: { isActive: true },
+      where: { status: 'ACTIVE' },
       required: true
     }]
   });
@@ -59,7 +59,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() }
       },
       required: true
@@ -77,7 +77,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() }
       },
@@ -95,7 +95,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() },
         minOrderValue: { [Op.lte]: orderTotal }
@@ -118,7 +118,7 @@ const getCheckoutVouchers = async (userId, orderTotal) => {
       model: Voucher,
       as: 'voucher',
       where: {
-        isActive: true,
+        status: 'ACTIVE',
         startDate: { [Op.lte]: new Date() },
         endDate: { [Op.gte]: new Date() },
         minOrderValue: { [Op.lte]: orderTotal }
@@ -139,7 +139,7 @@ const getAvailableVouchers = async () => {
   const { Voucher } = db;
   const available = await Voucher.findAll({
     where: {
-      isActive: true,
+      status: 'ACTIVE',
       endDate: {
         [Op.gte]: new Date()
       }
@@ -154,7 +154,7 @@ const getAvailableVouchers = async () => {
 const receiveVoucher = async (userId, voucherId) => {
   const { Voucher, UserVoucher } = db;
   const voucher = await Voucher.findOne({
-    where: { id: voucherId, isActive: true }
+    where: { id: voucherId, status: 'ACTIVE' }
   });
 
   if (!voucher) {

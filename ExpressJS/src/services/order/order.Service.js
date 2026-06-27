@@ -256,6 +256,7 @@ const autoConfirmOldOrders = async () => {
 const getOrders = async (userId) => {
     await autoConfirmOldOrders();
     const { Order, OrderDetail, Product, Payment } = db;
+const getOrders = async (userId) => {
     return Order.findAll({
         where: { userId },
         include: [
@@ -283,11 +284,13 @@ const getOrderById = async (userId, orderId) => {
             {
                 model: OrderDetail,
                 as: 'details',
-                include: [{
-                    model: Product,
-                    as: 'product',
-                    attributes: ['id', 'name', 'price', 'thumbnail', 'stock']
-                }]
+                include: [
+                    {
+                        model: Product,
+                        as: 'product',
+                        attributes: ['id', 'name', 'price', 'thumbnail', 'stock']
+                    }
+                ]
             },
             {
                 model: Payment,
@@ -298,6 +301,7 @@ const getOrderById = async (userId, orderId) => {
             { model: Voucher, as: 'voucher' }
         ]
     });
+
     if (!order) throw new Error('Không tìm thấy đơn hàng');
 
     // Lấy feedback hệ thống và shipper cho đơn hàng này
@@ -321,32 +325,45 @@ const getOrderById = async (userId, orderId) => {
     orderData.productReviews = productReviews || [];
 
     return orderData;
+    for (const detail of order.details) {
+        const cancellationRequest = await OrderCancellationRequest.findOne({
+            where: { orderDetailId: detail.id },
+            order: [['createdAt', 'DESC']]
+        });
+        detail.dataValues.cancellationRequest = cancellationRequest;
+    }
+
+    return order;
 };
 
-const requestCancelOrder = async (userId, orderId, reason) => {
-    const order = await Order.findOne({ where: { id: orderId, userId } });
-    if (!order) throw new Error('Không tìm thấy đơn hàng');
+const requestCancelOrderItem = async (userId, orderId, detailId, reason) => {
+    const t = await sequelize.transaction();
+    try {
+        const order = await Order.findOne({
+            where: { id: orderId, userId },
+            include: [{ model: OrderDetail, as: 'details' }],
+            transaction: t
+        });
 
     if (order.orderStatus !== ORDER_STATUS.PREPARING) {
         throw new Error('Chỉ có thể gửi yêu cầu hủy đơn ở trạng thái Đang chuẩn bị hàng.');
     }
+        if (!order) throw new Error('Không tìm thấy đơn hàng.');
 
-    const existingRequest = await OrderCancellationRequest.findOne({ where: { orderId } });
-    if (existingRequest) {
-        throw new Error('Bạn đã gửi yêu cầu hủy cho đơn hàng này rồi.');
-    }
+        const orderDetail = order.details.find(d => d.id === detailId);
+        if (!orderDetail) throw new Error('Sản phẩm không tồn tại trong đơn hàng này.');
 
-    await order.update({ orderStatus: ORDER_STATUS.CANCEL_REQUEST });
+        if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.orderStatus)) {
+            throw new Error('Chỉ có thể hủy sản phẩm khi đơn hàng ở trạng thái "Mới" hoặc "Đã xác nhận".');
+        }
 
-    const cancellationRequest = await OrderCancellationRequest.create({
-        orderId,
-        userId,
-        reason,
-        status: 'PENDING'
-    });
+        if (orderDetail.status === ORDER_DETAIL_STATUS.CANCELLED) {
+            throw new Error('Sản phẩm này đã được hủy.');
+        }
 
-    return cancellationRequest;
-};
+        if (orderDetail.status === ORDER_DETAIL_STATUS.PENDING) {
+            throw new Error('Yêu cầu hủy cho sản phẩm này đang được xử lý.');
+        }
 
 const cancelOrder = async (userId, orderId, reason) => {
     const t = await sequelize.transaction();
@@ -399,30 +416,39 @@ const cancelOrder = async (userId, orderId, reason) => {
 
         await t.commit();
         return order;
+        await OrderCancellationRequest.create({
+            orderId,
+            orderDetailId: detailId,
+            userId,
+            reason,
+            status: 'PENDING'
+        }, { transaction: t });
+
+        await orderDetail.update({ status: ORDER_DETAIL_STATUS.PENDING }, { transaction: t });
+
+        await t.commit();
     } catch (error) {
         await t.rollback();
         throw error;
     }
 };
-  
+
 const getAdminOrders = async () => {
-  const { Order, User, OrderItem, Product } = db;
   return Order.findAll({
     include: [
       { model: User, as: 'customer', attributes: ['id', 'fullName', 'email'] },
-      { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product', attributes: ['id', 'name'] }] }
+      { model: OrderDetail, as: 'details', include: [{ model: Product, as: 'product', attributes: ['id', 'name'] }] }
     ],
     order: [['createdAt', 'DESC']]
   });
 };
   
 const getAdminOrderById = async (orderId) => {
-  const { Order, User, OrderItem, Product } = db;
   const order = await Order.findOne({
     where: { id: orderId },
     include: [
       { model: User, as: 'customer' },
-      { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product' }] }
+      { model: OrderDetail, as: 'details', include: [{ model: Product, as: 'product' }] }
     ]
   });
   if (!order) throw new Error('Không tìm thấy đơn hàng');
@@ -430,7 +456,6 @@ const getAdminOrderById = async (orderId) => {
 };
   
 const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
-  const { Order } = db;
   const order = await Order.findByPk(orderId);
   if (!order) throw new Error('Không tìm thấy đơn hàng');
 
@@ -514,6 +539,9 @@ const handleCancelRequest = async (adminId, orderId, { approve, adminNotes = '' 
                         await createRewardHistory(order.userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.EARN, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
                     }
                 }
+const handleCancelRequest = async (adminId, requestId, { approve, adminNotes = '' }) => {
+    const request = await OrderCancellationRequest.findByPk(requestId, { include: [Order] });
+    if (!request) throw new Error('Không tìm thấy yêu cầu hủy.');
 
                 if (order.voucherId) {
                     const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
@@ -685,6 +713,7 @@ export default {
     markDeliveryFailed,
     submitOrderFeedback,
     submitShipperFeedback,
+    requestCancelOrderItem,
     getShipperStats
 };
 
@@ -740,4 +769,4 @@ async function getShipperStats(shipperId) {
         weeklyRevenue,
         monthlyChart: Object.values(monthlyData),
     };
-}
+};

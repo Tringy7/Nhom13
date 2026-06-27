@@ -77,7 +77,7 @@ const createProduct = async (data, files = []) => {
     try {
         const { name, price, description, stock, category, brandId, ram, isActive } = data;
         
-        let thumbnail = null;
+        let thumbnail = data.thumbnail || null;
         if (files && files.length > 0) {
             thumbnail = `/uploads/products/${files[0].filename}`;
         }
@@ -122,7 +122,7 @@ const updateProduct = async (id, data, files = []) => {
             throw new Error("Sản phẩm không tồn tại");
         }
 
-        const { name, price, description, stock, category, brandId, ram, isActive, deleteExistingImages } = data;
+        const { name, price, description, stock, category, brandId, ram, isActive, thumbnail, deleteExistingImages } = data;
 
         const updateFields = {
             name: name !== undefined ? name : product.name,
@@ -137,6 +137,8 @@ const updateProduct = async (id, data, files = []) => {
 
         if (files && files.length > 0) {
             updateFields.thumbnail = `/uploads/products/${files[0].filename}`;
+        } else if (thumbnail !== undefined) {
+            updateFields.thumbnail = thumbnail || null;
         }
 
         await product.update(updateFields, { transaction: t });
@@ -478,16 +480,25 @@ const getVouchers = async () => {
     return await Voucher.findAll({ order: [['createdAt', 'DESC']] });
 };
 
+const normalizeVoucherPayload = (data = {}) => {
+    const payload = { ...data };
+    if (Object.prototype.hasOwnProperty.call(payload, 'isActive')) {
+        payload.status = payload.isActive === true || payload.isActive === 'true' ? 'ACTIVE' : 'INACTIVE';
+        delete payload.isActive;
+    }
+    return payload;
+};
+
 const createVoucher = async (data) => {
     const { Voucher } = getModels();
-    return await Voucher.create(data);
+    return await Voucher.create(normalizeVoucherPayload(data));
 };
 
 const updateVoucher = async (id, data) => {
     const { Voucher } = getModels();
     const voucher = await Voucher.findByPk(id);
     if (!voucher) throw new Error("Voucher không tồn tại");
-    return await voucher.update(data);
+    return await voucher.update(normalizeVoucherPayload(data));
 };
 
 const deleteVoucher = async (id) => {
