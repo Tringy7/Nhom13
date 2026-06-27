@@ -4,6 +4,7 @@ export default (sequelize, DataTypes) => {
   class OrderCancellationRequest extends Model {
     static associate(entities) {
       OrderCancellationRequest.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });
+      OrderCancellationRequest.belongsTo(entities.OrderDetail, { foreignKey: 'orderDetailId', as: 'orderDetail' });
       OrderCancellationRequest.belongsTo(entities.User, { foreignKey: 'userId', as: 'user' });
       OrderCancellationRequest.belongsTo(entities.User, { foreignKey: 'approvedBy', as: 'approver' });
     }
@@ -14,6 +15,11 @@ export default (sequelize, DataTypes) => {
       allowNull: false,
       references: { model: 'Orders', key: 'id' }
     },
+    orderDetailId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'OrderDetails', key: 'id' }
+    },
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -22,6 +28,10 @@ export default (sequelize, DataTypes) => {
     reason: {
       type: DataTypes.TEXT,
       allowNull: false
+    },
+    rejectionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true
     },
     status: {
       type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED'),
@@ -47,4 +57,4 @@ export default (sequelize, DataTypes) => {
     tableName: 'OrderCancellationRequests'
   });
   return OrderCancellationRequest;
-};
+}

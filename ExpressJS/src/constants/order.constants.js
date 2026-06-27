@@ -10,5 +10,6 @@ export const ORDER_STATUS = Object.freeze({
 
 export const ORDER_DETAIL_STATUS = Object.freeze({
     EXISTED: 'EXISTED',
-    CANCELLED: 'CANCELLED'
+    CANCELLED: 'CANCELLED',
+    PENDING: 'PENDING'
 });

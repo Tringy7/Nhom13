@@ -2,6 +2,7 @@
 import express from 'express';
 import homeController from '../controllers/home.controller.js';
 import productController from '../controllers/product.controller.js';
+import {authorize, verifyToken} from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

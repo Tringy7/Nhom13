@@ -6,8 +6,7 @@ import { uploadProductImage } from "../../middleware/upload.middleware.js";
 const router = express.Router();
 
 // Apply verifyToken and authorize('MANAGER', 'ADMIN') to all manager routes
-router.use(verifyToken, authorize("manager", "admin"));
-
+router.use("/api/manager", verifyToken, authorize("manager", "admin"));
 
 // route.get("/api/manager/dashboard", managerController.getDashboard)
 // Sales Summary & Reports
