@@ -9,9 +9,9 @@ router.get('/api/products/:id/insights', productFeatureController.getProductInsi
 router.get('/api/products/:id/similar', productFeatureController.getSimilarProducts);
 
 // Routes requiring user authentication
-router.post('/api/products/:id/reviews', verifyToken, authorize('user', 'admin'), productFeatureController.submitReview);
-router.post('/api/products/:id/favorite', verifyToken, authorize('user', 'admin'), productFeatureController.toggleFavorite);
-router.get('/api/user/wishlist', verifyToken, authorize('user', 'admin'), productFeatureController.getWishlist);
+router.post('/api/products/:id/reviews', verifyToken,   authorize("user", "manager", "admin"), productFeatureController.submitReview);
+router.post('/api/products/:id/favorite', verifyToken,   authorize("user", "manager", "admin"), productFeatureController.toggleFavorite);
+router.get('/api/user/wishlist', verifyToken,   authorize("user", "manager", "admin"), productFeatureController.getWishlist);
 
 // Removed routes related to ProductView, Coupon, and discount previews as the features were simplified
 // - POST /api/products/:id/viewed
