@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Drawer, Select, Tag, Space, Card, Row, Col, Typography, message, Modal, InputNumber, Tabs, Divider } from 'antd';
+import { Table, Button, Drawer, Select, Tag, Space, Card, Row, Col, Typography, message, Modal, InputNumber, Tabs, Divider, Input } from 'antd';
 import { ShoppingOutlined, UserOutlined, CarOutlined, DollarOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import ManagerLayout from './ManagerLayout.jsx';
-import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi, assignShipperApi, getShippersApi } from '../../util/api/manager.api';
+import { getOrdersApi, getOrderByIdApi, updateOrderStatusApi, assignShipperApi, getShippersApi, processCancellationRequestApi } from '../../util/api/manager.api';
 
 const { Title, Text, Title: Heading } = Typography;
 const { Option } = Select;
@@ -29,6 +29,18 @@ const Orders = () => {
     const [selectedShipperId, setSelectedShipperId] = useState(undefined);
     const [shipperFee, setShipperFee] = useState(30000);
     const [assigning, setAssigning] = useState(false);
+
+    // Cancel Order Modal
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [cancelOrderId, setCancelOrderId] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelling, setCancelling] = useState(false);
+
+    // Process Customer Cancel Request Modal
+    const [processRequestModalVisible, setProcessRequestModalVisible] = useState(false);
+    const [processRequestActionType, setProcessRequestActionType] = useState('APPROVED'); // APPROVED or REJECTED
+    const [processRequestNotes, setProcessRequestNotes] = useState('');
+    const [processingRequest, setProcessingRequest] = useState(false);
 
     useEffect(() => {
         fetchShippers();
@@ -83,9 +95,9 @@ const Orders = () => {
         }
     };
 
-    const handleUpdateStatus = async (orderId, newStatus) => {
+    const handleUpdateStatus = async (orderId, newStatus, notes) => {
         try {
-            const res = await updateOrderStatusApi(orderId, newStatus, `Quản lý cập nhật trạng thái đơn hàng thành ${newStatus}`);
+            const res = await updateOrderStatusApi(orderId, newStatus, notes || `Quản lý cập nhật trạng thái đơn hàng thành ${newStatus}`);
             if (res.success) {
                 message.success("Cập nhật trạng thái đơn hàng thành công!");
                 fetchOrders();
@@ -95,6 +107,58 @@ const Orders = () => {
             }
         } catch (err) {
             message.error("Không thể cập nhật trạng thái đơn hàng");
+        }
+    };
+
+    const handleOpenCancelModal = (orderId) => {
+        setCancelOrderId(orderId);
+        setCancelReason('');
+        setCancelModalVisible(true);
+    };
+
+    const handleConfirmCancelOrder = async () => {
+        if (!cancelReason.trim()) {
+            return message.warning('Vui lòng nhập lý do hủy đơn hàng!');
+        }
+        setCancelling(true);
+        try {
+            await handleUpdateStatus(cancelOrderId, 'CANCELLED', cancelReason);
+            setCancelModalVisible(false);
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    const handleOpenProcessCancelRequestModal = (type) => {
+        setProcessRequestActionType(type);
+        setProcessRequestNotes('');
+        setProcessRequestModalVisible(true);
+    };
+
+    const handleConfirmProcessCancelRequest = async () => {
+        if (!processRequestNotes.trim()) {
+            return message.warning(processRequestActionType === 'APPROVED' ? "Vui lòng nhập lý do đồng ý hủy đơn!" : "Vui lòng nhập lý do từ chối hủy đơn!");
+        }
+        const reqId = selectedOrder?.cancellationRequest?.id;
+        if (!reqId) {
+            message.error("Không tìm thấy thông tin yêu cầu hủy đơn.");
+            return;
+        }
+        setProcessingRequest(true);
+        try {
+            const res = await processCancellationRequestApi(reqId, processRequestActionType, processRequestNotes);
+            if (res.success) {
+                message.success(processRequestActionType === 'APPROVED' ? "Đã chấp nhận hủy đơn hàng" : "Đã từ chối hủy đơn hàng");
+                setProcessRequestModalVisible(false);
+                fetchOrders();
+                if (selectedOrder) {
+                    handleViewDetail(selectedOrder.id);
+                }
+            }
+        } catch (err) {
+            message.error(err.response?.data?.message || "Không thể xử lý yêu cầu hủy đơn");
+        } finally {
+            setProcessingRequest(false);
         }
     };
 
@@ -217,7 +281,9 @@ const Orders = () => {
         { key: 'PREPARING', label: 'Đang chuẩn bị' },
         { key: 'SHIPPING', label: 'Đang giao' },
         { key: 'DELIVERED', label: 'Giao thành công' },
-        { key: 'CANCELLED', label: 'Đã hủy' }
+        { key: 'DELIVERY_FAILED', label: 'Giao thất bại' },
+        { key: 'CANCELLED', label: 'Đã hủy' },
+        { key: 'CANCEL_REQUEST', label: 'Yêu cầu hủy' }
     ];
 
     return (
@@ -276,10 +342,16 @@ const Orders = () => {
                                 <div style={{ marginTop: 4 }}>{getStatusTag(selectedOrder.orderStatus)}</div>
                             </div>
                             <Space>
-                                {selectedOrder.orderStatus === 'NEW' && (
+                                 {selectedOrder.orderStatus === 'NEW' && (
                                     <>
-                                        <Button danger onClick={() => handleUpdateStatus(selectedOrder.id, 'CANCELLED')}>Hủy đơn</Button>
+                                        <Button danger onClick={() => handleOpenCancelModal(selectedOrder.id)}>Hủy đơn</Button>
                                         <Button type="primary" onClick={() => handleUpdateStatus(selectedOrder.id, 'CONFIRMED')}>Xác nhận đơn</Button>
+                                    </>
+                                )}
+                                {selectedOrder.orderStatus === 'CANCEL_REQUEST' && (
+                                    <>
+                                        <Button danger onClick={() => handleOpenProcessCancelRequestModal('REJECTED')}>Từ chối hủy</Button>
+                                        <Button type="primary" style={{ background: '#16a34a', borderColor: '#16a34a' }} onClick={() => handleOpenProcessCancelRequestModal('APPROVED')}>Xác nhận hủy</Button>
                                     </>
                                 )}
                                 {selectedOrder.orderStatus === 'CONFIRMED' && (
@@ -382,13 +454,23 @@ const Orders = () => {
                         {/* Pricing details */}
                         <div style={{ background: '#f9fafb', padding: 16, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Text>Phí vận chuyển:</Text>
-                                <Text strong>{formatCurrency(Number(selectedOrder.shippingFee || 0))}</Text>
+                                <Text>Tạm tính (Sản phẩm):</Text>
+                                <Text strong>{formatCurrency(Number(selectedOrder.subtotal || 0))}</Text>
                             </div>
-                            {selectedOrder.voucher && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
-                                    <Text>Giảm giá voucher ({selectedOrder.voucher.code}):</Text>
-                                    <Text strong>-{selectedOrder.voucher.discountType === 'PERCENT' ? `${selectedOrder.voucher.discountValue}%` : formatCurrency(selectedOrder.voucher.discountValue)}</Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Text>Phí vận chuyển:</Text>
+                                <Text strong>{formatCurrency(Number(selectedOrder.shippingFee || 30000))}</Text>
+                            </div>
+                            {Number(selectedOrder.voucherDiscount || 0) > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#52c41a' }}>
+                                    <Text>Giảm giá voucher {selectedOrder.voucher?.code ? `(${selectedOrder.voucher.code})` : ''}:</Text>
+                                    <Text strong>-{formatCurrency(Number(selectedOrder.voucherDiscount))}</Text>
+                                </div>
+                            )}
+                            {Number(selectedOrder.pointsDiscount || 0) > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fa8c16' }}>
+                                    <Text>Khấu trừ điểm tích lũy:</Text>
+                                    <Text strong>-{formatCurrency(Number(selectedOrder.pointsDiscount))}</Text>
                                 </div>
                             )}
                             <Divider style={{ margin: '8px 0' }} />
@@ -403,6 +485,28 @@ const Orders = () => {
                             <div style={{ borderLeft: '3px solid #2563eb', paddingLeft: 12 }}>
                                 <Text strong style={{ display: 'block', fontSize: '13px' }}>Ghi chú đặt hàng:</Text>
                                 <Text type="secondary" style={{ fontSize: '13px' }}>{selectedOrder.note}</Text>
+                            </div>
+                        )}
+
+                        {/* Cancellation Request Info */}
+                        {selectedOrder.cancellationRequest && (
+                            <div style={{ borderLeft: '3px solid #ef4444', paddingLeft: 12, background: '#fff1f0', padding: '12px', borderRadius: 12 }}>
+                                <Text strong style={{ display: 'block', fontSize: '13px', color: '#cf1322' }}>Yêu cầu hủy đơn từ khách hàng:</Text>
+                                <Text style={{ display: 'block', fontSize: '13px', margin: '6px 0' }}>Lý do: <Text type="secondary" style={{ fontStyle: 'italic' }}>"{selectedOrder.cancellationRequest.reason}"</Text></Text>
+                                <Text style={{ display: 'block', fontSize: '12px', color: '#8c8c8c' }}>Thời gian yêu cầu: {new Date(selectedOrder.cancellationRequest.createdAt).toLocaleString('vi-VN')}</Text>
+                                {selectedOrder.cancellationRequest.status !== 'PENDING' && (
+                                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #ffa39e' }}>
+                                        <Text strong style={{ fontSize: '12px' }}>Trạng thái xử lý: </Text>
+                                        <Tag color={selectedOrder.cancellationRequest.status === 'APPROVED' ? 'green' : 'red'} style={{ marginLeft: 4 }}>
+                                            {selectedOrder.cancellationRequest.status === 'APPROVED' ? 'Đã duyệt hủy' : 'Đã từ chối hủy'}
+                                        </Tag>
+                                        {selectedOrder.cancellationRequest.adminNotes && (
+                                            <p style={{ margin: '6px 0 0 0', fontSize: '12px' }}>
+                                                Ghi chú quản lý: <Text type="secondary">{selectedOrder.cancellationRequest.adminNotes}</Text>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -440,7 +544,69 @@ const Orders = () => {
                             min={0}
                             style={{ width: '100%' }}
                             value={shipperFee}
-                            onChange={(val) => setShipperFee(val)}
+                            disabled
+                        />
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Cancel Order Modal - yêu cầu lý do hủy đơn */}
+            <Modal
+                title={<><span style={{ color: '#ef4444' }}>⚠️</span> Xác nhận hủy đơn hàng</>}
+                open={cancelModalVisible}
+                onOk={handleConfirmCancelOrder}
+                onCancel={() => setCancelModalVisible(false)}
+                confirmLoading={cancelling}
+                okText="Xác nhận hủy"
+                okButtonProps={{ danger: true }}
+                cancelText="Đóng"
+                destroyOnClose
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+                    <Text>Bạn đang <Text strong style={{ color: '#ef4444' }}>HỦY</Text> đơn hàng <Text strong style={{ color: '#2563eb' }}>#{cancelOrderId}</Text>.</Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>Hành động này sẽ hủy đơn hàng, hoàn lại tồn kho và điểm thưởng (nếu có).</Text>
+                    <div>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>Lý do hủy đơn <Text type="danger">*</Text></Text>
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="Nhập lý do hủy đơn hàng (bắt buộc)..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            style={{ borderRadius: 8 }}
+                        />
+                    </div>
+                </div>
+            </Modal>
+            {/* Process Request Modal */}
+            <Modal
+                title={
+                    <Space>
+                        <span>{processRequestActionType === 'APPROVED' ? "Xác nhận đồng ý hủy đơn hàng" : "Xác nhận từ chối hủy đơn hàng"}</span>
+                    </Space>
+                }
+                open={processRequestModalVisible}
+                onOk={handleConfirmProcessCancelRequest}
+                onCancel={() => setProcessRequestModalVisible(false)}
+                confirmLoading={processingRequest}
+                okText="Xác nhận"
+                cancelText="Hủy"
+                destroyOnClose
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+                    <Text>
+                        Bạn đang {processRequestActionType === 'APPROVED' ? "ĐỒNG Ý HỦY" : "TỪ CHỐI HỦY"} đơn hàng 
+                        <Text strong style={{ color: '#2563eb' }}> #{selectedOrder?.id}</Text> của khách hàng 
+                        <Text strong> {selectedOrder?.customer?.fullName}</Text>.
+                    </Text>
+                    <div>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                            Lý do của quản lý <Text type="danger">*</Text>
+                        </Text>
+                        <Input.TextArea 
+                            rows={3} 
+                            placeholder={processRequestActionType === 'APPROVED' ? "Bắt buộc nhập lý do đồng ý hủy đơn..." : "Bắt buộc nhập lý do từ chối hủy đơn..."}
+                            value={processRequestNotes}
+                            onChange={(e) => setProcessRequestNotes(e.target.value)}
                         />
                     </div>
                 </div>

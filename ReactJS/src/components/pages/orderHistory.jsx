@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Typography, Button, Badge, Space, Image, Divider, Empty, Breadcrumb, Tag, Spin, message } from 'antd';
-import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, DollarOutlined } from '@ant-design/icons';
+import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { getOrders } from '../util/api/order.api';
 import { getImageUrl } from '../util/helpers';
@@ -8,13 +8,14 @@ import { getImageUrl } from '../util/helpers';
 const { Title, Text } = Typography;
 
 const STATUS_CONFIG = {
-    'NEW': { text: 'Đơn hàng mới', color: 'blue', icon: <SyncOutlined spin /> },
+    'NEW': { text: 'Đơn mới', color: 'blue', icon: <SyncOutlined spin /> },
     'CONFIRMED': { text: 'Đã xác nhận', color: 'geekblue', icon: <CheckCircleOutlined /> },
-    'PREPARING': { text: 'Shop đang chuẩn bị hàng', color: 'orange', icon: <ShoppingOutlined /> },
+    'PREPARING': { text: 'Đang chuẩn bị', color: 'orange', icon: <ShoppingOutlined /> },
     'SHIPPING': { text: 'Đang giao hàng', color: 'gold', icon: <CarOutlined /> },
-    'DELIVERED': { text: 'Đã giao thành công', color: 'green', icon: <CarOutlined /> },
+    'DELIVERED': { text: 'Giao thành công', color: 'green', icon: <CheckCircleOutlined /> },
+    'DELIVERY_FAILED': { text: 'Giao thất bại', color: 'red', icon: <CloseCircleOutlined /> },
     'CANCELLED': { text: 'Đã hủy', color: 'red', icon: <CloseCircleOutlined /> },
-    'CANCEL_REQUEST': { text: 'Yêu cầu hủy đơn', color: 'volcano', icon: <SyncOutlined spin /> },
+    'CANCEL_REQUEST': { text: 'Yêu cầu hủy', color: 'volcano', icon: <SyncOutlined spin /> },
 };
 
 const ORDER_DETAIL_STATUS = Object.freeze({
@@ -94,14 +95,27 @@ const OrderHistoryPage = () => {
     const filteredOrders = filterStatus === 'ALL' 
         ? orders 
         : filterStatus === 'PROGRESS'
-            ? orders.filter(order => ['NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(order.status))
-            : orders.filter(order => order.status === filterStatus);
+            ? orders.filter(order => ['NEW', 'CONFIRMED', 'PREPARING'].includes(order.status))
+            : filterStatus === 'SHIPPING'
+                ? orders.filter(order => order.status === 'SHIPPING')
+                : filterStatus === 'DELIVERED'
+                    ? orders.filter(order => order.status === 'DELIVERED')
+                    : filterStatus === 'FAILED'
+                        ? orders.filter(order => order.status === 'DELIVERY_FAILED')
+                        : filterStatus === 'CANCELLED'
+                            ? orders.filter(order => order.status === 'CANCELLED')
+                            : filterStatus === 'CANCEL_REQUEST'
+                                ? orders.filter(order => order.status === 'CANCEL_REQUEST')
+                                : orders;
 
     const stats = {
         total: orders.length,
-        progress: orders.filter(o => ['NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(o.status)).length,
+        progress: orders.filter(o => ['NEW', 'CONFIRMED', 'PREPARING'].includes(o.status)).length,
+        shipping: orders.filter(o => o.status === 'SHIPPING').length,
         delivered: orders.filter(o => o.status === 'DELIVERED').length,
+        failed: orders.filter(o => o.status === 'DELIVERY_FAILED').length,
         cancelled: orders.filter(o => o.status === 'CANCELLED').length,
+        cancelRequest: orders.filter(o => o.status === 'CANCEL_REQUEST').length,
         totalSpent: orders.filter(o => o.status === 'DELIVERED').reduce((acc, curr) => acc + curr.totalPrice, 0)
     };
 
@@ -269,10 +283,13 @@ const OrderHistoryPage = () => {
                             </div>
                             <div style={{ padding: 24 }}>
                                 <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                                    <FilterMenuItem id="ALL" label="All Orders" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'ALL'} onClick={() => setFilterStatus('ALL')} />
-                                    <FilterMenuItem id="PROGRESS" label="Processing" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'PROGRESS'} onClick={() => setFilterStatus('PROGRESS')} />
-                                    <FilterMenuItem id="DELIVERED" label="Delivered" icon={<CarOutlined />} count={stats.delivered} active={filterStatus === 'DELIVERED'} onClick={() => setFilterStatus('DELIVERED')} />
-                                    <FilterMenuItem id="CANCELLED" label="Cancelled" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'CANCELLED'} onClick={() => setFilterStatus('CANCELLED')} />
+                                    <FilterMenuItem id="ALL" label="Tất cả đơn" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'ALL'} onClick={() => setFilterStatus('ALL')} />
+                                    <FilterMenuItem id="PROGRESS" label="Đang chuẩn bị" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'PROGRESS'} onClick={() => setFilterStatus('PROGRESS')} />
+                                    <FilterMenuItem id="SHIPPING" label="Đang giao" icon={<CarOutlined />} count={stats.shipping} active={filterStatus === 'SHIPPING'} onClick={() => setFilterStatus('SHIPPING')} />
+                                    <FilterMenuItem id="DELIVERED" label="Đã giao" icon={<CheckCircleOutlined />} count={stats.delivered} active={filterStatus === 'DELIVERED'} onClick={() => setFilterStatus('DELIVERED')} />
+                                    <FilterMenuItem id="FAILED" label="Giao thất bại" icon={<CloseCircleOutlined />} count={stats.failed} active={filterStatus === 'FAILED'} onClick={() => setFilterStatus('FAILED')} />
+                                    <FilterMenuItem id="CANCELLED" label="Đã hủy" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'CANCELLED'} onClick={() => setFilterStatus('CANCELLED')} />
+                                    <FilterMenuItem id="CANCEL_REQUEST" label="Yêu cầu hủy" icon={<WarningOutlined />} count={stats.cancelRequest} active={filterStatus === 'CANCEL_REQUEST'} onClick={() => setFilterStatus('CANCEL_REQUEST')} />
                                 </Space>
                             </div>
                         </div>

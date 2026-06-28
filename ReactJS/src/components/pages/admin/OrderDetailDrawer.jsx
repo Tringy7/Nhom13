@@ -14,10 +14,12 @@ const OrderDetailDrawer = ({ open, order, onClose }) => (
           <Descriptions.Item label="SĐT">{order.user?.phone}</Descriptions.Item>
           <Descriptions.Item label="Shipper">{order.shipper?.fullName || "Chưa có"}</Descriptions.Item>
           <Descriptions.Item label="Tổng tiền">{Number(order.totalAmount).toLocaleString("vi-VN")} ₫</Descriptions.Item>
+          <Descriptions.Item label="Phí vận chuyển">{Number(order.shippingFee || 30000).toLocaleString("vi-VN")} ₫</Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
             <Tag color={STATUS_COLORS[order.orderStatus]}>{order.orderStatus}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Voucher">{order.voucher?.code || "Không"}</Descriptions.Item>
+          <Descriptions.Item label="Voucher">{order.voucher?.code ? `${order.voucher.code} (-${Number(order.voucherDiscount || 0).toLocaleString("vi-VN")} ₫)` : "Không"}</Descriptions.Item>
+          <Descriptions.Item label="Dùng điểm">{Number(order.pointsDiscount || 0).toLocaleString("vi-VN")} ₫</Descriptions.Item>
           <Descriptions.Item label="Thanh toán">{order.payment?.method || "—"}</Descriptions.Item>
           <Descriptions.Item label="Ngày tạo" span={2}>{new Date(order.createdAt).toLocaleString("vi-VN")}</Descriptions.Item>
         </Descriptions>

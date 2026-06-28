@@ -111,12 +111,39 @@ const cancelOrder = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
     const { orderId } = req.params;
+    const { reason } = req.body;
 
-    const result = await orderService.cancelOrder(userId, orderId);
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do hủy đơn hàng.' });
+    }
+
+    const result = await orderService.cancelOrder(userId, orderId, String(reason).trim());
 
     return res.status(200).json({
       success: true,
-      message: result.message
+      message: 'Hủy đơn hàng thành công.'
+    });
+  } catch (error) {
+    console.error('[cancelOrder] Error:', error.message);
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const requestCancelOrder = async (req, res) => {
+  try {
+    const userId = req.user?.id ?? req.user?.userId;
+    const { orderId } = req.params;
+    const { reason } = req.body;
+
+    const result = await orderService.requestCancelOrder(userId, orderId, reason || 'Người dùng yêu cầu hủy đơn hàng.');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Gửi yêu cầu hủy đơn hàng thành công, vui lòng chờ Shop phản hồi.',
+      data: result
     });
   } catch (error) {
     return res.status(400).json({
@@ -182,22 +209,106 @@ const updateOrderStatus = async (req, res) => {
 
 const handleCancelRequest = async (req, res) => {
   try {
-    const adminId = req.user.id;
+    const adminId = req.user.id ?? req.user.userId;
     const { orderId } = req.params;
-    const { approve = true } = req.body;
+    const { approve = true, adminNotes = '' } = req.body;
 
-    const order = await orderService.handleCancelRequest(adminId, orderId, approve);
+    const result = await orderService.handleCancelRequest(adminId, orderId, { approve, adminNotes });
 
     return res.status(200).json({
       success: true,
       message: approve ? 'Đã duyệt yêu cầu hủy đơn' : 'Đã từ chối yêu cầu hủy đơn',
-      data: order
+      data: result
     });
   } catch (error) {
+    console.error('[handleCancelRequest] Error:', error.message);
     return res.status(400).json({
       success: false,
       message: error.message
     });
+  }
+};
+
+
+// ── Shipper Controllers ──────────────────────────────────────────────
+const getShipperOrders = async (req, res) => {
+  try {
+    const shipperId = req.user?.id;
+    const orders = await orderService.getShipperOrders(shipperId);
+    return res.status(200).json({ success: true, data: orders });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const acceptOrder = async (req, res) => {
+  try {
+    const shipperId = req.user?.id;
+    const { orderId } = req.params;
+    const order = await orderService.acceptOrder(shipperId, orderId);
+    return res.status(200).json({ success: true, message: 'Đã nhận đơn, bắt đầu giao hàng!', data: order });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const markDelivered = async (req, res) => {
+  try {
+    const shipperId = req.user?.id;
+    const { orderId } = req.params;
+    const order = await orderService.markDelivered(shipperId, orderId);
+    return res.status(200).json({ success: true, message: 'Giao hàng thành công!', data: order });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const markDeliveryFailed = async (req, res) => {
+  try {
+    const shipperId = req.user?.id;
+    const orderId = Number(req.params.orderId);
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do giao thất bại.' });
+    }
+    const order = await orderService.markDeliveryFailed(shipperId, orderId, reason);
+    return res.status(200).json({ success: true, message: 'Đã ghi nhận giao hàng thất bại.', data: order });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getShipperStats = async (req, res) => {
+  try {
+    const shipperId = req.user?.id;
+    const stats = await orderService.getShipperStats(shipperId);
+    return res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const submitOrderFeedback = async (req, res) => {
+  try {
+    const userId = req.user?.id ?? req.user?.userId;
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+    const feedback = await orderService.submitOrderFeedback(userId, orderId, { rating, comment });
+    return res.status(201).json({ success: true, message: 'Đánh giá đơn hàng thành công!', data: feedback });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const submitShipperFeedback = async (req, res) => {
+  try {
+    const userId = req.user?.id ?? req.user?.userId;
+    const { orderId } = req.params;
+    const { rating, comment, tags } = req.body;
+    const feedback = await orderService.submitShipperFeedback(userId, orderId, { rating, comment, tags });
+    return res.status(201).json({ success: true, message: 'Đánh giá shipper thành công!', data: feedback });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -207,8 +318,16 @@ export default {
   getOrderById,
   cancelOrderItem,
   cancelOrder,
+  requestCancelOrder,
   getAdminOrders,
   getAdminOrderById,
   updateOrderStatus,
-  handleCancelRequest
+  handleCancelRequest,
+  getShipperOrders,
+  acceptOrder,
+  markDelivered,
+  markDeliveryFailed,
+  submitOrderFeedback,
+  submitShipperFeedback,
+  getShipperStats
 };

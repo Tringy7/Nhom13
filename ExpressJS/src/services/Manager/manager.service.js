@@ -4,13 +4,13 @@ import db from "../../entities/index.js";
 const getModels = () => {
     const {
         Product, Brand, ProductImage, Order, OrderDetail, User,
-        Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Category, Sequelize
+        Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
+        OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction
     } = db;
     return {
         Product, Brand, ProductImage, Order, OrderDetail, User,
-        Voucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderStatusHistory, Payment, Category, Sequelize,
+        Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
+        OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction,
         sequelize: db.sequelize
     };
 };
@@ -344,7 +344,7 @@ const getOrders = async (query = {}) => {
 };
 
 const getOrderById = async (id) => {
-    const { Order, User, OrderDetail, Product, Payment } = getModels();
+    const { Order, User, OrderDetail, Product, Payment, OrderCancellationRequest, Voucher } = getModels();
     return await Order.findByPk(id, {
         include: [
             { model: User, as: 'customer', attributes: ['id', 'fullName', 'email', 'phone'] },
@@ -354,24 +354,30 @@ const getOrderById = async (id) => {
                 as: 'details',
                 include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'thumbnail', 'price'] }]
             },
-            { model: Payment, as: 'payment' }
+            { model: Payment, as: 'payment' },
+            { model: OrderCancellationRequest, as: 'cancellationRequest' },
+            { model: Voucher, as: 'voucher' }
         ]
     });
 };
 
 const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
-    const { Order, OrderStatusHistory, sequelize } = getModels();
+    const { Order, OrderDetail, Product, User, UserVoucher, RewardTransaction, OrderStatusHistory, sequelize } = getModels();
     await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
-        const order = await Order.findByPk(id);
+        const order = await Order.findOne({
+            where: { id },
+            include: [{ model: OrderDetail, as: 'details' }],
+            transaction: t
+        });
         if (!order) {
             throw new Error("Đơn hàng không tồn tại");
         }
 
         const oldStatus = order.orderStatus;
-        await order.update({ orderStatus: status }, { transaction: t });
+        await order.update({ orderStatus: status, note: notes || order.note }, { transaction: t });
 
         await OrderStatusHistory.create({
             orderId: id,
@@ -379,6 +385,36 @@ const updateOrderStatus = async (id, status, notes = "", adminId = null) => {
             note: notes || `Trạng thái đơn hàng thay đổi từ ${oldStatus} sang ${status}`,
             changedBy: adminId
         }, { transaction: t });
+
+        if (status === 'CANCELLED') {
+            for (const detail of order.details || []) {
+                if (detail.status !== 'CANCELLED') {
+                    await detail.update({ status: 'CANCELLED' }, { transaction: t });
+                    await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+                }
+            }
+
+            if (order.pointsDiscount > 0) {
+                const user = await User.findByPk(order.userId, { transaction: t });
+                if (user) {
+                    await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                    await RewardTransaction.create({
+                        userId: order.userId,
+                        type: 'EARN',
+                        points: Math.ceil(order.pointsDiscount),
+                        description: `Hoàn điểm do hủy đơn hàng #${order.id}`,
+                        orderId: order.id
+                    }, { transaction: t });
+                }
+            }
+
+            if (order.voucherId) {
+                const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+                if (userVoucher) {
+                    await userVoucher.update({ isUsed: false }, { transaction: t });
+                }
+            }
+        }
 
         await t.commit();
         return await getOrderById(id);
@@ -406,7 +442,7 @@ const assignShipper = async (id, shipperId, shipperFee = 30000, adminId = null) 
 
         await order.update({
             shipperId: parseInt(shipperId),
-            shipperFee: parseFloat(shipperFee),
+            shipperFee: 30000,
             orderStatus: 'SHIPPING'
         }, { transaction: t });
 
@@ -577,12 +613,12 @@ const getCancellationRequests = async () => {
 };
 
 const processCancellationRequest = async (id, status, adminNotes = "", adminId = null) => {
-    const { OrderCancellationRequest, Order, OrderStatusHistory, sequelize } = getModels();
+    const { OrderCancellationRequest, Order, OrderDetail, Product, User, UserVoucher, RewardTransaction, OrderStatusHistory, sequelize } = getModels();
     await ensureOrderStatusHistoryTable();
     const t = await sequelize.transaction();
 
     try {
-        const request = await OrderCancellationRequest.findByPk(id);
+        const request = await OrderCancellationRequest.findByPk(id, { transaction: t });
         if (!request) {
             throw new Error("Yêu cầu hủy đơn không tồn tại");
         }
@@ -599,10 +635,42 @@ const processCancellationRequest = async (id, status, adminNotes = "", adminId =
         }, { transaction: t });
 
         if (status === 'APPROVED') {
-            await Order.update(
-                { orderStatus: 'CANCELLED' },
-                { where: { id: request.orderId }, transaction: t }
-            );
+            const order = await Order.findOne({
+                where: { id: request.orderId },
+                include: [{ model: OrderDetail, as: 'details' }],
+                transaction: t
+            });
+            if (order) {
+                await order.update({ orderStatus: 'CANCELLED', note: adminNotes || order.note }, { transaction: t });
+
+                for (const detail of order.details || []) {
+                    if (detail.status !== 'CANCELLED') {
+                        await detail.update({ status: 'CANCELLED' }, { transaction: t });
+                        await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+                    }
+                }
+
+                if (order.pointsDiscount > 0) {
+                    const user = await User.findByPk(order.userId, { transaction: t });
+                    if (user) {
+                        await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                        await RewardTransaction.create({
+                            userId: order.userId,
+                            type: 'EARN',
+                            points: Math.ceil(order.pointsDiscount),
+                            description: `Hoàn điểm do hủy đơn hàng #${order.id}`,
+                            orderId: order.id
+                        }, { transaction: t });
+                    }
+                }
+
+                if (order.voucherId) {
+                    const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+                    if (userVoucher) {
+                        await userVoucher.update({ isUsed: false }, { transaction: t });
+                    }
+                }
+            }
 
             await OrderStatusHistory.create({
                 orderId: request.orderId,
@@ -611,7 +679,7 @@ const processCancellationRequest = async (id, status, adminNotes = "", adminId =
                 changedBy: adminId
             }, { transaction: t });
         } else {
-            // Restore back to CONFIRMED or keep as is, but request is rejected
+            // Restore back to CONFIRMED
             await Order.update(
                 { orderStatus: 'CONFIRMED' },
                 { where: { id: request.orderId }, transaction: t }
@@ -714,6 +782,111 @@ const getSalesReport = async () => {
     };
 };
 
+/* =========================================================================
+   CHAT HISTORY
+   ========================================================================= */
+
+const getChatHistory = async (managerId, { page = 1, limit = 20, search = '' } = {}) => {
+    const { Conversation, Message, User, Sequelize } = { ...getModels(), Conversation: db.Conversation, Message: db.Message };
+    const { Op } = Sequelize;
+    const offset = (page - 1) * limit;
+
+    const where = { adminId: managerId };
+
+    // Search by user name or email via include
+    const userWhere = {};
+    if (search) {
+        userWhere[Op.or] = [
+            { fullName: { [Op.like]: `%${search}%` } },
+            { email: { [Op.like]: `%${search}%` } }
+        ];
+    }
+
+    const { count, rows } = await Conversation.findAndCountAll({
+        where,
+        include: [
+            {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'fullName', 'email', 'avatar'],
+                where: search ? userWhere : undefined,
+                required: !!search
+            },
+            {
+                model: Message,
+                as: 'messages',
+                attributes: ['id', 'content', 'senderId', 'createdAt'],
+                limit: 1,
+                order: [['createdAt', 'DESC']],
+                separate: true
+            }
+        ],
+        order: [['updatedAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        distinct: true
+    });
+
+    return {
+        data: rows.map(conv => {
+            const plain = conv.get({ plain: true });
+            return {
+                id: plain.id,
+                createdAt: plain.createdAt,
+                updatedAt: plain.updatedAt,
+                user: plain.user,
+                lastMessage: plain.messages && plain.messages.length > 0 ? plain.messages[0] : null,
+                messageCount: plain.messages ? plain.messages.length : 0
+            };
+        }),
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / limit)
+    };
+};
+
+const getChatDetail = async (conversationId, managerId) => {
+    const { Conversation, Message, User } = { ...getModels(), Conversation: db.Conversation, Message: db.Message };
+
+    const conversation = await Conversation.findOne({
+        where: { id: conversationId, adminId: managerId },
+        include: [
+            {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'fullName', 'email', 'avatar']
+            },
+            {
+                model: User,
+                as: 'admin',
+                attributes: ['id', 'fullName', 'email', 'avatar']
+            }
+        ]
+    });
+
+    if (!conversation) {
+        return null;
+    }
+
+    const messages = await Message.findAll({
+        where: { conversationId },
+        order: [['createdAt', 'ASC']],
+        include: [
+            {
+                model: User,
+                as: 'sender',
+                attributes: ['id', 'fullName', 'avatar', 'role']
+            }
+        ]
+    });
+
+    return {
+        conversation: conversation.get({ plain: true }),
+        messages: messages.map(m => m.get({ plain: true }))
+    };
+};
+
 export default {
     getProducts,
     getProductDetail,
@@ -744,5 +917,7 @@ export default {
     deletePromotion,
     getCancellationRequests,
     processCancellationRequest,
-    getSalesReport
+    getSalesReport,
+    getChatHistory,
+    getChatDetail
 };

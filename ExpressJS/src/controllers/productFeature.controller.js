@@ -70,13 +70,24 @@ const getProductInsights = async (req, res) => {
   }
 };
 
-// The functions 'addViewedProduct', 'getUserCoupons', and 'previewDiscount' were removed
-// as their corresponding services and models (ProductView, Coupon) were deleted for simplification.
+const addViewedProduct = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const productId = Number(req.params.id);
+    if (userId) {
+      await productFeatureService.addViewedProduct(userId, productId);
+    }
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(200).json({ success: true }); // silently ignore errors
+  }
+};
 
 export default {
   submitReview,
   toggleFavorite,
   getWishlist,
   getSimilarProducts,
-  getProductInsights
+  getProductInsights,
+  addViewedProduct
 };

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert } from 'antd';
+import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert, Modal } from 'antd';
 import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { getOrderById, cancelOrderItemApi } from '../util/api/order.api';
+import { getOrderById, cancelOrderItemApi, cancelOrderApi, requestCancelOrderApi, submitOrderFeedbackApi, submitShipperFeedbackApi } from '../util/api/order.api';
 import { submitReviewApi } from '../util/api/product-feature.api';
 import { getImageUrl } from '../util/helpers';
 import styled, { keyframes } from 'styled-components';
@@ -18,7 +18,8 @@ const ORDER_STATUS = Object.freeze({
     SHIPPING: 'SHIPPING',
     DELIVERED: 'DELIVERED',
     CANCELLED: 'CANCELLED',
-    CANCEL_REQUEST: 'CANCEL_REQUEST'
+    CANCEL_REQUEST: 'CANCEL_REQUEST',
+    DELIVERY_FAILED: 'DELIVERY_FAILED'
 });
 
 const ORDER_DETAIL_STATUS = Object.freeze({
@@ -181,15 +182,29 @@ const Connector = styled.div`
 
 // --- UI COMPONENTS ---
 
-const OrderStatusTracker = ({ status }) => {
+const OrderStatusTracker = ({ order }) => {
+    const status = order.orderStatus;
     if (status === ORDER_STATUS.CANCELLED || status === ORDER_STATUS.CANCEL_REQUEST) {
         const isCancelled = status === ORDER_STATUS.CANCELLED;
+        const reasonText = order.cancellationRequest?.reason 
+            ? `Lý do hủy: ${order.cancellationRequest.reason}` 
+            : (order.note ? `Ghi chú: ${order.note}` : '');
+        const adminNotesText = order.cancellationRequest?.adminNotes 
+            ? `Phản hồi của Shop: ${order.cancellationRequest.adminNotes}` 
+            : '';
+
         return (
             <Alert
                 style={{ marginTop: 16 }}
                 type={isCancelled ? 'error' : 'warning'}
-                message={isCancelled ? 'Order Cancelled' : 'Cancellation Requested'}
-                description={isCancelled ? 'This order has been cancelled.' : 'Awaiting confirmation for cancellation.'}
+                message={isCancelled ? 'Đơn hàng đã hủy' : 'Yêu cầu hủy đơn hàng'}
+                description={
+                    <div>
+                        <p>{isCancelled ? 'Đơn hàng này đã bị hủy.' : 'Đang chờ shop xác nhận yêu cầu hủy.'}</p>
+                        {reasonText && <p style={{ fontWeight: 500, margin: '4px 0 0' }}>{reasonText}</p>}
+                        {adminNotesText && <p style={{ fontWeight: 500, margin: '4px 0 0', color: '#cf1322' }}>{adminNotesText}</p>}
+                    </div>
+                }
                 showIcon
                 icon={isCancelled ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
             />
@@ -233,7 +248,7 @@ const OrderHeader = ({ order }) => {
                     <Button type="primary" icon={<CustomerServiceOutlined />}>Get Support</Button>
                 </Space>
             </div>
-            <OrderStatusTracker status={order.orderStatus} />
+            <OrderStatusTracker order={order} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f9fafb', padding: '12px 16px', borderRadius: 8, marginTop: 16 }}>
                 <Space size="large">
                     <Text style={{ color: '#595959' }}>Arrived: {formatDateTime(order.updatedAt)}</Text>
@@ -245,7 +260,7 @@ const OrderHeader = ({ order }) => {
     );
 };
 
-const ProductItem = ({ item, orderStatus, onReview, onCancelItem }) => {
+const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) => {
     const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus);
     const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
 
@@ -266,7 +281,14 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem }) => {
                         <Space>
                             {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && (
                                 <>
-                                    <Button size="small" icon={<StarOutlined />} onClick={onReview}>Review Product</Button>
+                                    {hasReview ? (
+                                        <Space direction="vertical" align="end" size={2}>
+                                            <Tag color="success">Đã đánh giá</Tag>
+                                            <Rate disabled defaultValue={hasReview.rating} style={{ fontSize: 12 }} />
+                                        </Space>
+                                    ) : (
+                                        <Button size="small" icon={<StarOutlined />} onClick={onReview}>Review Product</Button>
+                                    )}
                                     <Button size="small" icon={<ShoppingCartOutlined />} type="default">Buy Again</Button>
                                 </>
                             )}
@@ -281,7 +303,7 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem }) => {
     );
 };
 
-const ProductListCard = ({ details, orderStatus, onReview, onCancelItem }) => {
+const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, onCancelItem }) => {
     const [isCollapsed, setIsCollapsed] = useState(details.length > 3);
     const itemsToShow = isCollapsed ? details.slice(0, 3) : details;
 
@@ -289,11 +311,20 @@ const ProductListCard = ({ details, orderStatus, onReview, onCancelItem }) => {
         <CardBase>
             <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Purchased Products ({details.length})</Title>
             <div style={{ margin: '0 -24px' }}>
-                {itemsToShow.map(item => (
-                    <div key={item.id} style={{ padding: '0 24px' }}>
-                        <ProductItem item={item} orderStatus={orderStatus} onReview={() => onReview(item)} onCancelItem={() => onCancelItem(item.id)} />
-                    </div>
-                ))}
+                {itemsToShow.map(item => {
+                    const hasReview = productReviews.find(r => r.productId === item.productId);
+                    return (
+                        <div key={item.id} style={{ padding: '0 24px' }}>
+                            <ProductItem 
+                                item={item} 
+                                orderStatus={orderStatus} 
+                                onReview={() => onReview(item)} 
+                                onCancelItem={() => onCancelItem(item.id)} 
+                                hasReview={hasReview}
+                            />
+                        </div>
+                    );
+                })}
             </div>
             {details.length > 3 && (
                 <Button type="link" onClick={() => setIsCollapsed(!isCollapsed)} style={{ marginTop: 16, padding: 0 }}>
@@ -320,21 +351,98 @@ const ShippingAddressCard = ({ order }) => (
     </CardBase>
 );
 
-const FeedbackSystemCard = () => (
-    <CardBase>
-        <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><FileTextOutlined /> Feedback to System</Title>
-        <Text style={{ display: 'block', marginBottom: 16, color: '#595959' }}>Help us improve your experience</Text>
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            <Rate />
-            <TextArea rows={4} placeholder="Any issues with the order process, payment, or website?" />
-            <Button block>Submit Feedback</Button>
-        </Space>
-    </CardBase>
-);
+const FeedbackSystemCard = ({ orderId, existingFeedback }) => {
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
+    const [submitted, setSubmitted] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-const FeedbackShipperCard = () => {
+    useEffect(() => {
+        if (existingFeedback) {
+            setRating(existingFeedback.rating);
+            setComment(existingFeedback.comment);
+            setSubmitted(true);
+        }
+    }, [existingFeedback]);
+
+    const handleSubmit = async () => {
+        if (rating === 0) {
+            message.warning('Vui lòng chọn số sao đánh giá hệ thống!');
+            return;
+        }
+        setLoading(true);
+        try {
+            await submitOrderFeedbackApi(orderId, { rating, comment });
+            message.success('Cảm ơn bạn đã đóng góp ý kiến đánh giá hệ thống!');
+            setSubmitted(true);
+        } catch (err) {
+            message.error(err.response?.data?.message || 'Gửi đánh giá thất bại.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (submitted) {
+        return (
+            <CardBase style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: '#389e0d' }}>
+                    <CheckCircleOutlined /> Đánh giá hệ thống & Trải nghiệm
+                </Title>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                        <Text type="secondary" style={{ marginRight: 8 }}>Điểm đánh giá:</Text>
+                        <Rate disabled value={rating} />
+                    </div>
+                    {comment && (
+                        <div>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>Bình luận của bạn:</Text>
+                            <Paragraph italic style={{ color: '#434343', background: '#ffffff', padding: '8px 12px', borderRadius: 8, border: '1px solid #f0f0f0', margin: 0 }}>
+                                "{comment}"
+                            </Paragraph>
+                        </div>
+                    )}
+                </div>
+            </CardBase>
+        );
+    }
+
+    return (
+        <CardBase>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><FileTextOutlined style={{ color: '#1677ff' }} /> Đánh giá hệ thống & Trải nghiệm</Title>
+            <Text style={{ display: 'block', marginBottom: 16, color: '#595959' }}>Ý kiến của bạn giúp chúng tôi cải thiện dịch vụ mua sắm tốt hơn</Text>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Rate value={rating} onChange={setRating} />
+                <TextArea rows={4} value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhập cảm nhận của bạn về quy trình mua sắm, thanh toán hoặc website..." />
+                <Button type="primary" block loading={loading} onClick={handleSubmit}>Gửi đánh giá hệ thống</Button>
+            </Space>
+        </CardBase>
+    );
+};
+
+const FeedbackShipperCard = ({ orderId, shipper, existingFeedback }) => {
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
     const [selectedTags, setSelectedTags] = useState([]);
-    const tags = ["On time", "Handled carefully", "Polite & friendly"];
+    const [submitted, setSubmitted] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (existingFeedback) {
+            setRating(existingFeedback.rating);
+            const match = existingFeedback.comment?.match(/^\[Tags:\s*([^\]]+)\]\s*(.*)/);
+            if (match) {
+                setSelectedTags(match[1].split(',').map(t => t.trim()));
+                setComment(match[2]);
+            } else {
+                setComment(existingFeedback.comment);
+            }
+            setSubmitted(true);
+        }
+    }, [existingFeedback]);
+
+    if (!shipper) return null;
+
+    const tags = ["Giao hàng nhanh", "Cẩn thận", "Thân thiện & lịch sự", "Đúng hẹn"];
 
     const handleTagClick = (tag) => {
         const newSelectedTags = selectedTags.includes(tag)
@@ -343,12 +451,58 @@ const FeedbackShipperCard = () => {
         setSelectedTags(newSelectedTags);
     };
 
+    const handleSubmit = async () => {
+        if (rating === 0) {
+            message.warning('Vui lòng chọn số sao đánh giá shipper!');
+            return;
+        }
+        setLoading(true);
+        try {
+            await submitShipperFeedbackApi(orderId, { rating, comment, tags: selectedTags });
+            message.success('Cảm ơn bạn đã đánh giá dịch vụ giao hàng!');
+            setSubmitted(true);
+        } catch (err) {
+            message.error(err.response?.data?.message || 'Gửi đánh giá thất bại.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (submitted) {
+        return (
+            <CardBase style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: '#389e0d' }}>
+                    <CheckCircleOutlined /> Đánh giá Shipper ({shipper.fullName})
+                </Title>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                        <Text type="secondary" style={{ marginRight: 8 }}>Điểm đánh giá:</Text>
+                        <Rate disabled value={rating} />
+                    </div>
+                    {selectedTags.length > 0 && (
+                        <Space wrap style={{ marginTop: 4 }}>
+                            {selectedTags.map(tag => <Tag key={tag} color="blue">{tag}</Tag>)}
+                        </Space>
+                    )}
+                    {comment && (
+                        <div style={{ marginTop: 4 }}>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>Bình luận của bạn:</Text>
+                            <Paragraph italic style={{ color: '#434343', background: '#ffffff', padding: '8px 12px', borderRadius: 8, border: '1px solid #f0f0f0', margin: 0 }}>
+                                "{comment}"
+                            </Paragraph>
+                        </div>
+                    )}
+                </div>
+            </CardBase>
+        );
+    }
+
     return (
         <CardBase>
-            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><CarOutlined /> Feedback to Shipper</Title>
-            <Text style={{ display: 'block', marginBottom: 16, color: '#595959' }}>Rate your delivery experience</Text>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><CarOutlined style={{ color: '#52c41a' }} /> Đánh giá Shipper ({shipper.fullName})</Title>
+            <Text style={{ display: 'block', marginBottom: 16, color: '#595959' }}>Hãy chia sẻ trải nghiệm nhận hàng của bạn</Text>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                <Rate />
+                <Rate value={rating} onChange={setRating} />
                 <Space wrap>
                     {tags.map(tag => (
                         <Button
@@ -360,9 +514,120 @@ const FeedbackShipperCard = () => {
                         </Button>
                     ))}
                 </Space>
-                <TextArea rows={4} placeholder="Any comments about the delivery?" />
-                <Button block>Submit Feedback</Button>
+                <TextArea rows={4} value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhập phản hồi về quá trình vận chuyển & giao hàng..." />
+                <Button type="primary" block loading={loading} onClick={handleSubmit}>Gửi đánh giá Shipper</Button>
             </Space>
+        </CardBase>
+    );
+};
+
+const ShipperCard = ({ shipper, status }) => {
+    if (!shipper) return null;
+    return (
+        <CardBase style={{ border: '1px solid #e6f7ff', background: '#f0f5ff', borderRadius: 12 }}>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CarOutlined style={{ color: '#1890ff' }} /> Thông tin Shipper giao hàng
+            </Title>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: '#1890ff',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    flexShrink: 0
+                }}>
+                    {shipper.fullName?.charAt(0).toUpperCase() || 'S'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ fontSize: 16, display: 'block' }}>{shipper.fullName}</Text>
+                    <Text type="secondary" style={{ display: 'block', fontSize: 13, marginTop: 4 }}>
+                        <PhoneOutlined /> {shipper.phone || 'Chưa cập nhật SĐT'}
+                    </Text>
+                </div>
+                <div>
+                    <Tag color={status === 'DELIVERED' ? 'green' : (status === 'DELIVERY_FAILED' ? 'red' : 'blue')} style={{ margin: 0, fontWeight: 500 }}>
+                        {status === 'DELIVERED' ? 'Đã giao hàng' : (status === 'DELIVERY_FAILED' ? 'Giao thất bại' : 'Đang giao hàng')}
+                    </Tag>
+                </div>
+            </div>
+            {shipper.phone && (
+                <>
+                    <Divider style={{ margin: '16px 0' }} />
+                    <Button 
+                        type="primary" 
+                        ghost 
+                        icon={<PhoneOutlined />} 
+                        href={`tel:${shipper.phone}`}
+                        style={{ width: '100%', borderRadius: 8, height: 40, fontWeight: 500 }}
+                    >
+                        Liên hệ Shipper
+                    </Button>
+                </>
+            )}
+        </CardBase>
+    );
+};
+
+// --- CancelOrderCard: hiển thị nút hủy đơn hoặc yêu cầu hủy ---
+const CancelOrderCard = ({ order, onCancelInitiated }) => {
+    const status = order.orderStatus;
+
+    // Không hiển thị nút hủy khi đơn đã bị hủy / đã giao / đang ship / giao thất bại
+    if ([ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERED, ORDER_STATUS.SHIPPING].includes(status)) {
+        return null;
+    }
+    // Nếu đã gửi yêu cầu hủy
+    if (status === ORDER_STATUS.CANCEL_REQUEST) {
+        return (
+            <CardBase>
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Yêu cầu hủy đơn đã được gửi"
+                    description="Shop đang xem xét yêu cầu hủy của bạn. Vui lòng chờ phản hồi."
+                />
+            </CardBase>
+        );
+    }
+
+    // NEW hoặc CONFIRMED: hủy trực tiếp
+    // PREPARING: gửi yêu cầu
+    const canDirectCancel = (status === ORDER_STATUS.NEW || status === ORDER_STATUS.CONFIRMED);
+    const canRequestCancel = (status === ORDER_STATUS.PREPARING);
+
+    if (!canDirectCancel && !canRequestCancel) return null;
+
+    return (
+        <CardBase style={{ border: '1px solid #ffa39e', background: '#fff1f0' }}>
+            <Title level={5} style={{ color: '#cf1322', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CloseCircleOutlined /> Hủy đơn hàng
+            </Title>
+            {canDirectCancel && (
+                <>
+                    <Text style={{ display: 'block', marginBottom: 12, color: '#595959', fontSize: 13 }}>
+                        Đơn hàng của bạn đang ở trạng thái {status === ORDER_STATUS.NEW ? 'Đơn mới' : 'Đã xác nhận'}. Bạn có thể hủy trực tiếp đơn hàng này.
+                    </Text>
+                    <Button danger type="primary" icon={<CloseCircleOutlined />} onClick={() => onCancelInitiated('direct')} block>
+                        Hủy đơn hàng
+                    </Button>
+                </>
+            )}
+            {canRequestCancel && (
+                <>
+                    <Text style={{ display: 'block', marginBottom: 12, color: '#595959', fontSize: 13 }}>
+                        Shop đang chuẩn bị hàng. Bạn chỉ có thể gửi yêu cầu hủy, shop sẽ xem xét và phản hồi.
+                    </Text>
+                    <Button danger icon={<CloseCircleOutlined />} onClick={() => onCancelInitiated('request')} block>
+                        Gửi yêu cầu hủy đơn
+                    </Button>
+                </>
+            )}
         </CardBase>
     );
 };
@@ -370,17 +635,36 @@ const FeedbackShipperCard = () => {
 const OrderSummary = ({ order }) => {
     const activeItems = order.details.filter(item => item.status !== ORDER_DETAIL_STATUS.CANCELLED);
     const subtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
-    const shippingFee = Number(order.shippingFee || 0);
+    const shippingFee = Number(order.shippingFee || 30000);
     const total = Number(order.totalAmount);
-    const discount = subtotal + shippingFee - total;
+    
+    const vDiscount = Number(order.voucherDiscount || 0);
+    const pDiscount = Number(order.pointsDiscount || 0);
 
     return (
         <CardBase>
             <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Order Summary</Title>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
                 <Row justify="space-between"><Text style={{ color: '#595959' }}>Subtotal</Text><Text strong>{formatPrice(subtotal)}</Text></Row>
-                <Row justify="space-between"><Text style={{ color: '#595959' }}>Shipping Fee</Text><Text strong>{shippingFee > 0 ? formatPrice(shippingFee) : 'FREE'}</Text></Row>
-                {discount > 0 && <Row justify="space-between"><Text style={{ color: 'red' }}>Voucher Discount</Text><Text strong style={{ color: 'red' }}>-{formatPrice(discount)}</Text></Row>}
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Shipping Fee</Text><Text strong>{formatPrice(shippingFee)}</Text></Row>
+                {order.voucher && (
+                    <Row justify="space-between">
+                        <Text style={{ color: '#52c41a' }}>Voucher ({order.voucher.code})</Text>
+                        <Text strong style={{ color: '#52c41a' }}>-{formatPrice(vDiscount)}</Text>
+                    </Row>
+                )}
+                {vDiscount > 0 && !order.voucher && (
+                    <Row justify="space-between">
+                        <Text style={{ color: '#52c41a' }}>Giảm giá Voucher</Text>
+                        <Text strong style={{ color: '#52c41a' }}>-{formatPrice(vDiscount)}</Text>
+                    </Row>
+                )}
+                {pDiscount > 0 && (
+                    <Row justify="space-between">
+                        <Text style={{ color: '#fa8c16' }}>Dùng điểm tích lũy</Text>
+                        <Text strong style={{ color: '#fa8c16' }}>-{formatPrice(pDiscount)}</Text>
+                    </Row>
+                )}
                 <Row justify="space-between"><Text style={{ color: '#595959' }}>Tax (inc.)</Text><Text strong>{formatPrice(0)}</Text></Row>
             </Space>
             <Divider style={{ margin: '24px 0' }} />
@@ -519,6 +803,10 @@ const OrderDetailPage = () => {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [reviewDrawer, setReviewDrawer] = useState({ visible: false, product: null });
+    const [cancelReason, setCancelReason] = useState('');
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [cancelType, setCancelType] = useState('direct'); // 'direct' or 'request'
+    const [cancelReasonInput, setCancelReasonInput] = useState('');
 
     const fetchOrder = async () => {
         setLoading(true);
@@ -542,9 +830,10 @@ const OrderDetailPage = () => {
     const handleReviewSubmit = async (reviewData) => {
         try {
             await submitReviewApi(reviewDrawer.product.productId, reviewData);
-            message.success('Thank you for your review!');
+            message.success('Đánh giá sản phẩm thành công!');
+            fetchOrder();
         } catch (error) {
-            message.error('Failed to submit review.');
+            message.error('Gửi đánh giá thất bại.');
             throw error;
         }
     };
@@ -553,10 +842,42 @@ const OrderDetailPage = () => {
         try {
             await cancelOrderItemApi(id, itemId);
             message.success('Item has been cancelled.');
-            fetchOrder(); // Refresh order details
+            fetchOrder();
         } catch (error) {
             message.error('Failed to cancel item.');
         }
+    };
+
+    const handleCancelInitiated = (type) => {
+        setCancelType(type);
+        setCancelReasonInput('');
+        setIsCancelModalOpen(true);
+    };
+
+    const handleConfirmCancel = async () => {
+        const reason = cancelReasonInput.trim();
+        if (!reason) {
+            return message.warning('Vui lòng nhập lý do hủy đơn hàng!');
+        }
+
+        if (cancelType === 'direct') {
+            try {
+                await cancelOrderApi(id, reason);
+                message.success('Đơn hàng đã được hủy thành công.');
+                fetchOrder();
+            } catch (error) {
+                message.error(error?.response?.data?.message || 'Không thể hủy đơn hàng.');
+            }
+        } else {
+            try {
+                await requestCancelOrderApi(id, reason);
+                message.success('Yêu cầu hủy đơn đã được gửi đến shop.');
+                fetchOrder();
+            } catch (error) {
+                message.error(error?.response?.data?.message || 'Không thể gửi yêu cầu hủy.');
+            }
+        }
+        setIsCancelModalOpen(false);
     };
 
     if (loading) {
@@ -579,11 +900,33 @@ const OrderDetailPage = () => {
                 <MainGrid>
                     <LeftColumn>
                         <OrderHeader order={order} />
-                        <ProductListCard details={order.details} orderStatus={order.orderStatus} onReview={handleOpenReview} onCancelItem={handleCancelItem} />
+                        {order.cancellationRequest?.status === 'REJECTED' && (
+                            <Alert
+                                type="error"
+                                showIcon
+                                message="Yêu cầu hủy đơn bị từ chối"
+                                description={
+                                    <div>
+                                        <p>Yêu cầu hủy đơn hàng của bạn đã bị từ chối bởi cửa hàng.</p>
+                                        {order.cancellationRequest.adminNotes && (
+                                            <p style={{ fontWeight: 500, margin: '4px 0 0' }}>
+                                                Lý do từ chối: {order.cancellationRequest.adminNotes}
+                                            </p>
+                                        )}
+                                    </div>
+                                }
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
+                        <ProductListCard details={order.details} orderStatus={order.orderStatus} productReviews={order.productReviews} onReview={handleOpenReview} onCancelItem={handleCancelItem} />
+                        <CancelOrderCard
+                            order={order}
+                            onCancelInitiated={handleCancelInitiated}
+                        />
                         {order.orderStatus === ORDER_STATUS.DELIVERED && (
                             <>
-                                <FeedbackSystemCard />
-                                <FeedbackShipperCard />
+                                <FeedbackSystemCard orderId={order.id} existingFeedback={order.feedbacks?.find(f => f.targetType === 'ORDER')} />
+                                <FeedbackShipperCard orderId={order.id} shipper={order.shipper} existingFeedback={order.feedbacks?.find(f => f.targetType === 'SHOP')} />
                             </>
                         )}
                     </LeftColumn>
@@ -591,6 +934,7 @@ const OrderDetailPage = () => {
                     <RightColumn>
                         <OrderSummary order={order} />
                         <ShippingAddressCard order={order} />
+                        <ShipperCard shipper={order.shipper} status={order.orderStatus} />
                     </RightColumn>
                 </MainGrid>
             </Container>
@@ -603,6 +947,34 @@ const OrderDetailPage = () => {
                 onClose={handleCloseReview}
                 onSubmit={handleReviewSubmit}
             />
+
+            <Modal
+                title={cancelType === 'direct' ? "Xác nhận hủy đơn hàng" : "Gửi yêu cầu hủy đơn hàng"}
+                open={isCancelModalOpen}
+                onOk={handleConfirmCancel}
+                onCancel={() => setIsCancelModalOpen(false)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+                destroyOnClose
+            >
+                <div style={{ marginTop: 16 }}>
+                    {cancelType === 'request' && (
+                        <Text style={{ display: 'block', marginBottom: 12, color: '#595959', fontSize: 13 }}>
+                            Bạn đã quá thời gian hủy trực tiếp hoặc shop đang chuẩn bị hàng.
+                            Vui lòng nhập lý do để gửi yêu cầu hủy cho shop xét duyệt.
+                        </Text>
+                    )}
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Lý do hủy đơn hàng <Text type="danger">*</Text>
+                    </Text>
+                    <Input.TextArea
+                        rows={4}
+                        placeholder={cancelType === 'direct' ? "Nhập lý do hủy đơn trực tiếp..." : "Nhập lý do gửi yêu cầu hủy đơn..."}
+                        value={cancelReasonInput}
+                        onChange={(e) => setCancelReasonInput(e.target.value)}
+                    />
+                </div>
+            </Modal>
         </PageWrapper>
     );
 };

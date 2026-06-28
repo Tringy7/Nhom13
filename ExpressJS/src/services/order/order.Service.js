@@ -17,6 +17,8 @@ const {
     UserVoucher,
     Voucher,
     OrderCancellationRequest,
+    Review,
+    ProductReview,
     sequelize
 } = db;
 
@@ -91,7 +93,8 @@ const createOrder = async (userId, {
             pointsDiscount = Math.max(0, subtotal - voucherDiscount);
         }
 
-        const finalTotalWithCorrection = Math.max(0, subtotal - voucherDiscount - pointsDiscount);
+        const shippingFee = 30000;
+        const finalTotalWithCorrection = Math.max(0, subtotal + shippingFee - voucherDiscount - pointsDiscount);
 
         const order = await Order.create({
             userId,
@@ -103,7 +106,7 @@ const createOrder = async (userId, {
             voucherDiscount,
             pointsDiscount,
             totalAmount: finalTotalWithCorrection,
-            shippingFee: 0,
+            shippingFee,
             orderStatus: ORDER_STATUS.NEW,
             voucherId: appliedVoucherId,
             shippingMethod: 'Giao hàng tiêu chuẩn'
@@ -127,7 +130,7 @@ const createOrder = async (userId, {
         }, { transaction: t });
 
         if (userVoucher) {
-            await userVoucher.update({ isUsed: true, orderId: order.id }, { transaction: t });
+            await userVoucher.update({ isUsed: true }, { transaction: t });
         }
 
         if (pointsDiscount > 0) {
@@ -223,9 +226,9 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
                 await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
                 await createRewardHistory(userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.EARN, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
             }
-            const userVoucher = await UserVoucher.findOne({ where: { orderId: order.id }, transaction: t });
+            const userVoucher = await UserVoucher.findOne({ where: { userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
             if (userVoucher) {
-                await userVoucher.update({ isUsed: false, orderId: null }, { transaction: t });
+                await userVoucher.update({ isUsed: false }, { transaction: t });
             }
         }
 
@@ -238,8 +241,21 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
     }
 };
 
+const autoConfirmOldOrders = async () => {
+    try {
+        const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+        await Order.update(
+            { orderStatus: ORDER_STATUS.CONFIRMED },
+            { where: { orderStatus: ORDER_STATUS.NEW, createdAt: { [Op.lte]: thirtyMinsAgo } } }
+        );
+    } catch (err) {
+        console.error('Auto confirm error:', err);
+    }
+};
+
 const getOrders = async (userId) => {
-    const { Order, OrderItem, Product, Payment } = db;
+    await autoConfirmOldOrders();
+    const { Order, OrderDetail, Product, Payment } = db;
     return Order.findAll({
         where: { userId },
         include: [
@@ -260,6 +276,7 @@ const getOrders = async (userId) => {
 };
 
 const getOrderById = async (userId, orderId) => {
+    await autoConfirmOldOrders();
     const order = await Order.findOne({
         where: { id: orderId, userId },
         include: [
@@ -276,19 +293,42 @@ const getOrderById = async (userId, orderId) => {
                 model: Payment,
                 as: 'payment',
             },
-            { model: User, as: 'shipper', attributes: ['fullName', 'phone'] }
+            { model: User, as: 'shipper', attributes: ['fullName', 'phone'] },
+            { model: OrderCancellationRequest, as: 'cancellationRequest' },
+            { model: Voucher, as: 'voucher' }
         ]
     });
     if (!order) throw new Error('Không tìm thấy đơn hàng');
-    return order;
+
+    // Lấy feedback hệ thống và shipper cho đơn hàng này
+    const feedbacks = await Review.findAll({
+        where: {
+            targetId: orderId,
+            targetType: ['ORDER', 'SHOP']
+        }
+    });
+
+    // Lấy đánh giá sản phẩm của đơn hàng này
+    const productReviews = await ProductReview.findAll({
+        where: {
+            orderId,
+            userId
+        }
+    });
+
+    const orderData = order.toJSON();
+    orderData.feedbacks = feedbacks || [];
+    orderData.productReviews = productReviews || [];
+
+    return orderData;
 };
 
 const requestCancelOrder = async (userId, orderId, reason) => {
     const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) throw new Error('Không tìm thấy đơn hàng');
 
-    if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.orderStatus)) {
-        throw new Error('Chỉ có thể yêu cầu hủy đơn hàng ở trạng thái "Mới" hoặc "Đã xác nhận".');
+    if (order.orderStatus !== ORDER_STATUS.PREPARING) {
+        throw new Error('Chỉ có thể gửi yêu cầu hủy đơn ở trạng thái Đang chuẩn bị hàng.');
     }
 
     const existingRequest = await OrderCancellationRequest.findOne({ where: { orderId } });
@@ -308,19 +348,61 @@ const requestCancelOrder = async (userId, orderId, reason) => {
     return cancellationRequest;
 };
 
-const cancelOrder = async (userId, orderId) => {
-  const { Order } = db;
-  const order = await Order.findOne({ where: { id: orderId, userId } });
-  if (!order) throw new Error('Không tìm thấy đơn hàng');
+const cancelOrder = async (userId, orderId, reason) => {
+    const t = await sequelize.transaction();
+    try {
+        const order = await Order.findOne({
+            where: { id: orderId, userId },
+            include: [{ model: OrderDetail, as: 'details' }],
+            transaction: t
+        });
+        if (!order) throw new Error('Không tìm thấy đơn hàng');
 
-  if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.status)) {
-    throw new Error('Chỉ có thể hủy đơn hàng ở trạng thái mới hoặc đã xác nhận.');
-  }
+        if (![ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(order.orderStatus)) {
+            throw new Error('Chỉ được hủy trực tiếp ở trạng thái Đơn mới hoặc Đã xác nhận.');
+        }
 
-  return transitionOrderStatus(order, ORDER_STATUS.CANCELLED, {
-    changedBy: userId,
-    note: 'Người dùng đã hủy đơn hàng.'
-  });
+        // Lưu lý do hủy trực tiếp vào note của order
+        const cancelNote = reason ? `Hủy đơn: ${reason}` : 'Người dùng hủy đơn trực tiếp';
+        await order.update({ orderStatus: ORDER_STATUS.CANCELLED, note: cancelNote }, { transaction: t });
+
+        // Tạo yêu cầu hủy với trạng thái APPROVED trực tiếp để manager và user có thể thấy lý do
+        await OrderCancellationRequest.create({
+            orderId: order.id,
+            userId,
+            reason: reason || 'Người dùng hủy đơn trực tiếp',
+            status: 'APPROVED',
+            processedAt: new Date()
+        }, { transaction: t });
+
+        for (const detail of order.details || []) {
+            if (detail.status !== ORDER_DETAIL_STATUS.CANCELLED) {
+                await detail.update({ status: ORDER_DETAIL_STATUS.CANCELLED }, { transaction: t });
+                await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+            }
+        }
+
+        if (order.pointsDiscount > 0) {
+            const user = await User.findByPk(userId, { transaction: t });
+            if (user) {
+                await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                await createRewardHistory(userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.EARN, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
+            }
+        }
+
+        if (order.voucherId) {
+            const userVoucher = await UserVoucher.findOne({ where: { userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+            if (userVoucher) {
+                await userVoucher.update({ isUsed: false }, { transaction: t });
+            }
+        }
+
+        await t.commit();
+        return order;
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
 };
   
 const getAdminOrders = async () => {
@@ -386,45 +468,276 @@ const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
 //     return order;
 // };
 
-const handleCancelRequest = async (adminId, requestId, { approve, adminNotes = '' }) => {
-    const request = await OrderCancellationRequest.findByPk(requestId, { include: [Order] });
-    if (!request) throw new Error('Không tìm thấy yêu cầu hủy.');
-
-    if (request.status !== 'PENDING') {
-        throw new Error('Yêu cầu này đã được xử lý.');
-    }
-
-    const order = request.Order;
-    const now = new Date();
-
-    if (approve) {
-        await request.update({
-            status: 'APPROVED',
-            approvedBy: adminId,
-            adminNotes,
-            processedAt: now
+const handleCancelRequest = async (adminId, orderId, { approve, adminNotes = '' }) => {
+    const t = await sequelize.transaction();
+    try {
+        const request = await OrderCancellationRequest.findOne({
+            where: { orderId, status: 'PENDING' },
+            include: [{
+                model: Order,
+                as: 'order',
+                include: [{ model: OrderDetail, as: 'details' }]
+            }],
+            transaction: t
         });
-        await order.update({ orderStatus: ORDER_STATUS.CANCELLED });
-    } else {
-        await request.update({
-            status: 'REJECTED',
-            approvedBy: adminId,
-            adminNotes,
-            processedAt: now
-        });
-        await order.update({ orderStatus: ORDER_STATUS.CONFIRMED });
+        if (!request) throw new Error('Không tìm thấy yêu cầu hủy đang chờ duyệt.');
+
+        if (request.status !== 'PENDING') {
+            throw new Error('Yêu cầu này đã được xử lý.');
+        }
+
+        const order = request.order;
+        const now = new Date();
+
+        if (approve) {
+            await request.update({
+                status: 'APPROVED',
+                approvedBy: adminId,
+                adminNotes,
+                processedAt: now
+            }, { transaction: t });
+
+            if (order) {
+                await order.update({ orderStatus: ORDER_STATUS.CANCELLED, note: adminNotes || order.note }, { transaction: t });
+
+                for (const detail of order.details || []) {
+                    if (detail.status !== ORDER_DETAIL_STATUS.CANCELLED) {
+                        await detail.update({ status: ORDER_DETAIL_STATUS.CANCELLED }, { transaction: t });
+                        await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+                    }
+                }
+
+                if (order.pointsDiscount > 0) {
+                    const user = await User.findByPk(order.userId, { transaction: t });
+                    if (user) {
+                        await user.increment('points', { by: Math.ceil(order.pointsDiscount), transaction: t });
+                        await createRewardHistory(order.userId, Math.ceil(order.pointsDiscount), REWARD_TYPE.EARN, `Hoàn điểm do hủy đơn hàng #${order.id}`, { transaction: t });
+                    }
+                }
+
+                if (order.voucherId) {
+                    const userVoucher = await UserVoucher.findOne({ where: { userId: order.userId, voucherId: order.voucherId, isUsed: true }, transaction: t });
+                    if (userVoucher) {
+                        await userVoucher.update({ isUsed: false }, { transaction: t });
+                    }
+                }
+            }
+        } else {
+            await request.update({
+                status: 'REJECTED',
+                approvedBy: adminId,
+                adminNotes,
+                processedAt: now
+            }, { transaction: t });
+
+            if (order) {
+                await order.update({ orderStatus: ORDER_STATUS.CONFIRMED }, { transaction: t });
+            }
+        }
+
+        await t.commit();
+        return request;
+    } catch (error) {
+        await t.rollback();
+        throw error;
     }
-    return request;
+};
+
+// ── Shipper Methods ──────────────────────────────────────────────────
+// Lấy đơn hàng đang ở trạng thái CONFIRMED (chờ shipper nhận) và đơn của shipper này đang giao
+async function getShipperOrders(shipperId) {
+    const orders = await Order.findAll({
+        where: {
+            [Op.or]: [
+                { orderStatus: ORDER_STATUS.CONFIRMED },
+                {
+                    shipperId,
+                    orderStatus: [ORDER_STATUS.SHIPPING, ORDER_STATUS.DELIVERED, ORDER_STATUS.DELIVERY_FAILED]
+                }
+            ]
+        },
+        include: [
+            {
+                model: OrderDetail,
+                as: 'details',
+                include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'thumbnail', 'price'] }]
+            },
+            { model: Payment, as: 'payment' }
+        ],
+        order: [['createdAt', 'DESC']]
+    });
+    return orders;
 }
+
+// Shipper nhận đơn → SHIPPING (mặc định phí 30,000 VND)
+async function acceptOrder(shipperId, orderId) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Không tìm thấy đơn hàng.');
+    if (order.orderStatus !== ORDER_STATUS.CONFIRMED) {
+        throw new Error('Đơn hàng không ở trạng thái có thể nhận.');
+    }
+    await order.update({ orderStatus: ORDER_STATUS.SHIPPING, shipperId, shipperFee: 30000 });
+    return order;
+}
+
+// Shipper giao thành công → DELIVERED
+async function markDelivered(shipperId, orderId) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Không tìm thấy đơn hàng.');
+    if (order.orderStatus !== ORDER_STATUS.SHIPPING) {
+        throw new Error('Đơn hàng chưa ở trạng thái đang giao.');
+    }
+    await order.update({ orderStatus: ORDER_STATUS.DELIVERED });
+    if (order.payment) {
+        await Payment.update({ status: 'PAID' }, { where: { orderId } });
+    }
+    return order;
+}
+
+// Shipper giao thất bại → DELIVERY_FAILED
+async function markDeliveryFailed(shipperId, orderId, reason) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Không tìm thấy đơn hàng (id=' + orderId + ').');
+    if (order.orderStatus !== ORDER_STATUS.SHIPPING) {
+        throw new Error('Đơn hàng chưa ở trạng thái đang giao (trạng thái hiện tại: ' + order.orderStatus + ').');
+    }
+    if (order.shipperId && Number(order.shipperId) !== Number(shipperId)) {
+        throw new Error('Bạn không phải shipper của đơn hàng này.');
+    }
+    await order.update({
+        orderStatus: ORDER_STATUS.DELIVERY_FAILED,
+        note: reason ? '[Giao thất bại] ' + reason : order.note
+    });
+    return order;
+}
+
+const submitOrderFeedback = async (userId, orderId, { rating, comment = '' }) => {
+    if (!rating || rating < 1 || rating > 5) {
+        throw new Error('Điểm đánh giá phải từ 1 đến 5');
+    }
+    const order = await Order.findOne({ where: { id: orderId, userId, orderStatus: 'DELIVERED' } });
+    if (!order) {
+        throw new Error('Đơn hàng không tồn tại hoặc chưa được giao thành công');
+    }
+
+    const existed = await Review.findOne({
+        where: { userId, targetType: 'ORDER', targetId: orderId }
+    });
+    if (existed) {
+        throw new Error('Bạn đã đánh giá trải nghiệm đơn hàng này rồi');
+    }
+
+    const feedback = await Review.create({
+        userId,
+        targetType: 'ORDER',
+        targetId: orderId,
+        rating,
+        comment
+    });
+    return feedback;
+};
+
+const submitShipperFeedback = async (userId, orderId, { rating, comment = '', tags = [] }) => {
+    if (!rating || rating < 1 || rating > 5) {
+        throw new Error('Điểm đánh giá phải từ 1 đến 5');
+    }
+    const order = await Order.findOne({ 
+        where: { id: orderId, userId, orderStatus: 'DELIVERED' } 
+    });
+    if (!order) {
+        throw new Error('Đơn hàng không tồn tại hoặc chưa được giao thành công');
+    }
+
+    const existed = await Review.findOne({
+        where: { userId, targetType: 'SHOP', targetId: orderId }
+    });
+    if (existed) {
+        throw new Error('Bạn đã đánh giá shipper cho đơn hàng này rồi');
+    }
+
+    const tagsString = tags.length > 0 ? `[Tags: ${tags.join(', ')}] ` : '';
+    const finalComment = `${tagsString}${comment}`;
+
+    const feedback = await Review.create({
+        userId,
+        targetType: 'SHOP',
+        targetId: orderId,
+        rating,
+        comment: finalComment
+    });
+    return feedback;
+};
 
 export default {
     createOrder,
     getOrders,
     getOrderById,
+    cancelOrder,
     cancelOrderItem,
     requestCancelOrder,
     getAdminOrders,
     getAdminOrderById,
     updateOrderStatus,
-    handleCancelRequest
+    handleCancelRequest,
+    getShipperOrders,
+    acceptOrder,
+    markDelivered,
+    markDeliveryFailed,
+    submitOrderFeedback,
+    submitShipperFeedback,
+    getShipperStats
 };
+
+async function getShipperStats(shipperId) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const allOrders = await Order.findAll({
+        where: { shipperId },
+        attributes: ['id', 'orderStatus', 'shipperFee', 'totalAmount', 'createdAt', 'updatedAt'],
+    });
+
+    const delivered = allOrders.filter(o => o.orderStatus === 'DELIVERED');
+    const failed = allOrders.filter(o => o.orderStatus === 'DELIVERY_FAILED');
+
+    // Doanh thu shipper = shipperFee (phí vận chuyển shipper nhận), mặc định 30,000 nếu chưa có
+    const getFee = (o) => Number(o.shipperFee || 30000);
+
+    const totalRevenue = delivered.reduce((sum, o) => sum + getFee(o), 0);
+    const monthlyRevenue = delivered
+        .filter(o => new Date(o.updatedAt) >= startOfMonth)
+        .reduce((sum, o) => sum + getFee(o), 0);
+    const weeklyRevenue = delivered
+        .filter(o => new Date(o.updatedAt) >= startOfWeek)
+        .reduce((sum, o) => sum + getFee(o), 0);
+
+    // Group by month for chart (last 6 months)
+    const monthlyData = {};
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[key] = { month: key, orders: 0, revenue: 0 };
+    }
+    delivered.forEach(o => {
+        const d = new Date(o.updatedAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (monthlyData[key]) {
+            monthlyData[key].orders += 1;
+            monthlyData[key].revenue += getFee(o);
+        }
+    });
+
+    return {
+        totalDelivered: delivered.length,
+        totalFailed: failed.length,
+        totalOrders: allOrders.length,
+        successRate: allOrders.length > 0 ? ((delivered.length / allOrders.length) * 100).toFixed(1) : '0',
+        totalRevenue,
+        monthlyRevenue,
+        weeklyRevenue,
+        monthlyChart: Object.values(monthlyData),
+    };
+}

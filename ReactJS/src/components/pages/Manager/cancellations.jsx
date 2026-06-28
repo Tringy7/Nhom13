@@ -41,8 +41,8 @@ const Cancellations = () => {
     };
 
     const handleProcessRequest = async () => {
-        if (!adminNotes.trim() && actionType === 'REJECTED') {
-            return message.warning("Vui lòng nhập lý do từ chối hủy đơn!");
+        if (!adminNotes.trim()) {
+            return message.warning(actionType === 'APPROVED' ? "Vui lòng nhập lý do đồng ý hủy đơn!" : "Vui lòng nhập lý do từ chối hủy đơn!");
         }
 
         setSubmitting(true);
@@ -189,11 +189,11 @@ const Cancellations = () => {
                     </Text>
                     <div>
                         <Text strong style={{ display: 'block', marginBottom: 6 }}>
-                            Ghi chú của quản lý {actionType === 'REJECTED' && <Text type="danger">*</Text>}
+                            Lý do của quản lý <Text type="danger">*</Text>
                         </Text>
                         <Input.TextArea 
                             rows={3} 
-                            placeholder={actionType === 'APPROVED' ? "Nhập ghi chú hoặc lý do đồng ý hủy..." : "Bắt buộc nhập lý do từ chối hủy đơn..."}
+                            placeholder={actionType === 'APPROVED' ? "Bắt buộc nhập lý do đồng ý hủy đơn..." : "Bắt buộc nhập lý do từ chối hủy đơn..."}
                             value={adminNotes}
                             onChange={(e) => setAdminNotes(e.target.value)}
                         />

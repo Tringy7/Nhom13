@@ -15,7 +15,8 @@ import {
     Tabs,
     Tag,
     Space,
-    Empty
+    Empty,
+    Rate
 } from 'antd';
 import {
     ShoppingCartOutlined,
@@ -95,8 +96,8 @@ const ProductDetail = () => {
 
             setProduct(productData);
             setSelectedImage(productData.images?.[0]?.imageUrl || productData.thumbnail || '');
-            setInsights(insightsRes?.data || insightsRes || null);
-            setSimilarProducts(similarRes?.data || similarRes || []);
+            setInsights(insightsRes?.data?.data || insightsRes?.data || insightsRes || null);
+            setSimilarProducts(similarRes?.data?.data || similarRes?.data || similarRes || []);
 
             await addViewedProductApi(id).catch(() => {});
         } catch (error) {
@@ -197,10 +198,46 @@ const ProductDetail = () => {
         },
         {
             key: '3',
-            label: 'Comments',
+            label: `Comments (${insights?.reviews?.length || 0})`,
             children: (
                 <div style={{ padding: '12px 0' }}>
-                    <Empty description="Chưa có bình luận nào." />
+                    {!insights?.reviews || insights.reviews.length === 0 ? (
+                        <Empty description="Chưa có bình luận nào." />
+                    ) : (
+                        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                            {insights.reviews.map((rev) => (
+                                <div key={rev.id} style={{ display: 'flex', gap: 16, borderBottom: '1px solid #f1f5f9', paddingBottom: 16 }}>
+                                    <div style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: '50%',
+                                        background: '#3b82f6',
+                                        color: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 16,
+                                        fontWeight: 'bold',
+                                        flexShrink: 0
+                                    }}>
+                                        {rev.user?.fullName?.charAt(0).toUpperCase() || 'U'}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                            <Text strong style={{ fontSize: 15 }}>{rev.user?.fullName || 'Người dùng ẩn danh'}</Text>
+                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                                            </Text>
+                                        </div>
+                                        <Rate disabled defaultValue={rev.rating} style={{ fontSize: 14, marginBottom: 8 }} />
+                                        <Paragraph style={{ color: '#334155', margin: 0, fontSize: 14 }}>
+                                            {rev.comment || 'Không có bình luận chi tiết.'}
+                                        </Paragraph>
+                                    </div>
+                                </div>
+                            ))}
+                        </Space>
+                    )}
                 </div>
             )
         }

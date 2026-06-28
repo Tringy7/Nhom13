@@ -51,6 +51,12 @@ let login = async (req, res) => {
       token: accessToken,
       role,
       redirectURI,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+      }
     });
   } catch (error) {
     console.error(error);
@@ -188,8 +194,11 @@ let resendOtp = async (req, res) => {
 
 let register = async (req, res) => {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, role } = req.body;
     const lowerCaseEmail = email.toLowerCase();
+    // Chỉ cho phép role 'user' hoặc 'shipper'
+    const allowedRoles = ['user', 'shipper'];
+    const assignedRole = allowedRoles.includes((role || '').toLowerCase()) ? role.toLowerCase() : 'user';
 
     const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
     if (existingUser) {
@@ -204,7 +213,7 @@ let register = async (req, res) => {
     otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry: getOTPExpiry(),
-      userData: { email: lowerCaseEmail, password: hashedPassword, fullName }
+      userData: { email: lowerCaseEmail, password: hashedPassword, fullName, role: assignedRole }
     });
 
     return res.status(200).json({ success: true, message: `Mã OTP đã được gửi tới ${lowerCaseEmail}.` });
@@ -240,7 +249,7 @@ let verifyRegistrationOtp = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Email này đã được đăng ký.' });
     }
 
-    const newUser = await User.create({ ...record.userData, role: 'USER' });
+    const newUser = await User.create({ ...record.userData });
     otpStore.delete(lowerCaseEmail);
 
     return res.status(201).json({

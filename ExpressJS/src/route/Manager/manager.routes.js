@@ -53,4 +53,8 @@ router.delete("/api/manager/promotions/:id", managerController.deletePromotion);
 router.get("/api/manager/cancellation-requests", managerController.getCancellationRequests);
 router.patch("/api/manager/cancellation-requests/:id", managerController.processCancellationRequest);
 
+// Chat History
+router.get("/api/manager/chat/history", managerController.getChatHistory);
+router.get("/api/manager/chat/history/:conversationId", managerController.getChatDetail);
+
 export default router;
