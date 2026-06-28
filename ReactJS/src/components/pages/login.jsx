@@ -41,8 +41,9 @@ const LoginPage = () => {
                     type: 'LOGIN',
                     payload: {
                         user: {
+                            id: res?.user?.id || '',
                             email,
-                            name: res?.name || '',
+                            name: res?.user?.fullName || res?.name || '',
                             role,
                         },
                     },

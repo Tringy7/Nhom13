@@ -287,6 +287,33 @@ const getSalesReport = async (req, res) => {
     }
 };
 
+const getChatHistory = async (req, res) => {
+    try {
+        const managerId = req.user.id;
+        const { page = 1, limit = 20, search = '' } = req.query;
+        const result = await managerService.getChatHistory(managerId, { page, limit, search });
+        return res.status(200).json({ success: true, ...result });
+    } catch (error) {
+        console.error("Error in getChatHistory:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getChatDetail = async (req, res) => {
+    try {
+        const managerId = req.user.id;
+        const { conversationId } = req.params;
+        const result = await managerService.getChatDetail(conversationId, managerId);
+        if (!result) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
+        }
+        return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        console.error("Error in getChatDetail:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 export default {
     getProducts,
     getProductDetail,
@@ -317,5 +344,7 @@ export default {
     deletePromotion,
     getCancellationRequests,
     processCancellationRequest,
-    getSalesReport
+    getSalesReport,
+    getChatHistory,
+    getChatDetail
 };

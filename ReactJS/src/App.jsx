@@ -34,6 +34,8 @@ import ManagerOrders from "./components/pages/Manager/orders.jsx";
 import ManagerVouchers from "./components/pages/Manager/vouchers.jsx";
 import ManagerPromotions from "./components/pages/Manager/promotions.jsx";
 import ManagerCancellations from "./components/pages/Manager/cancellations.jsx";
+import ManagerChat from "./components/pages/Manager/chat.jsx";
+import ChatWidget from "./components/layout/ChatWidget.jsx";
 
 // ── Admin imports ──────────────────────────────────────────────────────────
 import AdminLayout from "./components/layout/AdminLayout.jsx";
@@ -124,6 +126,7 @@ function App() {
           <Route path="/manager/vouchers" element={<ManagerVouchers />} />
           <Route path="/manager/promotions" element={<ManagerPromotions />} />
           <Route path="/manager/cancellations" element={<ManagerCancellations />} />
+          <Route path="/manager/chat" element={<ManagerChat />} />
         </Route>
 
         {/* Shipper Routes */}
@@ -141,6 +144,7 @@ function App() {
         } />
       </Routes>
       {showHeaderFooter && <Footer />}
+      <ChatWidget />
     </>
   );
 }

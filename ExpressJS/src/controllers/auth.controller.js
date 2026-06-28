@@ -51,6 +51,12 @@ let login = async (req, res) => {
       token: accessToken,
       role,
       redirectURI,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+      }
     });
   } catch (error) {
     console.error(error);

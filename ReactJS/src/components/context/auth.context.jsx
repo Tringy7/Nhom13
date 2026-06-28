@@ -4,6 +4,7 @@ import { getUserProfileApi } from '../util/api/user.api';
 const initialAuthState = {
     isAuthenticated: false,
     user: {
+        id: "",
         email: "",
         name: "",
         role: ""
@@ -43,8 +44,9 @@ export const AuthWrapper = (props) => {
                         type: 'LOGIN',
                         payload: {
                             user: {
+                                id: res.user.id,
                                 email: res.user.email,
-                                name: res.user.firstName || res.user.name,
+                                name: res.user.fullName || res.user.firstName || res.user.name,
                                 role: res.user.role,
                             }
                         }

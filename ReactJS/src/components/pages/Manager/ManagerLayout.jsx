@@ -10,7 +10,8 @@ import {
     GiftOutlined,
     PercentageOutlined,
     HomeOutlined,
-    LogoutOutlined
+    LogoutOutlined,
+    MessageOutlined
 } from '@ant-design/icons';
 import { AuthContext } from '../../context/auth.context';
 import { logoutApi } from '../../util/api/auth.api';
@@ -68,6 +69,11 @@ const ManagerLayout = ({ children, activeKey }) => {
             key: 'promotions',
             icon: <PercentageOutlined />,
             label: <Link to="/manager/promotions">Chiến dịch giảm giá</Link>
+        },
+        {
+            key: 'chat',
+            icon: <MessageOutlined />,
+            label: <Link to="/manager/chat">Hỗ trợ trực tuyến</Link>
         },
         {
             type: 'divider'

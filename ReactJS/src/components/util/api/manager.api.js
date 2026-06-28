@@ -47,3 +47,7 @@ export const deletePromotionApi = (id) => axios.delete(`/api/manager/promotions/
 // Cancellations
 export const getCancellationRequestsApi = () => axios.get('/api/manager/cancellation-requests');
 export const processCancellationRequestApi = (id, status, adminNotes) => axios.patch(`/api/manager/cancellation-requests/${id}`, { status, adminNotes });
+
+// Chat History
+export const getChatHistoryApi = (params) => axios.get('/api/manager/chat/history', { params });
+export const getChatDetailApi = (conversationId) => axios.get(`/api/manager/chat/history/${conversationId}`);

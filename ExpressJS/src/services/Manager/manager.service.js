@@ -782,6 +782,111 @@ const getSalesReport = async () => {
     };
 };
 
+/* =========================================================================
+   CHAT HISTORY
+   ========================================================================= */
+
+const getChatHistory = async (managerId, { page = 1, limit = 20, search = '' } = {}) => {
+    const { Conversation, Message, User, Sequelize } = { ...getModels(), Conversation: db.Conversation, Message: db.Message };
+    const { Op } = Sequelize;
+    const offset = (page - 1) * limit;
+
+    const where = { adminId: managerId };
+
+    // Search by user name or email via include
+    const userWhere = {};
+    if (search) {
+        userWhere[Op.or] = [
+            { fullName: { [Op.like]: `%${search}%` } },
+            { email: { [Op.like]: `%${search}%` } }
+        ];
+    }
+
+    const { count, rows } = await Conversation.findAndCountAll({
+        where,
+        include: [
+            {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'fullName', 'email', 'avatar'],
+                where: search ? userWhere : undefined,
+                required: !!search
+            },
+            {
+                model: Message,
+                as: 'messages',
+                attributes: ['id', 'content', 'senderId', 'createdAt'],
+                limit: 1,
+                order: [['createdAt', 'DESC']],
+                separate: true
+            }
+        ],
+        order: [['updatedAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        distinct: true
+    });
+
+    return {
+        data: rows.map(conv => {
+            const plain = conv.get({ plain: true });
+            return {
+                id: plain.id,
+                createdAt: plain.createdAt,
+                updatedAt: plain.updatedAt,
+                user: plain.user,
+                lastMessage: plain.messages && plain.messages.length > 0 ? plain.messages[0] : null,
+                messageCount: plain.messages ? plain.messages.length : 0
+            };
+        }),
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / limit)
+    };
+};
+
+const getChatDetail = async (conversationId, managerId) => {
+    const { Conversation, Message, User } = { ...getModels(), Conversation: db.Conversation, Message: db.Message };
+
+    const conversation = await Conversation.findOne({
+        where: { id: conversationId, adminId: managerId },
+        include: [
+            {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'fullName', 'email', 'avatar']
+            },
+            {
+                model: User,
+                as: 'admin',
+                attributes: ['id', 'fullName', 'email', 'avatar']
+            }
+        ]
+    });
+
+    if (!conversation) {
+        return null;
+    }
+
+    const messages = await Message.findAll({
+        where: { conversationId },
+        order: [['createdAt', 'ASC']],
+        include: [
+            {
+                model: User,
+                as: 'sender',
+                attributes: ['id', 'fullName', 'avatar', 'role']
+            }
+        ]
+    });
+
+    return {
+        conversation: conversation.get({ plain: true }),
+        messages: messages.map(m => m.get({ plain: true }))
+    };
+};
+
 export default {
     getProducts,
     getProductDetail,
@@ -812,5 +917,7 @@ export default {
     deletePromotion,
     getCancellationRequests,
     processCancellationRequest,
-    getSalesReport
+    getSalesReport,
+    getChatHistory,
+    getChatDetail
 };

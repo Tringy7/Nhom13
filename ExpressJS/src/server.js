@@ -4,10 +4,12 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import path from "path";
+import http from "http";
 import viewEngine from "./config/viewEngine.js";
 import initWebRoutes from "./route/web.js";
 import connectDB from "./config/configdb.js";
 import db from "./entities/index.js"; // Import db
+import initSocket from "./socket.js";
 
 // config dotenv
 dotenv.config();
@@ -53,7 +55,10 @@ const port = process.env.PORT || 8080;
 const startServer = async () => {
     try {
         await connectDB();
-        app.listen(port, () => {
+        const server = http.createServer(app);
+        initSocket(server);
+        
+        server.listen(port, () => {
             console.log(
                 `Backend Nodejs is running on port: ${port}`
             );
