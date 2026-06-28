@@ -26,6 +26,24 @@ const submitReview = async (req, res) => {
   }
 };
 
+const claimReviewReward = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const reviewId = Number(req.params.id);
+        const data = await productFeatureService.claimReviewReward(userId, reviewId);
+        return res.status(200).json({
+            success: true,
+            message: 'Nhận thưởng thành công!',
+            data
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 const toggleFavorite = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -85,6 +103,7 @@ const addViewedProduct = async (req, res) => {
 
 export default {
   submitReview,
+  claimReviewReward,
   toggleFavorite,
   getWishlist,
   getSimilarProducts,

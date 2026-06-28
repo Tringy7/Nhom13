@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert, Modal } from 'antd';
-import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined, GiftOutlined } from '@ant-design/icons';
 import { getOrderById, cancelOrderItemApi, cancelOrderApi, requestCancelOrderApi, submitOrderFeedbackApi, submitShipperFeedbackApi } from '../util/api/order.api';
-import { submitReviewApi } from '../util/api/product-feature.api';
+import { submitReviewApi, claimReviewRewardApi } from '../util/api/product-feature.api';
+import { addToCart } from '../util/api/cart.api';
 import { getImageUrl } from '../util/helpers';
 import styled, { keyframes } from 'styled-components';
 
@@ -260,7 +261,7 @@ const OrderHeader = ({ order }) => {
     );
 };
 
-const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) => {
+const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward, onBuyAgain, hasReview }) => {
     const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus);
     const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
 
@@ -282,18 +283,28 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) =
                             {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && (
                                 <>
                                     {hasReview ? (
-                                        <Space direction="vertical" align="end" size={2}>
-                                            <Tag color="success">Đã đánh giá</Tag>
-                                            <Rate disabled defaultValue={hasReview.rating} style={{ fontSize: 12 }} />
-                                        </Space>
+                                        hasReview.rewardToken ? (
+                                            <Tag icon={<CheckCircleOutlined />} color="success">Đã nhận thưởng</Tag>
+                                        ) : (
+                                            <Button size="small" icon={<GiftOutlined />} type="primary" onClick={() => onClaimReward(hasReview.id)}>
+                                                Nhận 100,000 điểm
+                                            </Button>
+                                        )
                                     ) : (
-                                        <Button size="small" icon={<StarOutlined />} onClick={onReview}>Review Product</Button>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <Text style={{ fontSize: 12, color: '#faad14', display: 'block', marginBottom: 4 }}>
+                                                <GiftOutlined /> Nhận ngay 100,000 điểm
+                                            </Text>
+                                            <Button size="small" icon={<StarOutlined />} onClick={onReview}>Đánh giá sản phẩm</Button>
+                                        </div>
                                     )}
-                                    <Button size="small" icon={<ShoppingCartOutlined />} type="default">Buy Again</Button>
+                                    {/*<Button size="small" icon={<ShoppingCartOutlined />} type="default" onClick={() => onBuyAgain(item.productId, item.quantity)}>*/}
+                                    {/*    Mua lại*/}
+                                    {/*</Button>*/}
                                 </>
                             )}
-                            {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Cancel</Button>}
-                            {isCancelled && <Tag color="red">Cancelled</Tag>}
+                            {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Hủy</Button>}
+                            {isCancelled && <Tag color="red">Đã hủy</Tag>}
                         </Space>
                     </div>
                 </div>
@@ -303,13 +314,13 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, hasReview }) =
     );
 };
 
-const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, onCancelItem }) => {
+const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, onCancelItem, onClaimReward, onBuyAgain }) => {
     const [isCollapsed, setIsCollapsed] = useState(details.length > 3);
     const itemsToShow = isCollapsed ? details.slice(0, 3) : details;
 
     return (
         <CardBase>
-            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Purchased Products ({details.length})</Title>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Sản phẩm đã mua ({details.length})</Title>
             <div style={{ margin: '0 -24px' }}>
                 {itemsToShow.map(item => {
                     const hasReview = productReviews.find(r => r.productId === item.productId);
@@ -320,6 +331,8 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
                                 orderStatus={orderStatus} 
                                 onReview={() => onReview(item)} 
                                 onCancelItem={() => onCancelItem(item.id)} 
+                                onClaimReward={onClaimReward}
+                                onBuyAgain={onBuyAgain}
                                 hasReview={hasReview}
                             />
                         </div>
@@ -328,7 +341,7 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
             </div>
             {details.length > 3 && (
                 <Button type="link" onClick={() => setIsCollapsed(!isCollapsed)} style={{ marginTop: 16, padding: 0 }}>
-                    {isCollapsed ? `Show ${details.length - 3} more` : 'Show less'}
+                    {isCollapsed ? `Xem thêm ${details.length - 3} sản phẩm` : 'Thu gọn'}
                 </Button>
             )}
         </CardBase>
@@ -337,7 +350,7 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
 
 const ShippingAddressCard = ({ order }) => (
     <CardBase>
-        <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 16 }}>Shipping Address</Title>
+        <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 16 }}>Địa chỉ giao hàng</Title>
         <Paragraph strong style={{ marginBottom: 8 }}>{order.fullName || 'Customer Name'}</Paragraph>
         <Paragraph style={{ color: '#595959', marginBottom: 4 }}>
             <PhoneOutlined style={{ marginRight: 8 }} /> {order.phoneNumber || 'No phone provided'}
@@ -346,8 +359,8 @@ const ShippingAddressCard = ({ order }) => (
             <EnvironmentOutlined style={{ marginRight: 8 }} /> {order.shippingAddress}
         </Paragraph>
         <Divider style={{ margin: '16px 0' }} />
-        <Text strong>Instructions:</Text>
-        <Paragraph italic style={{ color: '#595959', marginTop: 4 }}>{order.note || 'No special instructions.'}</Paragraph>
+        <Text strong>Ghi chú:</Text>
+        <Paragraph italic style={{ color: '#595959', marginTop: 4 }}>{order.note || 'Không có ghi chú đặc biệt.'}</Paragraph>
     </CardBase>
 );
 
@@ -643,10 +656,10 @@ const OrderSummary = ({ order }) => {
 
     return (
         <CardBase>
-            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Order Summary</Title>
+            <Title level={4} style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Tóm tắt đơn hàng</Title>
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                <Row justify="space-between"><Text style={{ color: '#595959' }}>Subtotal</Text><Text strong>{formatPrice(subtotal)}</Text></Row>
-                <Row justify="space-between"><Text style={{ color: '#595959' }}>Shipping Fee</Text><Text strong>{formatPrice(shippingFee)}</Text></Row>
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Tạm tính</Text><Text strong>{formatPrice(subtotal)}</Text></Row>
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Phí vận chuyển</Text><Text strong>{formatPrice(shippingFee)}</Text></Row>
                 {order.voucher && (
                     <Row justify="space-between">
                         <Text style={{ color: '#52c41a' }}>Voucher ({order.voucher.code})</Text>
@@ -665,15 +678,15 @@ const OrderSummary = ({ order }) => {
                         <Text strong style={{ color: '#fa8c16' }}>-{formatPrice(pDiscount)}</Text>
                     </Row>
                 )}
-                <Row justify="space-between"><Text style={{ color: '#595959' }}>Tax (inc.)</Text><Text strong>{formatPrice(0)}</Text></Row>
+                <Row justify="space-between"><Text style={{ color: '#595959' }}>Thuế (VAT)</Text><Text strong>{formatPrice(0)}</Text></Row>
             </Space>
             <Divider style={{ margin: '24px 0' }} />
             <Row justify="space-between" align="middle">
-                <Title level={4} style={{ margin: 0 }}>Total</Title>
+                <Title level={4} style={{ margin: 0 }}>Tổng cộng</Title>
                 <Title level={2} style={{ margin: 0, color: '#1677ff', fontWeight: 'bold', fontSize: 28 }}>{formatPrice(total)}</Title>
             </Row>
             <Button type="primary" size="large" style={{ width: '100%', height: 48, borderRadius: 8, marginTop: 24, fontWeight: 600 }}>
-                Reorder All Items
+                Đặt lại tất cả
             </Button>
         </CardBase>
     );
@@ -689,7 +702,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
 
     const handleSubmit = async () => {
         if (rating === 0) {
-            message.warning('Please rate the product to continue.');
+            message.warning('Vui lòng chọn sao để đánh giá sản phẩm.');
             return;
         }
         setSubmitting(true);
@@ -711,7 +724,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
 
     return (
         <Drawer
-            title="Submit Review"
+            title="Gửi đánh giá"
             placement="right"
             onClose={onClose}
             open={visible}
@@ -726,7 +739,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                     onClick={handleSubmit}
                     style={{ height: 52, borderRadius: 999, fontWeight: 600 }}
                 >
-                    Submit Review
+                    Gửi đánh giá
                 </Button>
             }
         >
@@ -765,7 +778,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                                 {product.productName}
                             </Text>
                             <Text type="secondary" style={{ fontSize: 13 }}>
-                                Purchased {formatDateTime(orderDate)}
+                                Đã mua ngày {formatDateTime(orderDate)}
                             </Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: 13 }}>
@@ -775,7 +788,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                     </div>
                     <Divider />
                     <div style={{ textAlign: 'center' }}>
-                        <Title level={5} style={{ color: '#8c8c8c', textTransform: 'uppercase' }}>How would you rate this product?</Title>
+                        <Title level={5} style={{ color: '#8c8c8c', textTransform: 'uppercase' }}>Bạn đánh giá sản phẩm này thế nào?</Title>
                         <Rate value={rating} onChange={setRating} style={{ fontSize: 32 }} />
                     </div>
                     <Divider />
@@ -787,10 +800,10 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                         style={{ background: '#fafafa', border: '2px dashed #d9d9d9' }}
                     >
                         <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-                        <p className="ant-upload-text">Drag & drop media here</p>
-                        <p className="ant-upload-hint">Supports JPG, PNG, and MP4</p>
+                        <p className="ant-upload-text">Kéo & thả ảnh/video vào đây</p>
+                        <p className="ant-upload-hint">Hỗ trợ JPG, PNG, và MP4</p>
                     </Upload.Dragger>
-                    <TextArea rows={5} placeholder="Share your experience..." value={comment} onChange={e => setComment(e.target.value)} />
+                    <TextArea rows={5} placeholder="Hãy chia sẻ trải nghiệm của bạn..." value={comment} onChange={e => setComment(e.target.value)} />
                 </Space>
             )}
         </Drawer>
@@ -803,7 +816,6 @@ const OrderDetailPage = () => {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [reviewDrawer, setReviewDrawer] = useState({ visible: false, product: null });
-    const [cancelReason, setCancelReason] = useState('');
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [cancelType, setCancelType] = useState('direct'); // 'direct' or 'request'
     const [cancelReasonInput, setCancelReasonInput] = useState('');
@@ -814,7 +826,7 @@ const OrderDetailPage = () => {
             const res = await getOrderById(id);
             setOrder(res.data);
         } catch (error) {
-            message.error('Could not load order details.');
+            message.error('Không thể tải chi tiết đơn hàng.');
         } finally {
             setLoading(false);
         }
@@ -830,7 +842,7 @@ const OrderDetailPage = () => {
     const handleReviewSubmit = async (reviewData) => {
         try {
             await submitReviewApi(reviewDrawer.product.productId, reviewData);
-            message.success('Đánh giá sản phẩm thành công!');
+            message.success('Đánh giá sản phẩm thành công! Bạn có thể nhận thưởng ngay.');
             fetchOrder();
         } catch (error) {
             message.error('Gửi đánh giá thất bại.');
@@ -838,13 +850,32 @@ const OrderDetailPage = () => {
         }
     };
 
+    const handleClaimReward = async (reviewId) => {
+        try {
+            const res = await claimReviewRewardApi(reviewId);
+            message.success(res.data.message || 'Nhận thưởng thành công! +100,000 điểm.');
+            fetchOrder(); // Refresh order data to show updated reward status
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Không thể nhận thưởng.');
+        }
+    };
+
+    const handleBuyAgain = async (productId, quantity) => {
+        try {
+            await addToCartApi({ productId, quantity });
+            message.success('Sản phẩm đã được thêm vào giỏ hàng!');
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Không thể thêm vào giỏ hàng.');
+        }
+    };
+
     const handleCancelItem = async (itemId) => {
         try {
             await cancelOrderItemApi(id, itemId);
-            message.success('Item has been cancelled.');
+            message.success('Sản phẩm đã được hủy.');
             fetchOrder();
         } catch (error) {
-            message.error('Failed to cancel item.');
+            message.error('Hủy sản phẩm thất bại.');
         }
     };
 
@@ -885,16 +916,16 @@ const OrderDetailPage = () => {
     }
 
     if (!order) {
-        return <PageWrapper><Container><Empty description="Order not found." /></Container></PageWrapper>;
+        return <PageWrapper><Container><Empty description="Không tìm thấy đơn hàng." /></Container></PageWrapper>;
     }
 
     return (
         <PageWrapper>
             <Container>
                 <Breadcrumb style={{ marginBottom: 24 }}>
-                    <Breadcrumb.Item><Link to="/"><HomeOutlined /> Home</Link></Breadcrumb.Item>
-                    <Breadcrumb.Item><Link to="/orders">Order History</Link></Breadcrumb.Item>
-                    <Breadcrumb.Item>Order Details</Breadcrumb.Item>
+                    <Breadcrumb.Item><Link to="/"><HomeOutlined /> Trang chủ</Link></Breadcrumb.Item>
+                    <Breadcrumb.Item><Link to="/orders">Lịch sử mua hàng</Link></Breadcrumb.Item>
+                    <Breadcrumb.Item>Chi tiết đơn hàng</Breadcrumb.Item>
                 </Breadcrumb>
 
                 <MainGrid>
@@ -918,7 +949,15 @@ const OrderDetailPage = () => {
                                 style={{ marginBottom: 16 }}
                             />
                         )}
-                        <ProductListCard details={order.details} orderStatus={order.orderStatus} productReviews={order.productReviews} onReview={handleOpenReview} onCancelItem={handleCancelItem} />
+                        <ProductListCard 
+                            details={order.details} 
+                            orderStatus={order.orderStatus} 
+                            productReviews={order.productReviews} 
+                            onReview={handleOpenReview} 
+                            onCancelItem={handleCancelItem}
+                            onClaimReward={handleClaimReward}
+                            onBuyAgain={handleBuyAgain}
+                        />
                         <CancelOrderCard
                             order={order}
                             onCancelInitiated={handleCancelInitiated}

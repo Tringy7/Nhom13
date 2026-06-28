@@ -38,7 +38,7 @@ let login = async (req, res) => {
       lastLoginAt: new Date(),
     });
 
-    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
+    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
     res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     const role = user.role.toLowerCase();
@@ -85,7 +85,7 @@ let refresh = async (req, res) => {
         refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
-      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
+      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
       res.cookie("refreshToken", newRefreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.json({ message: "Token refreshed", accessToken: newAccessToken });
@@ -213,7 +213,13 @@ let register = async (req, res) => {
     otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry: getOTPExpiry(),
-      userData: { email: lowerCaseEmail, password: hashedPassword, fullName, role: assignedRole }
+      userData: { 
+        email: lowerCaseEmail, 
+        password: hashedPassword, 
+        fullName, 
+        role: assignedRole,
+        points: 50000 
+      }
     });
 
     return res.status(200).json({ success: true, message: `Mã OTP đã được gửi tới ${lowerCaseEmail}.` });

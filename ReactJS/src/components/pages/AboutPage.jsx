@@ -8,9 +8,9 @@ const { Title, Paragraph, Text } = Typography;
 
 const teamMembers = [
     { name: 'Nguyễn Hữu Trí', role: 'Project Leader' },
-    { name: 'Nguyễn Trí', role: 'Backend Developer' },
-    { name: 'Trí bạn', role: 'Frontend Developer' },
-    { name: 'Tri', role: 'UI/UX Designer' },
+    { name: 'Nguyễn Vũ Quân', role: 'Backend Developer' },
+    { name: 'Nguyễn Đăng Tường', role: 'Frontend Developer' },
+    { name: 'Đặng Thiên Bách', role: 'UI/UX Designer' },
 ];
 
 const AboutPage = () => {

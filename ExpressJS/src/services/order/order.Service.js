@@ -166,7 +166,9 @@ const createOrder = async (userId, {
         return orderData;
 
     } catch (error) {
-        await t.rollback();
+        if (t && !t.finished) {
+            await t.rollback();
+        }
         console.error('Lỗi khi tạo đơn hàng:', error);
         throw error;
     }

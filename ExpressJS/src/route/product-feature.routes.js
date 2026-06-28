@@ -10,6 +10,7 @@ router.get('/api/products/:id/similar', productFeatureController.getSimilarProdu
 
 // Routes requiring user authentication
 router.post('/api/products/:id/reviews', verifyToken, authorize('user', 'admin'), productFeatureController.submitReview);
+router.post('/api/reviews/:id/claim-reward', verifyToken, authorize('user'), productFeatureController.claimReviewReward);
 router.post('/api/products/:id/favorite', verifyToken, authorize('user', 'admin'), productFeatureController.toggleFavorite);
 router.post('/api/products/:id/viewed', verifyToken, productFeatureController.addViewedProduct);
 router.get('/api/user/wishlist', verifyToken, authorize('user', 'admin'), productFeatureController.getWishlist);

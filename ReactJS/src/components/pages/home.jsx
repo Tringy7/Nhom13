@@ -656,12 +656,12 @@ const HomePage = () => {
                         Explore Collection
                     </Title>
                     <Space size={16} className="toolbar-right">
-                        <Search
-                            placeholder="Search laptops..."
-                            onSearch={(value) => { if(value) navigate(`/products?search=${value}`); }}
-                            className="toolbar-search"
-                            style={{ width: 260 }}
-                        />
+                        {/*<Search*/}
+                        {/*    placeholder="Search laptops..."*/}
+                        {/*    onSearch={(value) => { if(value) navigate(`/products?search=${value}`); }}*/}
+                        {/*    className="toolbar-search"*/}
+                        {/*    style={{ width: 260 }}*/}
+                        {/*/>*/}
                         <Button className="btn-view-all" onClick={() => navigate('/products')}>
                             View All
                         </Button>

@@ -1,4 +1,7 @@
 import db from '../../entities/index.js';
+import { createRewardHistory } from '../reward/reward.service.js';
+import { REWARD_TYPE } from '../../constants/reward.constants.js';
+import crypto from 'crypto';
 
 const {
   Product,
@@ -8,7 +11,8 @@ const {
   Order,
   OrderDetail,
   User,
-  ProductImage
+  ProductImage,
+  sequelize
 } = db;
 
 const { Op } = db.Sequelize;
@@ -43,9 +47,54 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
     productId,
     orderId,
     rating,
-    comment
+    comment,
+    rewardType: 'POINTS',
+    rewardValue: 100000,
   });
   return { review };
+};
+
+const claimReviewReward = async (userId, reviewId) => {
+    const t = await sequelize.transaction();
+    try {
+        const review = await ProductReview.findOne({
+            where: { id: reviewId, userId },
+            transaction: t
+        });
+
+        if (!review) {
+            throw new Error('Không tìm thấy đánh giá này.');
+        }
+        if (review.rewardToken) {
+            throw new Error('Phần thưởng cho đánh giá này đã được nhận.');
+        }
+
+        const user = await User.findByPk(userId, { transaction: t });
+        if (!user) {
+            throw new Error('Người dùng không tồn tại.');
+        }
+
+        const rewardValue = review.rewardValue || 100000;
+        const rewardToken = crypto.randomBytes(16).toString('hex');
+
+        await user.increment('points', { by: rewardValue, transaction: t });
+        await review.update({ rewardToken }, { transaction: t });
+
+        await createRewardHistory(userId, rewardValue, REWARD_TYPE.EARN, `Nhận thưởng từ đánh giá sản phẩm #${review.productId}`, { transaction: t });
+
+        await t.commit();
+
+        return {
+            success: true,
+            message: `Bạn đã nhận được ${rewardValue.toLocaleString()} điểm thưởng!`,
+            newBalance: user.points + rewardValue
+        };
+    } catch (error) {
+        if (t && !t.finished) {
+            await t.rollback();
+        }
+        throw error;
+    }
 };
 
 const toggleFavorite = async (userId, productId) => {
@@ -182,6 +231,7 @@ const getSimilarProducts = async (productId, limit = 4) => {
 
 export default {
   submitReview,
+  claimReviewReward,
   toggleFavorite,
   getWishlist,
   getReviewsByProduct,

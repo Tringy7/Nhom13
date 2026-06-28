@@ -163,9 +163,9 @@ const Header = () => {
                 </div>
 
                 <div className="header-actions">
-                    <button className="icon-btn desktop-only" onClick={() => navigate('/products')}>
-                        <SearchOutlined style={{ fontSize: '18px' }} />
-                    </button>
+                    {/*<button className="icon-btn desktop-only" onClick={() => navigate('/products')}>*/}
+                    {/*    <SearchOutlined style={{ fontSize: '18px' }} />*/}
+                    {/*</button>*/}
 
                     <Link to="/wishlist" className="icon-btn">
                         <HeartOutlined style={{ fontSize: '18px' }} />

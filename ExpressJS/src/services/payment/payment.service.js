@@ -4,6 +4,8 @@ import moment from 'moment';
 import vnpayConfig from '../../config/vnpay.js';
 import db from '../../entities/index.js';
 
+const { Order } = db;
+
 function sortObject(obj) {
     const plainObj = Object.fromEntries(Object.entries(obj || {}));
     const sorted = {};
