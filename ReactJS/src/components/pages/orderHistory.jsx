@@ -83,7 +83,7 @@ const OrderHistoryPage = () => {
                 setOrders(formattedOrders);
             } catch (error) {
                 console.error(error);
-                message.error('Lỗi khi tải lịch sử đơn hàng');
+                // message.error('Lỗi khi tải lịch sử đơn hàng');
             } finally {
                 setLoading(false);
             }
