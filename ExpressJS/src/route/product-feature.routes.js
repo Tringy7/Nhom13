@@ -1,6 +1,7 @@
 import express from 'express';
 import productFeatureController from '../controllers/productFeature.controller.js';
 import { authorize, verifyToken } from '../middleware/auth.middleware.js';
+import { uploadReviewImage } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -9,7 +10,22 @@ router.get('/api/products/:id/insights', productFeatureController.getProductInsi
 router.get('/api/products/:id/similar', productFeatureController.getSimilarProducts);
 
 // Routes requiring user authentication
-router.post('/api/products/:id/reviews', verifyToken, authorize('user', 'admin'), productFeatureController.submitReview);
+router.post(
+    '/api/products/:id/reviews',
+    verifyToken,
+    authorize('user', 'admin'),
+    uploadReviewImage.array('images', 5),
+    productFeatureController.submitReview
+);
+
+router.put(
+    '/api/reviews/:id',
+    verifyToken,
+    authorize('user'),
+    uploadReviewImage.array('images', 5),
+    productFeatureController.updateReview
+);
+
 router.post('/api/reviews/:id/claim-reward', verifyToken, authorize('user'), productFeatureController.claimReviewReward);
 router.post('/api/products/:id/favorite', verifyToken, authorize('user', 'admin'), productFeatureController.toggleFavorite);
 router.post('/api/products/:id/viewed', verifyToken, productFeatureController.addViewedProduct);

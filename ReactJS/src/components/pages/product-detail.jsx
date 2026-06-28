@@ -233,6 +233,24 @@ const ProductDetail = () => {
                                         <Paragraph style={{ color: '#334155', margin: 0, fontSize: 14 }}>
                                             {rev.comment || 'Không có bình luận chi tiết.'}
                                         </Paragraph>
+                                        {rev.images && rev.images.length > 0 && (
+                                            <div style={{ marginTop: 12 }}>
+                                                <Image.PreviewGroup>
+                                                    <Space size="small" wrap>
+                                                        {rev.images.map((img, index) => (
+                                                            <Image
+                                                                key={index}
+                                                                width={80}
+                                                                height={80}
+                                                                src={getImageUrl(img.imageUrl)}
+                                                                alt={`Review image ${index + 1}`}
+                                                                style={{ borderRadius: 8, objectFit: 'cover' }}
+                                                            />
+                                                        ))}
+                                                    </Space>
+                                                </Image.PreviewGroup>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

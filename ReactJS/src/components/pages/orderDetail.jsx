@@ -53,132 +53,131 @@ const formatDateTime = (value) => value ? new Date(value).toLocaleDateString('vi
 
 // --- STYLED COMPONENTS ---
 const pulseRing = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.4); }
-  70% { box-shadow: 0 0 0 8px rgba(22, 119, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(22, 119, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0); }
 `;
 
 const PageWrapper = styled.div`
-  background: #f4f5f7;
-  min-height: 100vh;
-  padding: 24px 0;
+    background: #f4f5f7;
+    min-height: 100vh;
+    padding: 24px 0;
 `;
 
 const Container = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 32px;
-  @media (max-width: 768px) {
-    padding: 0 16px;
-  }
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+    @media (max-width: 768px) {
+        padding: 0 16px;
+    }
 `;
 
 const MainGrid = styled.div`
-  display: grid;
-  grid-template-columns: 7fr 3fr;
-  gap: 24px;
-  margin-top: 24px;
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
+    display: grid;
+    grid-template-columns: 7fr 3fr;
+    gap: 24px;
+    margin-top: 24px;
+    @media (max-width: 1024px) {
+        grid-template-columns: 1fr;
+    }
 `;
 
 const LeftColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 `;
 
 const RightColumn = styled.aside`
-  position: sticky;
-  top: 24px;
-  align-self: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+    position: sticky;
+    top: 24px;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 `;
 
 const CardBase = styled.div`
-  background: #ffffff;
-  border: 1px solid #e8eaed;
-  border-radius: 12px;
-  padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e8eaed;
+    border-radius: 12px;
+    padding: 24px;
 `;
 
 const TrackerContainer = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 24px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 24px 0;
 `;
 
 const StepWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  min-width: 80px;
-  flex: 1;
-  position: relative;
-
-  .circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 700;
-    transition: all 0.3s ease;
-  }
+    text-align: center;
+    min-width: 80px;
+    flex: 1;
+    position: relative;
 
-  .label {
-    margin-top: 8px;
-    font-size: 13px;
-    transition: all 0.3s ease;
-  }
+    .circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
 
-  /* States */
-  &.completed .circle {
-    background: #1677ff;
-    color: #fff;
-    border: 2px solid #1677ff;
-  }
-  &.completed .label {
-    color: #262626;
-    font-weight: 500;
-  }
+    .label {
+        margin-top: 8px;
+        font-size: 13px;
+        transition: all 0.3s ease;
+    }
 
-  &.active .circle {
-    background: #1677ff;
-    color: #fff;
-    border: 2px solid #1677ff;
-    animation: ${pulseRing} 1.5s infinite;
-  }
-  &.active .label {
-    color: #1677ff;
-    font-weight: 700;
-  }
+    &.completed .circle {
+        background: #1677ff;
+        color: #fff;
+        border: 2px solid #1677ff;
+    }
+    &.completed .label {
+        color: #262626;
+        font-weight: 500;
+    }
 
-  &.upcoming .circle {
-    background: #fff;
-    color: #595959;
-    border: 2px solid #d9d9d9;
-  }
-  &.upcoming .label {
-    color: #595959;
-    font-weight: 400;
-  }
+    &.active .circle {
+        background: #1677ff;
+        color: #fff;
+        border: 2px solid #1677ff;
+        animation: ${pulseRing} 1.5s infinite;
+    }
+    &.active .label {
+        color: #1677ff;
+        font-weight: 700;
+    }
+
+    &.upcoming .circle {
+        background: #fff;
+        color: #595959;
+        border: 2px solid #d9d9d9;
+    }
+    &.upcoming .label {
+        color: #595959;
+        font-weight: 400;
+    }
 `;
 
 const Connector = styled.div`
-  height: 3px;
-  flex: 1;
-  margin: 0 -10px;
-  position: relative;
-  top: 16px;
-  background: ${({ completed }) => (completed === 'true' ? '#1677ff' : '#d9d9d9')};
+    height: 3px;
+    flex: 1;
+    margin: 0 -10px;
+    position: relative;
+    top: 16px;
+    background: ${({ completed }) => (completed === 'true' ? '#1677ff' : '#d9d9d9')};
 `;
 
 // --- UI COMPONENTS ---
@@ -187,11 +186,11 @@ const OrderStatusTracker = ({ order }) => {
     const status = order.orderStatus;
     if (status === ORDER_STATUS.CANCELLED || status === ORDER_STATUS.CANCEL_REQUEST) {
         const isCancelled = status === ORDER_STATUS.CANCELLED;
-        const reasonText = order.cancellationRequest?.reason 
-            ? `Lý do hủy: ${order.cancellationRequest.reason}` 
+        const reasonText = order.cancellationRequest?.reason
+            ? `Lý do hủy: ${order.cancellationRequest.reason}`
             : (order.note ? `Ghi chú: ${order.note}` : '');
-        const adminNotesText = order.cancellationRequest?.adminNotes 
-            ? `Phản hồi của Shop: ${order.cancellationRequest.adminNotes}` 
+        const adminNotesText = order.cancellationRequest?.adminNotes
+            ? `Phản hồi của Shop: ${order.cancellationRequest.adminNotes}`
             : '';
 
         return (
@@ -298,9 +297,6 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward,
                                             <Button size="small" icon={<StarOutlined />} onClick={onReview}>Đánh giá sản phẩm</Button>
                                         </div>
                                     )}
-                                    {/*<Button size="small" icon={<ShoppingCartOutlined />} type="default" onClick={() => onBuyAgain(item.productId, item.quantity)}>*/}
-                                    {/*    Mua lại*/}
-                                    {/*</Button>*/}
                                 </>
                             )}
                             {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Hủy</Button>}
@@ -326,11 +322,11 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
                     const hasReview = productReviews.find(r => r.productId === item.productId);
                     return (
                         <div key={item.id} style={{ padding: '0 24px' }}>
-                            <ProductItem 
-                                item={item} 
-                                orderStatus={orderStatus} 
-                                onReview={() => onReview(item)} 
-                                onCancelItem={() => onCancelItem(item.id)} 
+                            <ProductItem
+                                item={item}
+                                orderStatus={orderStatus}
+                                onReview={() => onReview(item)}
+                                onCancelItem={() => onCancelItem(item.id)}
                                 onClaimReward={onClaimReward}
                                 onBuyAgain={onBuyAgain}
                                 hasReview={hasReview}
@@ -572,10 +568,10 @@ const ShipperCard = ({ shipper, status }) => {
             {shipper.phone && (
                 <>
                     <Divider style={{ margin: '16px 0' }} />
-                    <Button 
-                        type="primary" 
-                        ghost 
-                        icon={<PhoneOutlined />} 
+                    <Button
+                        type="primary"
+                        ghost
+                        icon={<PhoneOutlined />}
                         href={`tel:${shipper.phone}`}
                         style={{ width: '100%', borderRadius: 8, height: 40, fontWeight: 500 }}
                     >
@@ -587,15 +583,12 @@ const ShipperCard = ({ shipper, status }) => {
     );
 };
 
-// --- CancelOrderCard: hiển thị nút hủy đơn hoặc yêu cầu hủy ---
 const CancelOrderCard = ({ order, onCancelInitiated }) => {
     const status = order.orderStatus;
 
-    // Không hiển thị nút hủy khi đơn đã bị hủy / đã giao / đang ship / giao thất bại
     if ([ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERED, ORDER_STATUS.SHIPPING].includes(status)) {
         return null;
     }
-    // Nếu đã gửi yêu cầu hủy
     if (status === ORDER_STATUS.CANCEL_REQUEST) {
         return (
             <CardBase>
@@ -609,8 +602,6 @@ const CancelOrderCard = ({ order, onCancelInitiated }) => {
         );
     }
 
-    // NEW hoặc CONFIRMED: hủy trực tiếp
-    // PREPARING: gửi yêu cầu
     const canDirectCancel = (status === ORDER_STATUS.NEW || status === ORDER_STATUS.CONFIRMED);
     const canRequestCancel = (status === ORDER_STATUS.PREPARING);
 
@@ -650,7 +641,7 @@ const OrderSummary = ({ order }) => {
     const subtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
     const shippingFee = Number(order.shippingFee || 30000);
     const total = Number(order.totalAmount);
-    
+
     const vDiscount = Number(order.voucherDiscount || 0);
     const pDiscount = Number(order.pointsDiscount || 0);
 
@@ -692,6 +683,7 @@ const OrderSummary = ({ order }) => {
     );
 };
 
+// ✅ FIX: ReviewDrawer — lọc originFileObj trước khi gửi
 const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit }) => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
@@ -707,7 +699,12 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
         }
         setSubmitting(true);
         try {
-            await onSubmit({ orderId, rating, comment, images: imageList.map(f => f.originFileObj) });
+            // ✅ FIX: Lọc bỏ undefined/null — originFileObj có thể undefined nếu file bị lỗi
+            const validImages = imageList
+                .map(f => f.originFileObj)
+                .filter(Boolean);
+
+            await onSubmit({ orderId, rating, comment, images: validImages });
             onClose();
         } finally {
             setSubmitting(false);
@@ -797,6 +794,7 @@ const ReviewDrawer = ({ visible, product, orderId, orderDate, onClose, onSubmit 
                         fileList={imageList}
                         onChange={handleFileChange}
                         beforeUpload={() => false}
+                        accept="image/jpeg,image/png,video/mp4"
                         style={{ background: '#fafafa', border: '2px dashed #d9d9d9' }}
                     >
                         <p className="ant-upload-drag-icon"><UploadOutlined /></p>
@@ -817,7 +815,7 @@ const OrderDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [reviewDrawer, setReviewDrawer] = useState({ visible: false, product: null });
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    const [cancelType, setCancelType] = useState('direct'); // 'direct' or 'request'
+    const [cancelType, setCancelType] = useState('direct');
     const [cancelReasonInput, setCancelReasonInput] = useState('');
 
     const fetchOrder = async () => {
@@ -839,9 +837,22 @@ const OrderDetailPage = () => {
     const handleOpenReview = (product) => setReviewDrawer({ visible: true, product });
     const handleCloseReview = () => setReviewDrawer({ visible: false, product: null });
 
+    // ✅ FIX: Build FormData đúng cách để gửi ảnh multipart/form-data
     const handleReviewSubmit = async (reviewData) => {
         try {
-            await submitReviewApi(reviewDrawer.product.productId, reviewData);
+            const formData = new FormData();
+            formData.append('orderId', reviewData.orderId);
+            formData.append('rating', reviewData.rating);
+            formData.append('comment', reviewData.comment || '');
+
+            // ✅ Append từng file một — images là mảng File object đã được filter sạch
+            if (reviewData.images && reviewData.images.length > 0) {
+                reviewData.images.forEach((file) => {
+                    formData.append('images', file);
+                });
+            }
+
+            await submitReviewApi(reviewDrawer.product.productId, formData);
             message.success('Đánh giá sản phẩm thành công! Bạn có thể nhận thưởng ngay.');
             fetchOrder();
         } catch (error) {
@@ -854,7 +865,7 @@ const OrderDetailPage = () => {
         try {
             const res = await claimReviewRewardApi(reviewId);
             message.success(res.data.message || 'Nhận thưởng thành công! +100,000 điểm.');
-            fetchOrder(); // Refresh order data to show updated reward status
+            fetchOrder();
         } catch (error) {
             message.error(error.response?.data?.message || 'Không thể nhận thưởng.');
         }
@@ -862,7 +873,7 @@ const OrderDetailPage = () => {
 
     const handleBuyAgain = async (productId, quantity) => {
         try {
-            await addToCartApi({ productId, quantity });
+            await addToCart({ productId, quantity });
             message.success('Sản phẩm đã được thêm vào giỏ hàng!');
         } catch (error) {
             message.error(error.response?.data?.message || 'Không thể thêm vào giỏ hàng.');
@@ -949,11 +960,11 @@ const OrderDetailPage = () => {
                                 style={{ marginBottom: 16 }}
                             />
                         )}
-                        <ProductListCard 
-                            details={order.details} 
-                            orderStatus={order.orderStatus} 
-                            productReviews={order.productReviews} 
-                            onReview={handleOpenReview} 
+                        <ProductListCard
+                            details={order.details}
+                            orderStatus={order.orderStatus}
+                            productReviews={order.productReviews}
+                            onReview={handleOpenReview}
                             onCancelItem={handleCancelItem}
                             onClaimReward={handleClaimReward}
                             onBuyAgain={handleBuyAgain}

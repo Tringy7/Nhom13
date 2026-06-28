@@ -5,12 +5,13 @@ const submitReview = async (req, res) => {
     const userId = req.user.id;
     const productId = Number(req.params.id);
     const { orderId, rating, comment } = req.body;
+    const images = req.files ? req.files.map(file => `/uploads/reviews/${file.filename}`) : [];
 
-    // The service was updated to return { review }
     const data = await productFeatureService.submitReview(userId, productId, {
       orderId,
       rating,
-      comment
+      comment,
+      images
     });
 
     return res.status(201).json({
@@ -24,6 +25,33 @@ const submitReview = async (req, res) => {
       message: error.message
     });
   }
+};
+
+const updateReview = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const reviewId = Number(req.params.id);
+        const { rating, comment, existingImages } = req.body;
+        const newImages = req.files ? req.files.map(file => `/uploads/reviews/${file.filename}`) : [];
+
+        const data = await productFeatureService.updateReview(userId, reviewId, {
+            rating,
+            comment,
+            existingImages: existingImages || [],
+            newImages
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cập nhật đánh giá thành công',
+            data
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
 };
 
 const claimReviewReward = async (req, res) => {
@@ -103,6 +131,7 @@ const addViewedProduct = async (req, res) => {
 
 export default {
   submitReview,
+  updateReview,
   claimReviewReward,
   toggleFavorite,
   getWishlist,

@@ -11,6 +11,10 @@ export default (sequelize, DataTypes) => {
         foreignKey: 'productId',
         as: 'product'
       });
+      ProductReview.hasMany(entities.ProductReviewImage, {
+        foreignKey: 'productReviewId',
+        as: 'images'
+      });
     }
   }
 

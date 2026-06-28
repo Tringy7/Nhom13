@@ -2,6 +2,8 @@ import db from '../../entities/index.js';
 import { createRewardHistory } from '../reward/reward.service.js';
 import { REWARD_TYPE } from '../../constants/reward.constants.js';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 const {
   Product,
@@ -12,6 +14,7 @@ const {
   OrderDetail,
   User,
   ProductImage,
+  ProductReviewImage,
   sequelize
 } = db;
 
@@ -28,8 +31,7 @@ const ensureOrderDeliveredForProduct = async (userId, orderId, productId) => {
   return order;
 };
 
-const submitReview = async (userId, productId, { orderId, rating, comment = '' }) => {
-  const { ProductReview, User, Coupon } = db;
+const submitReview = async (userId, productId, { orderId, rating, comment = '', images = [] }) => {
   if (!rating || rating < 1 || rating > 5) {
     throw new Error('Điểm đánh giá phải từ 1 đến 5');
   }
@@ -51,7 +53,77 @@ const submitReview = async (userId, productId, { orderId, rating, comment = '' }
     rewardType: 'POINTS',
     rewardValue: 100000,
   });
+
+  if (images && images.length > 0) {
+    const reviewImages = images.map(imageUrl => ({
+      productReviewId: review.id,
+      imageUrl
+    }));
+    await ProductReviewImage.bulkCreate(reviewImages);
+  }
+
   return { review };
+};
+
+const updateReview = async (userId, reviewId, { rating, comment, existingImages = [], newImages = [] }) => {
+    const t = await sequelize.transaction();
+    try {
+        const review = await ProductReview.findOne({
+            where: { id: reviewId, userId },
+            include: [{ model: ProductReviewImage, as: 'images' }],
+            transaction: t
+        });
+
+        if (!review) {
+            throw new Error('Không tìm thấy đánh giá hoặc bạn không có quyền chỉnh sửa.');
+        }
+
+        // Update rating and comment
+        review.rating = rating;
+        review.comment = comment;
+        await review.save({ transaction: t });
+
+        // Handle images
+        const oldImageUrls = review.images.map(img => img.imageUrl);
+        const keptImageUrls = Array.isArray(existingImages) ? existingImages : [existingImages].filter(Boolean);
+
+        // Images to delete
+        const imagesToDelete = oldImageUrls.filter(url => !keptImageUrls.includes(url));
+        if (imagesToDelete.length > 0) {
+            await ProductReviewImage.destroy({
+                where: {
+                    productReviewId: review.id,
+                    imageUrl: { [Op.in]: imagesToDelete }
+                },
+                transaction: t
+            });
+            // Optionally delete files from server
+            imagesToDelete.forEach(url => {
+                const filePath = path.join(process.cwd(), 'src', url);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            });
+        }
+
+        // Images to add
+        if (newImages.length > 0) {
+            const imagesToAdd = newImages.map(imageUrl => ({
+                productReviewId: review.id,
+                imageUrl
+            }));
+            await ProductReviewImage.bulkCreate(imagesToAdd, { transaction: t });
+        }
+
+        await t.commit();
+        return { success: true, message: 'Cập nhật đánh giá thành công.' };
+
+    } catch (error) {
+        if (t && !t.finished) {
+            await t.rollback();
+        }
+        throw error;
+    }
 };
 
 const claimReviewReward = async (userId, reviewId) => {
@@ -153,10 +225,12 @@ const addViewedProduct = async (userId, productId) => {
 };
 
 const getReviewsByProduct = async (productId) => {
-  const { ProductReview, User } = db;
   const reviews = await ProductReview.findAll({
     where: { productId },
-    include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'avatar'] }],
+    include: [
+        { model: User, as: 'user', attributes: ['id', 'fullName', 'avatar'] },
+        { model: ProductReviewImage, as: 'images', attributes: ['imageUrl'] }
+    ],
     order: [['createdAt', 'DESC']],
     limit: 30
   });
@@ -231,6 +305,7 @@ const getSimilarProducts = async (productId, limit = 4) => {
 
 export default {
   submitReview,
+  updateReview,
   claimReviewReward,
   toggleFavorite,
   getWishlist,
