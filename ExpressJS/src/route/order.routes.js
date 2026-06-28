@@ -58,20 +58,6 @@ router.post(
   orderController.submitShipperFeedback
 );
 
-router.get(
-  '/api/admin/orders',
-  verifyToken,
-  authorize('admin'),
-  orderController.getAdminOrders
-);
-
-router.get(
-  '/api/admin/orders/:orderId',
-  verifyToken,
-  authorize('admin'),
-  orderController.getAdminOrderById
-);
-
 router.patch(
   '/api/admin/orders/:orderId/status',
   verifyToken,
