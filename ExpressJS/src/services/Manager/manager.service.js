@@ -78,25 +78,42 @@ const createProduct = async (data) => {
 
     try {
         const { name, price, description, stock, category, brandId, ram, isActive, thumbnail, images } = data;
-        
+
+        // Xác định đường dẫn thumbnail
+        const thumbnailPath = thumbnail ? `/uploads/products/${thumbnail.filename}` : null;
+
         const product = await Product.create({
             name,
             price: parseFloat(price || 0),
             description,
             stock: parseInt(stock || 0),
             sold: 0,
-            thumbnail: thumbnail ? `/uploads/products/${thumbnail.filename}` : null,
+            thumbnail: thumbnailPath,   // vẫn lưu vào Product.thumbnail như cũ
             ram: ram ? parseInt(ram) : null,
             category,
             brandId: parseInt(brandId),
             isActive: isActive === 'true' || isActive === true || isActive === undefined
         }, { transaction: t });
 
+        // Gom tất cả ảnh vào productimages:
+        //   1) thumbnail (nếu có) → đưa vào đầu danh sách
+        //   2) detail images theo sau
+        const imageRecords = [];
+
+        if (thumbnailPath) {
+            imageRecords.push({ productId: product.id, imageUrl: thumbnailPath });
+        }
+
         if (images && images.length > 0) {
-            const imageRecords = images.map(file => ({
-                productId: product.id,
-                imageUrl: `/uploads/products/${file.filename}`
-            }));
+            images.forEach(file => {
+                imageRecords.push({
+                    productId: product.id,
+                    imageUrl: `/uploads/products/${file.filename}`
+                });
+            });
+        }
+
+        if (imageRecords.length > 0) {
             await ProductImage.bulkCreate(imageRecords, { transaction: t });
         }
 
@@ -131,19 +148,58 @@ const updateProduct = async (id, data) => {
             isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : product.isActive
         };
 
+        // Xác định thumbnail mới nếu có upload
+        let newThumbnailPath = null;
         if (thumbnail) {
-            updateFields.thumbnail = `/uploads/products/${thumbnail.filename}`;
+            newThumbnailPath = `/uploads/products/${thumbnail.filename}`;
+            updateFields.thumbnail = newThumbnailPath;   // vẫn update Product.thumbnail
         }
 
         await product.update(updateFields, { transaction: t });
 
+        // Nếu yêu cầu xóa toàn bộ ảnh detail cũ trong productimages
         if (deleteExistingImages === 'true' || deleteExistingImages === true) {
             await ProductImage.destroy({ where: { productId: id }, transaction: t });
         }
 
+        // Xử lý thumbnail mới vào productimages
+        if (newThumbnailPath) {
+            const oldThumbnailPath = product.thumbnail;    // path thumbnail cũ trước khi update
+
+            if (deleteExistingImages === 'true' || deleteExistingImages === true) {
+                // Đã xóa hết ảnh cũ → chỉ cần thêm thumbnail mới vào đầu
+                await ProductImage.create(
+                    { productId: id, imageUrl: newThumbnailPath },
+                    { transaction: t }
+                );
+            } else {
+                // Chưa xóa → tìm record thumbnail cũ trong productimages và cập nhật
+                if (oldThumbnailPath) {
+                    const [count] = await ProductImage.update(
+                        { imageUrl: newThumbnailPath },
+                        { where: { productId: id, imageUrl: oldThumbnailPath }, transaction: t }
+                    );
+                    if (count === 0) {
+                        // Không tìm thấy record cũ (có thể chưa sync) → tạo mới
+                        await ProductImage.create(
+                            { productId: id, imageUrl: newThumbnailPath },
+                            { transaction: t }
+                        );
+                    }
+                } else {
+                    // Chưa có thumbnail cũ → tạo mới record
+                    await ProductImage.create(
+                        { productId: id, imageUrl: newThumbnailPath },
+                        { transaction: t }
+                    );
+                }
+            }
+        }
+
+        // Thêm các detail images mới được upload
         if (images && images.length > 0) {
             const imageRecords = images.map(file => ({
-                productId: product.id,
+                productId: id,
                 imageUrl: `/uploads/products/${file.filename}`
             }));
             await ProductImage.bulkCreate(imageRecords, { transaction: t });
@@ -345,8 +401,8 @@ const getOrderById = async (id) => {
         include: [
             { model: User, as: 'customer', attributes: ['id', 'fullName', 'email', 'phone'] },
             { model: User, as: 'shipper', attributes: ['id', 'fullName', 'phone'] },
-            { 
-                model: OrderDetail, 
+            {
+                model: OrderDetail,
                 as: 'details',
                 include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'thumbnail', 'price'] }]
             },
@@ -597,9 +653,9 @@ const getCancellationRequests = async () => {
     const { OrderCancellationRequest, Order, User } = getModels();
     return await OrderCancellationRequest.findAll({
         include: [
-            { 
-                model: Order, 
-                as: 'order', 
+            {
+                model: Order,
+                as: 'order',
                 attributes: ['id', 'totalAmount', 'orderStatus', 'createdAt']
             },
             { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] }
@@ -707,7 +763,7 @@ const getSalesReport = async () => {
 
     // 1. Core summaries (Paid or Confirmed or delivered or shipping orders)
     const activeStatuses = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'];
-    
+
     const summary = await Order.findAll({
         attributes: [
             [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'totalRevenue'],

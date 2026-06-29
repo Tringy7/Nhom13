@@ -23,19 +23,13 @@ const productInclude = [
   }
 ];
 
-const getBestSellingProducts = async (options = {}) => {
-  const { page = 1, limit = 10 } = options;
-  const offset = (page - 1) * limit;
-
-  // Use the 'sold' field for "best-selling"
-  return Product.findAndCountAll({
-    offset,
-    limit,
+const getBestSellingProducts = async () => {
+  return Product.findAll({
+    limit: 8,
     order: [['sold', 'DESC']],
     where: { isActive: true },
     attributes: ['id', 'name', 'price', 'thumbnail', 'stock', 'sold', 'isActive', 'brandId', 'createdAt'],
     include: productInclude,
-    distinct: true
   });
 };
 

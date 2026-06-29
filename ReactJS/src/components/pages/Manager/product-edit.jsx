@@ -10,12 +10,12 @@ const { TextArea } = Input;
 const { Option } = Select;
 
 const getBase64 = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
-  });
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+    });
 
 const ProductEdit = () => {
     const navigate = useNavigate();
@@ -27,13 +27,13 @@ const ProductEdit = () => {
     const [saving, setSaving] = useState(false);
     const [brands, setBrands] = useState([]);
     const [categories, setCategories] = useState([]);
-    
+
+    // thumbnailFile: dùng riêng để submit thumbnail lên server (maxCount=1)
     const [thumbnailFile, setThumbnailFile] = useState([]);
+
+    // detailFiles: hiển thị gallery gộp chung — thumbnail (đầu) + detail images
+    // Mỗi item có thêm flag `isThumbnail: true/false` để phân biệt khi submit
     const [detailFiles, setDetailFiles] = useState([]);
-    
-    const [existingThumbnail, setExistingThumbnail] = useState(null);
-    const [existingImages, setExistingImages] = useState([]);
-    const [deleteExistingImages, setDeleteExistingImages] = useState(false);
 
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState('');
@@ -77,8 +77,42 @@ const ProductEdit = () => {
                     brandId: product.brandId,
                     isActive: product.isActive
                 });
-                setExistingThumbnail(product.thumbnail);
-                setExistingImages(product.images || []);
+
+                // --- Xử lý thumbnail ---
+                let thumbFileObj = null;
+                if (product.thumbnail) {
+                    thumbFileObj = {
+                        uid: 'thumbnail-main',
+                        name: 'thumbnail.png',
+                        status: 'done',
+                        url: `${import.meta.env.VITE_BACKEND_URL}${product.thumbnail}`,
+                        isThumbnail: true   // đánh dấu để lọc khi submit
+                    };
+                    // vẫn giữ thumbnailFile state để submit riêng
+                    setThumbnailFile([thumbFileObj]);
+                }
+
+                // --- Xử lý detail images ---
+                // Backend đã lưu thumbnail vào productimages nên images[] có thể đã chứa thumbnail.
+                // Dùng Set để deduplicate theo imageUrl, đặt thumbnail lên đầu nếu chưa có.
+                const detailImageObjs = (product.images || []).map((img, index) => ({
+                    uid: `detail-${index}`,
+                    name: `image-${index}.png`,
+                    status: 'done',
+                    url: `${import.meta.env.VITE_BACKEND_URL}${img.imageUrl}`,
+                    isThumbnail: product.thumbnail && img.imageUrl === product.thumbnail
+                }));
+
+                // Kiểm tra xem thumbnail đã có trong danh sách detail chưa
+                const thumbnailAlreadyInDetail = detailImageObjs.some(f => f.isThumbnail);
+
+                if (thumbFileObj && !thumbnailAlreadyInDetail) {
+                    // Thumbnail chưa có trong productimages → ghép thủ công vào đầu
+                    setDetailFiles([thumbFileObj, ...detailImageObjs]);
+                } else {
+                    // Backend đã gộp sẵn → dùng trực tiếp (isThumbnail đã được đánh dấu)
+                    setDetailFiles(detailImageObjs);
+                }
             }
         } catch (err) {
             message.error("Không thể tải thông tin sản phẩm");
@@ -92,29 +126,46 @@ const ProductEdit = () => {
         setSaving(true);
         try {
             const formData = new FormData();
-            
+
             Object.keys(values).forEach(key => {
                 if (values[key] !== undefined && values[key] !== null) {
                     formData.append(key, values[key]);
                 }
             });
 
-            if (isEditMode) {
-                formData.append('deleteExistingImages', deleteExistingImages);
-            }
+            // --- Thumbnail ---
+            // Ưu tiên: nếu có file mới upload từ thumbnailFile state → gửi lên
+            // Nếu không → kiểm tra trong detailFiles xem có item isThumbnail mới không
+            const newThumbFromState = thumbnailFile.find(f => f.originFileObj);
+            const newThumbFromDetail = detailFiles.find(f => f.isThumbnail && f.originFileObj);
 
-            if (thumbnailFile.length > 0 && thumbnailFile[0].originFileObj) {
-                formData.append('thumbnail', thumbnailFile[0].originFileObj);
+            if (newThumbFromState) {
+                formData.append('thumbnail', newThumbFromState.originFileObj);
+            } else if (newThumbFromDetail) {
+                formData.append('thumbnail', newThumbFromDetail.originFileObj);
             }
-            
-            detailFiles.forEach(file => {
+            // Nếu không có thumbnail mới → giữ nguyên thumbnail cũ (server tự xử lý)
+
+            // --- Detail images ---
+            // Lọc bỏ item thumbnail ra, chỉ gửi ảnh detail thực sự
+            const pureDetailFiles = detailFiles.filter(f => !f.isThumbnail);
+
+            // Các ảnh detail cũ đã có sẵn trên server (không có originFileObj)
+            const existingImageUrls = pureDetailFiles
+                .filter(file => !file.originFileObj)
+                .map(file => file.url.replace(import.meta.env.VITE_BACKEND_URL, ''));
+
+            formData.append('existingImages', JSON.stringify(existingImageUrls));
+
+            // Các ảnh detail mới được upload trong lần này
+            pureDetailFiles.forEach(file => {
                 if (file.originFileObj) {
                     formData.append('images', file.originFileObj);
                 }
             });
 
-            const res = isEditMode 
-                ? await updateProductApi(id, formData) 
+            const res = isEditMode
+                ? await updateProductApi(id, formData)
                 : await createProductApi(formData);
 
             if (res.success) {
@@ -130,15 +181,41 @@ const ProductEdit = () => {
 
     const handlePreview = async (file) => {
         if (!file.url && !file.preview) {
-          file.preview = await getBase64(file.originFileObj);
+            file.preview = await getBase64(file.originFileObj);
         }
         setPreviewImage(file.url || file.preview);
         setPreviewOpen(true);
         setPreviewTitle(file.name || file.url.substring(file.url.lastIndexOf('/') + 1));
     };
 
-    const handleThumbnailChange = ({ fileList: newFileList }) => setThumbnailFile(newFileList);
-    const handleDetailFilesChange = ({ fileList: newFileList }) => setDetailFiles(newFileList);
+    // Khi user thay đổi thumbnail upload riêng → đồng bộ lại vào detailFiles
+    const handleThumbnailChange = ({ fileList: newFileList }) => {
+        setThumbnailFile(newFileList);
+
+        if (newFileList.length > 0) {
+            const newThumb = { ...newFileList[0], isThumbnail: true };
+            // Thay thế item thumbnail cũ trong detailFiles bằng item mới
+            setDetailFiles(prev => {
+                const withoutOldThumb = prev.filter(f => !f.isThumbnail);
+                return [newThumb, ...withoutOldThumb];
+            });
+        } else {
+            // User xóa thumbnail → remove khỏi detailFiles luôn
+            setDetailFiles(prev => prev.filter(f => !f.isThumbnail));
+        }
+    };
+
+    // Khi user thay đổi trong gallery chung → cập nhật detailFiles
+    // Nếu user xóa item isThumbnail trong gallery → đồng bộ xóa thumbnailFile
+    const handleDetailFilesChange = ({ fileList: newFileList }) => {
+        setDetailFiles(newFileList);
+
+        // Nếu thumbnail bị xóa khỏi gallery → clear thumbnailFile
+        const stillHasThumb = newFileList.some(f => f.isThumbnail);
+        if (!stillHasThumb) {
+            setThumbnailFile([]);
+        }
+    };
 
     return (
         <ManagerLayout activeKey="products">
@@ -156,7 +233,7 @@ const ProductEdit = () => {
                 <Form form={form} layout="vertical" onFinish={onFinish} requiredMark="optional">
                     <Row gutter={24}>
                         <Col xs={24} lg={16}>
-                            {/* Main Info */}
+                            {/* Thông tin chính */}
                             <Form.Item label="Tên sản phẩm" name="name" rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm' }]}>
                                 <Input placeholder="Ví dụ: Laptop Apple MacBook Air M2 2022" size="large" />
                             </Form.Item>
@@ -166,7 +243,13 @@ const ProductEdit = () => {
                             <Row gutter={16}>
                                 <Col xs={24} sm={12}>
                                     <Form.Item label="Giá bán lẻ (VND)" name="price" rules={[{ required: true, message: 'Vui lòng nhập giá bán' }]}>
-                                        <InputNumber formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={v => v.replace(/\$\s?|(,*)/g, '')} style={{ width: '100%' }} min={0} size="large" />
+                                        <InputNumber
+                                            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                            parser={v => v.replace(/\$\s?|(,*)/g, '')}
+                                            style={{ width: '100%' }}
+                                            min={0}
+                                            size="large"
+                                        />
                                     </Form.Item>
                                 </Col>
                                 <Col xs={24} sm={12}>
@@ -175,38 +258,70 @@ const ProductEdit = () => {
                                     </Form.Item>
                                 </Col>
                             </Row>
-                            
-                            {/* Detail Images */}
-                            <Form.Item label="Ảnh chi tiết sản phẩm">
+
+                            {/* Gallery ảnh chung: thumbnail (đầu tiên, có nhãn) + detail images */}
+                            <Form.Item
+                                label={
+                                    <span>
+                                        Ảnh sản phẩm
+                                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                                            (Ảnh đầu tiên là ảnh đại diện — thumbnail)
+                                        </Text>
+                                    </span>
+                                }
+                            >
                                 <Upload
                                     listType="picture-card"
                                     fileList={detailFiles}
                                     onPreview={handlePreview}
                                     onChange={handleDetailFilesChange}
                                     multiple
+                                    itemRender={(originNode, file) => {
+                                        // Hiển thị nhãn "Thumbnail" cho ảnh đầu tiên
+                                        if (file.isThumbnail) {
+                                            return (
+                                                <div style={{ position: 'relative' }}>
+                                                    {originNode}
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        bottom: 4,
+                                                        left: 4,
+                                                        background: '#1677ff',
+                                                        color: '#fff',
+                                                        fontSize: 10,
+                                                        padding: '1px 5px',
+                                                        borderRadius: 4,
+                                                        pointerEvents: 'none'
+                                                    }}>
+                                                        Thumbnail
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                        return originNode;
+                                    }}
                                 >
                                     <div>
                                         <PlusOutlined />
                                         <div style={{ marginTop: 8 }}>Thêm ảnh</div>
                                     </div>
                                 </Upload>
-                                {isEditMode && existingImages.length > 0 && (
-                                    <div style={{ marginTop: 16 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                            <Text type="secondary" style={{ fontSize: 12 }}>Ảnh chi tiết hiện tại ({existingImages.length}):</Text>
-                                            <Switch size="small" checked={deleteExistingImages} onChange={setDeleteExistingImages} checkedChildren="Thay thế" unCheckedChildren="Giữ lại" />
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', opacity: deleteExistingImages ? 0.3 : 1 }}>
-                                            {existingImages.map(img => <img key={img.id} src={`${import.meta.env.VITE_BACKEND_URL}${img.imageUrl}`} alt="current" style={{ width: 50, height: 50, borderRadius: 6, objectFit: 'cover', border: '1px solid #ddd' }}/>)}
-                                        </div>
-                                    </div>
-                                )}
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} lg={8}>
-                            {/* Thumbnail */}
-                            <Form.Item label="Ảnh đại diện (Thumbnail)" required>
+                            {/* Upload thumbnail riêng (vẫn giữ để user có thể chọn thumbnail độc lập) */}
+                            <Form.Item
+                                label={
+                                    <span>
+                                        Ảnh đại diện (Thumbnail)
+                                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                                            — tự động thêm vào gallery
+                                        </Text>
+                                    </span>
+                                }
+                                required
+                            >
                                 <Upload
                                     listType="picture-card"
                                     fileList={thumbnailFile}
@@ -221,12 +336,6 @@ const ProductEdit = () => {
                                         </div>
                                     )}
                                 </Upload>
-                                {isEditMode && existingThumbnail && (
-                                    <div style={{ marginTop: 8 }}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Ảnh hiện tại:</Text>
-                                        <img src={`${import.meta.env.VITE_BACKEND_URL}${existingThumbnail}`} alt="thumbnail" style={{ width: 102, height: 102, borderRadius: 8, objectFit: 'cover', border: '1px solid #ddd', marginTop: 4 }}/>
-                                    </div>
-                                )}
                             </Form.Item>
 
                             {/* Metadata */}
@@ -259,8 +368,9 @@ const ProductEdit = () => {
                     </Form.Item>
                 </Form>
             </Card>
+
             <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={() => setPreviewOpen(false)}>
-                <img alt="example" style={{ width: '100%' }} src={previewImage} />
+                <img alt="preview" style={{ width: '100%' }} src={previewImage} />
             </Modal>
         </ManagerLayout>
     );

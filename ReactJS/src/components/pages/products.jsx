@@ -54,6 +54,12 @@ const ProductsPage = () => {
     const maxPrice   = parseInt(searchParams.get('maxPrice')) || PRICE_MAX;
     const rams       = searchParams.getAll('ram').map(Number);
 
+    const [searchTerm, setSearchTerm] = useState(search);
+
+    useEffect(() => {
+        setSearchTerm(search);
+    }, [search]);
+
     // --- Fetch whenever any filter changes ---
     useEffect(() => {
         const fetchProducts = async () => {
@@ -105,7 +111,6 @@ const ProductsPage = () => {
             if (Array.isArray(val)) {
                 val.forEach(v => params.append(key, v));
             } else if (val !== undefined && val !== '') {
-                // Bỏ qua minPrice = 0 và maxPrice = PRICE_MAX (giá trị mặc định)
                 if (key === 'minPrice' && val === '0')              return;
                 if (key === 'maxPrice' && val === String(PRICE_MAX)) return;
                 params.set(key, val);
@@ -155,8 +160,10 @@ const ProductsPage = () => {
 
     // --- Render product card ---
     const renderProductCard = (product) => {
-        const imageUrl     = product?.images?.[0]?.imageUrl || product.thumbnail;
-        const displayImage = getImageUrl(imageUrl);
+        // Ưu tiên product.thumbnail (trường trực tiếp trên Product entity).
+        // Fallback về ảnh đầu tiên trong images[] nếu thumbnail chưa có.
+        const rawImageUrl  = product.thumbnail || product?.images?.[0]?.imageUrl;
+        const displayImage = getImageUrl(rawImageUrl);
 
         return (
             <Card
@@ -231,22 +238,6 @@ const ProductsPage = () => {
                     </Space>
                 </Checkbox.Group>
             </div>
-
-            {/*<div className="filter-section">*/}
-            {/*    <Title level={5} className="filter-title">Price Range</Title>*/}
-            {/*    <Slider*/}
-            {/*        range*/}
-            {/*        value={[minPrice, maxPrice]}*/}
-            {/*        max={PRICE_MAX}*/}
-            {/*        step={1000000}*/}
-            {/*        tooltip={{ formatter: formatPrice }}*/}
-            {/*        onAfterChange={handlePriceChange}*/}
-            {/*    />*/}
-            {/*    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>*/}
-            {/*        <Text style={{ fontSize: 12, color: '#64748b' }}>{formatPrice(minPrice)}</Text>*/}
-            {/*        <Text style={{ fontSize: 12, color: '#64748b' }}>{formatPrice(maxPrice)}</Text>*/}
-            {/*    </div>*/}
-            {/*</div>*/}
 
             <div className="filter-section">
                 <Title level={5} className="filter-title">RAM</Title>
@@ -509,15 +500,17 @@ const ProductsPage = () => {
                     </Col>
                     <Col xs={24} lg={12}>
                         <Space wrap size={16} className="toolbar-controls" style={{ float: 'right' }}>
-                            {/* FIX: value thay vì defaultValue để sync khi URL thay đổi */}
                             <Search
                                 placeholder="Search in collection..."
                                 allowClear
-                                value={search}
+                                value={searchTerm}
                                 onSearch={handleSearch}
                                 onChange={(e) => {
-                                    // Khi user xoá hết bằng nút allowClear hoặc tay
-                                    if (!e.target.value) handleSearch('');
+                                    const { value } = e.target;
+                                    setSearchTerm(value);
+                                    if (value === '') {
+                                        handleSearch('');
+                                    }
                                 }}
                                 className="custom-search-bar"
                                 style={{ width: 280 }}
@@ -546,7 +539,6 @@ const ProductsPage = () => {
 
                 <Col xs={24} lg={19}>
                     <Skeleton active loading={loading} paragraph={{ rows: 12 }}>
-                        {/* FIX: Hiển thị số lượng kết quả */}
                         {!loading && products.count > 0 && (
                             <div className="results-meta">
                                 <strong>{products.count.toLocaleString('vi-VN')}</strong>

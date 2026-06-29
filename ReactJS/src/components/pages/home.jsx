@@ -6,19 +6,14 @@ import {
     Col,
     Empty,
     Image,
-    Input,
     message,
-    Pagination,
     Row,
     Skeleton,
-    Tag,
     Typography,
     Space
 } from 'antd';
 
 import {
-    ArrowRightOutlined,
-    SearchOutlined,
     EyeOutlined,
     HeartOutlined,
     FireFilled
@@ -26,23 +21,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { getHomePageApi } from '../util/api/home.api';
-import { getBestSellingProductsApi } from '../util/api/product.api';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Paragraph, Text } = Typography;
-const { Search } = Input;
 
 const HomePage = () => {
     const [promotions, setPromotions] = useState([]);
-    const [bestSellingProducts, setBestSellingProducts] = useState({ rows: [], count: 0 });
-
+    const [bestSellingProducts, setBestSellingProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [productsLoading, setProductsLoading] = useState({
-        bestSelling: false
-    });
-
-    const [bestSellingPage, setBestSellingPage] = useState(1);
-    const PRODUCT_PAGE_SIZE = 10;
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -54,7 +40,7 @@ const HomePage = () => {
 
                 if (data) {
                     setPromotions(data.promotions || []);
-                    setBestSellingProducts(data.bestSellingProducts || { rows: [], count: 0 });
+                    setBestSellingProducts(data.bestSellingProducts || []);
                 } else {
                     message.error(res?.message || 'Không tải được dữ liệu trang chủ');
                 }
@@ -67,23 +53,6 @@ const HomePage = () => {
 
         loadHomeData();
     }, []);
-
-    const handleBestSellingPageChange = async (page) => {
-        setProductsLoading((prev) => ({ ...prev, bestSelling: true }));
-        window.scrollTo({ top: document.getElementById('bestselling-section')?.offsetTop - 100, behavior: 'smooth' });
-        try {
-            const res = await getBestSellingProductsApi(page, PRODUCT_PAGE_SIZE);
-            const data = res?.data || res;
-            if (data?.rows) {
-                setBestSellingProducts(data);
-                setBestSellingPage(page);
-            }
-        } catch (error) {
-            message.error('Lỗi khi tải trang sản phẩm bán chạy');
-        } finally {
-            setProductsLoading((prev) => ({ ...prev, bestSelling: false }));
-        }
-    };
 
     const formatPrice = (price) => {
         return new Intl.NumberFormat('vi-VN', {
@@ -196,8 +165,6 @@ const HomePage = () => {
             </Card>
         );
     };
-
-    const filteredBestSelling = bestSellingProducts.rows;
 
     return (
         <div className="page-wrapper">
@@ -454,28 +421,6 @@ const HomePage = () => {
                         align-items: center;
                     }
 
-                    .toolbar-search .ant-input-wrapper {
-                        background: #fff;
-                        border-radius: 8px;
-                        border: 1px solid rgba(0,0,0,0.08);
-                        overflow: hidden;
-                    }
-                    .toolbar-search .ant-input {
-                        border: none;
-                        height: 38px;
-                        padding-left: 16px;
-                        font-size: 14px;
-                    }
-                    .toolbar-search .ant-input:focus {
-                        box-shadow: none;
-                    }
-                    .toolbar-search .ant-btn {
-                        border: none;
-                        height: 38px;
-                        background: transparent;
-                        color: var(--text-light);
-                    }
-
                     .btn-view-all {
                         background: #1e293b;
                         color: #fff;
@@ -656,12 +601,6 @@ const HomePage = () => {
                         Explore Collection
                     </Title>
                     <Space size={16} className="toolbar-right">
-                        {/*<Search*/}
-                        {/*    placeholder="Search laptops..."*/}
-                        {/*    onSearch={(value) => { if(value) navigate(`/products?search=${value}`); }}*/}
-                        {/*    className="toolbar-search"*/}
-                        {/*    style={{ width: 260 }}*/}
-                        {/*/>*/}
                         <Button className="btn-view-all" onClick={() => navigate('/products')}>
                             View All
                         </Button>
@@ -670,33 +609,19 @@ const HomePage = () => {
 
                 {/* TRENDING GRID */}
                 <div id="bestselling-section">
-                    <Skeleton active loading={productsLoading.bestSelling}>
-                        <Row gutter={[24, 32]}>
-                            {filteredBestSelling.length > 0 ? (
-                                filteredBestSelling.map((product) => (
-                                    <Col xs={24} sm={12} md={8} lg={6} key={`best-${product.id}`}>
-                                        {renderProductCard(product)}
-                                    </Col>
-                                ))
-                            ) : (
-                                <Col span={24}>
-                                    <Empty description="No products found" />
+                    <Row gutter={[24, 32]}>
+                        {bestSellingProducts.length > 0 ? (
+                            bestSellingProducts.map((product) => (
+                                <Col xs={24} sm={12} md={8} lg={6} key={`best-${product.id}`}>
+                                    {renderProductCard(product)}
                                 </Col>
-                            )}
-                        </Row>
-                        {bestSellingProducts.count > PRODUCT_PAGE_SIZE && (
-                            <Row justify="center" style={{ marginTop: 48 }}>
-                                <Pagination
-                                    current={bestSellingPage}
-                                    total={bestSellingProducts.count}
-                                    pageSize={PRODUCT_PAGE_SIZE}
-                                    onChange={handleBestSellingPageChange}
-                                    showSizeChanger={false}
-                                    className="minimal-pagination"
-                                />
-                            </Row>
+                            ))
+                        ) : (
+                            <Col span={24}>
+                                <Empty description="No products found" />
+                            </Col>
                         )}
-                    </Skeleton>
+                    </Row>
                 </div>
             </Skeleton>
         </div>
