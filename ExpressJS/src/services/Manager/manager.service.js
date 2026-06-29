@@ -1,4 +1,6 @@
 import db from "../../entities/index.js";
+import fs from 'fs';
+import path from 'path';
 
 // Helper to secure models from db
 const getModels = () => {
@@ -70,34 +72,28 @@ const getProductDetail = async (id) => {
     });
 };
 
-const createProduct = async (data, files = []) => {
+const createProduct = async (data) => {
     const { Product, ProductImage, sequelize } = getModels();
     const t = await sequelize.transaction();
 
     try {
-        const { name, price, description, stock, category, brandId, ram, isActive } = data;
+        const { name, price, description, stock, category, brandId, ram, isActive, thumbnail, images } = data;
         
-        let thumbnail = null;
-        if (files && files.length > 0) {
-            thumbnail = `/uploads/products/${files[0].filename}`;
-        }
-
         const product = await Product.create({
             name,
             price: parseFloat(price || 0),
             description,
             stock: parseInt(stock || 0),
             sold: 0,
-            thumbnail,
+            thumbnail: thumbnail ? `/uploads/products/${thumbnail.filename}` : null,
             ram: ram ? parseInt(ram) : null,
             category,
             brandId: parseInt(brandId),
             isActive: isActive === 'true' || isActive === true || isActive === undefined
         }, { transaction: t });
 
-        // Save additional images if provided
-        if (files && files.length > 0) {
-            const imageRecords = files.map(file => ({
+        if (images && images.length > 0) {
+            const imageRecords = images.map(file => ({
                 productId: product.id,
                 imageUrl: `/uploads/products/${file.filename}`
             }));
@@ -112,7 +108,7 @@ const createProduct = async (data, files = []) => {
     }
 };
 
-const updateProduct = async (id, data, files = []) => {
+const updateProduct = async (id, data) => {
     const { Product, ProductImage, sequelize } = getModels();
     const t = await sequelize.transaction();
 
@@ -122,7 +118,7 @@ const updateProduct = async (id, data, files = []) => {
             throw new Error("Sản phẩm không tồn tại");
         }
 
-        const { name, price, description, stock, category, brandId, ram, isActive, deleteExistingImages } = data;
+        const { name, price, description, stock, category, brandId, ram, isActive, thumbnail, images, deleteExistingImages } = data;
 
         const updateFields = {
             name: name !== undefined ? name : product.name,
@@ -135,18 +131,18 @@ const updateProduct = async (id, data, files = []) => {
             isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : product.isActive
         };
 
-        if (files && files.length > 0) {
-            updateFields.thumbnail = `/uploads/products/${files[0].filename}`;
+        if (thumbnail) {
+            updateFields.thumbnail = `/uploads/products/${thumbnail.filename}`;
         }
 
         await product.update(updateFields, { transaction: t });
 
         if (deleteExistingImages === 'true' || deleteExistingImages === true) {
-            await ProductImage.destroy({ where: { productId: id } }, { transaction: t });
+            await ProductImage.destroy({ where: { productId: id }, transaction: t });
         }
 
-        if (files && files.length > 0) {
-            const imageRecords = files.map(file => ({
+        if (images && images.length > 0) {
+            const imageRecords = images.map(file => ({
                 productId: product.id,
                 imageUrl: `/uploads/products/${file.filename}`
             }));

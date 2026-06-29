@@ -5,6 +5,12 @@ import { uploadProductImage } from "../../middleware/upload.middleware.js";
 
 const router = express.Router();
 
+// Middleware for handling product image uploads
+const productUploads = uploadProductImage.fields([
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'images', maxCount: 10 }
+]);
+
 // Apply verifyToken and authorize('MANAGER', 'ADMIN') to all manager routes
 router.use("/api/manager", verifyToken, authorize("manager", "admin"));
 
@@ -15,8 +21,8 @@ router.get("/api/manager/reports/sales-summary", managerController.getSalesRepor
 // Products Management
 router.get("/api/manager/products", managerController.getProducts);
 router.get("/api/manager/products/:id", managerController.getProductDetail);
-router.post("/api/manager/products", uploadProductImage.array("images", 5), managerController.createProduct);
-router.put("/api/manager/products/:id", uploadProductImage.array("images", 5), managerController.updateProduct);
+router.post("/api/manager/products", productUploads, managerController.createProduct);
+router.put("/api/manager/products/:id", productUploads, managerController.updateProduct);
 router.delete("/api/manager/products/:id", managerController.deleteProduct);
 router.patch("/api/manager/products/:id/toggle", managerController.toggleProductActive);
 

@@ -38,7 +38,7 @@ let login = async (req, res) => {
       lastLoginAt: new Date(),
     });
 
-    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
+    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
     res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     const role = user.role.toLowerCase();
@@ -51,12 +51,6 @@ let login = async (req, res) => {
       token: accessToken,
       role,
       redirectURI,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      }
     });
   } catch (error) {
     console.error(error);
@@ -85,7 +79,7 @@ let refresh = async (req, res) => {
         refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
-      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 15 * 60 * 1000 });
+      res.cookie("accessToken", newAccessToken, { httpOnly: true, sameSite: "strict", maxAge: 1 * 60 * 1000 });
       res.cookie("refreshToken", newRefreshToken, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.json({ message: "Token refreshed", accessToken: newAccessToken });
@@ -194,11 +188,8 @@ let resendOtp = async (req, res) => {
 
 let register = async (req, res) => {
   try {
-    const { email, password, fullName, role } = req.body;
+    const { email, password, fullName } = req.body;
     const lowerCaseEmail = email.toLowerCase();
-    // Chỉ cho phép role 'user' hoặc 'shipper'
-    const allowedRoles = ['user', 'shipper'];
-    const assignedRole = allowedRoles.includes((role || '').toLowerCase()) ? role.toLowerCase() : 'user';
 
     const existingUser = await User.findOne({ where: { email: lowerCaseEmail } });
     if (existingUser) {
@@ -213,13 +204,7 @@ let register = async (req, res) => {
     otpStore.set(lowerCaseEmail, {
       otp,
       otpExpiry: getOTPExpiry(),
-      userData: { 
-        email: lowerCaseEmail, 
-        password: hashedPassword, 
-        fullName, 
-        role: assignedRole,
-        points: 50000 
-      }
+      userData: { email: lowerCaseEmail, password: hashedPassword, fullName }
     });
 
     return res.status(200).json({ success: true, message: `Mã OTP đã được gửi tới ${lowerCaseEmail}.` });
@@ -255,7 +240,7 @@ let verifyRegistrationOtp = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Email này đã được đăng ký.' });
     }
 
-    const newUser = await User.create({ ...record.userData });
+    const newUser = await User.create({ ...record.userData, role: 'USER' });
     otpStore.delete(lowerCaseEmail);
 
     return res.status(201).json({

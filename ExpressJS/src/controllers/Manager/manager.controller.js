@@ -23,7 +23,12 @@ const getProductDetail = async (req, res) => {
 
 const createProduct = async (req, res) => {
     try {
-        const product = await managerService.createProduct(req.body, req.files);
+        const productData = {
+            ...req.body,
+            thumbnail: req.files?.thumbnail?.[0],
+            images: req.files?.images || []
+        };
+        const product = await managerService.createProduct(productData);
         return res.status(201).json({ success: true, message: "Tạo sản phẩm thành công", data: product });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -32,7 +37,12 @@ const createProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
     try {
-        const product = await managerService.updateProduct(req.params.id, req.body, req.files);
+        const productData = {
+            ...req.body,
+            thumbnail: req.files?.thumbnail?.[0],
+            images: req.files?.images || []
+        };
+        const product = await managerService.updateProduct(req.params.id, productData);
         return res.status(200).json({ success: true, message: "Cập nhật sản phẩm thành công", data: product });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
