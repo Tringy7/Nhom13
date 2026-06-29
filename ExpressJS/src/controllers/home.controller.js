@@ -16,11 +16,7 @@ const getHomePage = async (req, res) => {
 
 const getBestSellingProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const data = await homeService.getBestSellingProducts({
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10)
-    });
+    const data = await homeService.getBestSellingProducts();
     return res.json({
       message: 'Best selling products loaded successfully',
       data

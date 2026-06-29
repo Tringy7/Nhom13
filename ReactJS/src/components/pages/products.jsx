@@ -54,6 +54,12 @@ const ProductsPage = () => {
     const maxPrice   = parseInt(searchParams.get('maxPrice')) || PRICE_MAX;
     const rams       = searchParams.getAll('ram').map(Number);
 
+    const [searchTerm, setSearchTerm] = useState(search);
+
+    useEffect(() => {
+        setSearchTerm(search);
+    }, [search]);
+
     // --- Fetch whenever any filter changes ---
     useEffect(() => {
         const fetchProducts = async () => {
@@ -497,10 +503,14 @@ const ProductsPage = () => {
                             <Search
                                 placeholder="Search in collection..."
                                 allowClear
-                                value={search}
+                                value={searchTerm}
                                 onSearch={handleSearch}
                                 onChange={(e) => {
-                                    if (!e.target.value) handleSearch('');
+                                    const { value } = e.target;
+                                    setSearchTerm(value);
+                                    if (value === '') {
+                                        handleSearch('');
+                                    }
                                 }}
                                 className="custom-search-bar"
                                 style={{ width: 280 }}
