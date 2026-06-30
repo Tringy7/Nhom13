@@ -1,6 +1,5 @@
 # Website Bán Laptop XYZ (Ví dụ)
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-005C84?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
@@ -31,25 +30,18 @@ Một dự án website thương mại điện tử chuyên bán các sản phẩ
 
 ## 🌟 Giới thiệu
 
-Dự án **Website Bán Laptop XYZ** là một hệ thống thương mại điện tử hoàn chỉnh, mô phỏng theo các trang web lớn như CellphoneS, FPT Shop.
+Dự án **Website Bán Laptop XYZ** là một hệ thống thương mại điện tử hoàn chỉnh.
 
 - **Mục đích:** Xây dựng một sản phẩm thực tế để áp dụng các kiến thức đã học về phát triển web full-stack, quản lý dự án phần mềm và thiết kế hệ thống.
 - **Đối tượng sử dụng:**
   - Khách hàng có nhu cầu tìm kiếm và mua sắm laptop.
-  - Quản trị viên (Admin, Manager, Staff) vận hành và quản lý website.
+  - Quản trị viên (Admin, Manager) vận hành và quản lý website.
 - **Bài toán giải quyết:** Cung cấp một nền tảng mua sắm trực tuyến tiện lợi, an toàn và dễ sử dụng, đồng thời cung cấp công cụ quản lý mạnh mẽ cho chủ cửa hàng.
 - **Các điểm nổi bật:**
   - Giao diện hiện đại, thân thiện với người dùng.
   - Tương tác thời gian thực với chức năng Chat.
   - Tích hợp thanh toán trực tuyến an toàn qua VNPay.
   - Hệ thống quản trị đầy đủ chức năng, dễ dàng vận hành.
-
-## 🚀 Demo
-
-- **Website:** [https://your-demo-link.com](https://your-demo-link.com)
-- **API Documentation:** [https://your-api-doc-link.com](https://your-api-doc-link.com) (Ví dụ: Swagger/Postman)
-- **Video Demo:**
-  [![Watch the video](https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 ## 🛠️ Công nghệ sử dụng
 
@@ -211,30 +203,29 @@ User Action      Frontend         Backend (API)          Database
 7.  **Backend** trả về JWT cho Frontend.
 8.  **Frontend** lưu JWT (vào Local Storage/Cookie) và chuyển hướng người dùng đến trang chủ.
 
-## ⚙️ Hướng dẫn cài đặt
+## ⚙️ Cài đặt chạy dự án
 
 Để chạy dự án này trên máy local, hãy làm theo các bước sau:
 
 **1. Clone repository:**
 ```bash
-git clone https://github.com/[your-username]/[your-repo-name].git
-cd [your-repo-name]
+git clone https://github.com/Tringy7/Nhom13.git
 ```
 
 **2. Cài đặt Backend:**
 ```bash
-cd backend
+cd ExpressJS
 npm install
 ```
 
 **3. Cài đặt Frontend:**
 ```bash
-cd ../frontend
+cd ReactJS
 npm install
 ```
 
 **4. Cấu hình Database:**
-- Mở MySQL và tạo một database mới, ví dụ: `laptop_shop_db`.
+- Mở MySQL và tạo một database mới, ví dụ: `uteshop.db`.
 - Import file database mẫu (nếu có) hoặc để ORM tự tạo bảng.
 
 **5. Tạo file `.env`:**
@@ -265,8 +256,8 @@ npm run seed
   cd frontend
   npm run dev
   ```
-- **Backend** sẽ chạy tại `http://localhost:8000` (ví dụ).
-- **Frontend** sẽ chạy tại `http://localhost:5173` (ví dụ).
+- **Backend** sẽ chạy tại `http://localhost:8080`
+- **Frontend** sẽ chạy tại `http://localhost:5173`
 
 ## 🔑 Biến môi trường (.env)
 
@@ -307,34 +298,27 @@ CLOUDINARY_API_SECRET=your_api_secret
 VITE_API_URL=http://localhost:8000
 ```
 
-## 🧑‍💻 Tài khoản test
+## 🧑‍💻 Tài khoản test và Database test 
 
-Bạn có thể sử dụng các tài khoản sau để trải nghiệm các vai trò khác nhau:
+Database test file
+Database: https://drive.google.com/file/d/1QmF0MWoHGA1p_Xco5mdcMHn1VQEBd91p/view?usp=sharing
+
+Sử dụng các tài khoản sau để trải nghiệm các vai trò khác nhau:
 
 - **Admin:**
-  - **Email:** `admin@example.com`
-  - **Password:** `123456`
+  - **Email:** `admin@gmail.com`
+  - **Password:** `Tt171005@@`
+- **Manager:**
+  - **Email:** `manager@gmail.com`
+  - **Password:** `Tt171005@@`
+- **Shipper:**
+  - **Email:** `shipper@gmail.com`
+  - **Password:** `Tt171005@@`
 - **User:**
-  - **Email:** `user@example.com`
-  - **Password:** `123456`
+  - **Email:** `user@gmail.com`
+  - **Password:** `Tt171005`
 
 Hoặc bạn có thể tự đăng ký một tài khoản mới.
-
-## 📸 Screenshots
-
-*(Chèn hình ảnh của bạn vào đây)*
-
-**Trang chủ**
-![Homepage](https://via.placeholder.com/800x400.png?text=Homepage+Screenshot)
-
-**Trang chi tiết sản phẩm**
-![Product Detail](https://via.placeholder.com/800x400.png?text=Product+Detail+Screenshot)
-
-**Trang giỏ hàng**
-![Cart](https://via.placeholder.com/800x400.png?text=Cart+Screenshot)
-
-**Trang Dashboard Admin**
-![Dashboard](https://via.placeholder.com/800x400.png?text=Admin+Dashboard+Screenshot)
 
 ## 🚀 Hướng phát triển
 
@@ -352,18 +336,7 @@ Trong tương lai, dự án có thể được mở rộng với các tính năn
 
 | Tên | Vai trò | Công việc chính |
 | :--- | :--- | :--- |
-| **[Tên của bạn]** | Full-stack Developer | Phân tích, thiết kế và phát triển toàn bộ hệ thống. |
-| **[Tên thành viên 2]** | (Ví dụ: Frontend Dev) | (Ví dụ: Xây dựng giao diện người dùng) |
-
-## 📄 Giấy phép
-
-Dự án này được cấp phép dưới Giấy phép MIT. Xem file `LICENSE` để biết thêm chi tiết.
-
-## 📞 Liên hệ
-
-- **Email:** [your-email@example.com]
-- **GitHub:** https://github.com/your-username
-- **LinkedIn:** https://linkedin.com/in/your-profile
-
----
-_README này được tạo bởi một AI Assistant và được tùy chỉnh cho dự án._
+| **[Nguyễn Hữu Trí]** | Full-stack Developer | Phân tích, thiết kế và phát triển toàn bộ hệ thống. |
+| **[Nguyễn Đăng Tường]** | Full-stack Developer | Xây dựng chức năng manager, admin |
+| **[Nguyễn Vũ Quân]** | Full-stack Developer | Xây dựng chức năng manager, shipper |
+| **[Đặng Thiên Bách]** | Full-stack Developer | Xây dựng chức năng admin |
