@@ -170,7 +170,7 @@ export const sendOrderSuccessEmail = async (email, order) => {
 
                             <p style="margin:8px 0;font-size:16px;">
                                 <strong>Tổng thanh toán:</strong>
-                                <strong style="color:#2563eb;">${Number(order.totalPrice).toLocaleString('vi-VN')} VNĐ</strong>
+                                <strong style="color:#2563eb;">${Number(order.totalAmount).toLocaleString('vi-VN')} VNĐ</strong>
                             </p>
                         </div>
 
