@@ -60,8 +60,7 @@ const getAllProducts = async (options = {}) => {
 
   // Search theo tên
   if (search) {
-    whereClause.name = { [Op.iLike]: `%${search}%` };
-  }
+    whereClause.name = { [Op.like]: `%${search}%` };  }
 
   // Filter category (hỗ trợ 1 giá trị hoặc mảng)
   if (category) {
