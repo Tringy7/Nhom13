@@ -65,11 +65,7 @@ const ManagerLayout = ({ children, activeKey }) => {
             icon: <GiftOutlined />,
             label: <Link to="/manager/vouchers">Khuyến mãi / Voucher</Link>
         },
-        {
-            key: 'promotions',
-            icon: <PercentageOutlined />,
-            label: <Link to="/manager/promotions">Chiến dịch giảm giá</Link>
-        },
+
         {
             key: 'chat',
             icon: <MessageOutlined />,
