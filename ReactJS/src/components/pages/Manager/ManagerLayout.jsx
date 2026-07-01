@@ -7,6 +7,7 @@ import {
     TagsOutlined,
     OrderedListOutlined,
     CloseCircleOutlined,
+    UndoOutlined,
     GiftOutlined,
     PercentageOutlined,
     HomeOutlined,
@@ -59,6 +60,11 @@ const ManagerLayout = ({ children, activeKey }) => {
             key: 'cancellations',
             icon: <CloseCircleOutlined />,
             label: <Link to="/manager/cancellations">Yêu cầu hủy đơn</Link>
+        },
+        {
+            key: 'returns',
+            icon: <UndoOutlined />,
+            label: <Link to="/manager/returns">Yêu cầu trả hàng</Link>
         },
         {
             key: 'vouchers',

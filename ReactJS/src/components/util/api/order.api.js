@@ -30,6 +30,12 @@ export const requestCancelOrderApi = (orderId, reason) => {
     return axios.post(URL_API, { reason });
 };
 
+// Gửi yêu cầu trả hàng cho một sản phẩm
+export const requestReturnOrderItemApi = (orderId, itemId, reason) => {
+    const URL_API = `/api/orders/${orderId}/items/${itemId}/return-request`;
+    return axios.post(URL_API, { reason });
+};
+
 // Gửi đánh giá hệ thống
 export const submitOrderFeedbackApi = (orderId, data) => {
     const URL_API = `/api/orders/${orderId}/feedback`;

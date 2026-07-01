@@ -40,6 +40,11 @@ export const getCancelRequests    = async (req, res) => { try { ok(res, await ad
 export const approveCancelRequest = async (req, res) => { try { await adminService.approveCancelRequest(req.params.id, req.user.id); ok(res, null, "Approved"); } catch(e) { err(res, e); } };
 export const rejectCancelRequest  = async (req, res) => { try { await adminService.rejectCancelRequest(req.params.id, req.user.id, req.body.adminNotes); ok(res, null, "Rejected"); } catch(e) { err(res, e); } };
 
+// Order Detail Return Requests
+export const getOrderDetailReturnRequests = async (req, res) => { try { ok(res, await adminService.getOrderDetailReturnRequests(req.query)); } catch(e) { err(res, e); } };
+export const approveOrderDetailReturnRequest = async (req, res) => { try { await adminService.approveOrderDetailReturnRequest(req.params.id, req.user.id); ok(res, null, "Approved"); } catch(e) { err(res, e); } };
+export const rejectOrderDetailReturnRequest = async (req, res) => { try { await adminService.rejectOrderDetailReturnRequest(req.params.id, req.user.id, req.body.adminNotes); ok(res, null, "Rejected"); } catch(e) { err(res, e); } };
+
 // Revenue
 export const getRevenueReport     = async (req, res) => { try { ok(res, await adminService.getRevenueReport()); } catch(e) { err(res, e); } };
 

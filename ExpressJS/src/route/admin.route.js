@@ -40,6 +40,11 @@ router.get("/cancel-requests",                ...guard, adminCtrl.getCancelReque
 router.patch("/cancel-requests/:id/approve",  ...guard, adminCtrl.approveCancelRequest);
 router.patch("/cancel-requests/:id/reject",   ...guard, adminCtrl.rejectCancelRequest);
 
+// ── Order Detail Return Requests ───────────────────────────────────────────
+router.get("/order-detail-return-requests",                ...guard, adminCtrl.getOrderDetailReturnRequests);
+router.patch("/order-detail-return-requests/:id/approve",  ...guard, adminCtrl.approveOrderDetailReturnRequest);
+router.patch("/order-detail-return-requests/:id/reject",   ...guard, adminCtrl.rejectOrderDetailReturnRequest);
+
 // ── Revenue ───────────────────────────────────────────────────────────────────
 router.get("/reports/revenue", ...guard, adminCtrl.getRevenueReport);
 

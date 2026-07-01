@@ -18,6 +18,13 @@ router.post(
   orderController.cancelOrderItem
 );
 
+router.post(
+  '/api/orders/:orderId/items/:itemId/return-request',
+  verifyToken,
+  authorize("user"),
+  orderController.requestReturnOrderItem
+);
+
 router.delete(
   '/api/order/:orderId/cancel',
   verifyToken,

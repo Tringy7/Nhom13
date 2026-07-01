@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Typography, Button, Space, Empty, Breadcrumb, Tag, Spin, message, Divider, Image, Rate, Input, Upload, Drawer, Alert, Modal } from 'antd';
-import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined, GiftOutlined } from '@ant-design/icons';
-import { getOrderById, cancelOrderItemApi, cancelOrderApi, requestCancelOrderApi, submitOrderFeedbackApi, submitShipperFeedbackApi } from '../util/api/order.api';
+import { HomeOutlined, CheckCircleOutlined, DownloadOutlined, CustomerServiceOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, FileTextOutlined, CloseCircleOutlined, UploadOutlined, CarOutlined, StarOutlined, ShoppingCartOutlined, CheckOutlined, CloseOutlined, GiftOutlined, UndoOutlined } from '@ant-design/icons';
+import { getOrderById, cancelOrderItemApi, cancelOrderApi, requestCancelOrderApi, submitOrderFeedbackApi, submitShipperFeedbackApi, requestReturnOrderItemApi } from '../util/api/order.api';
 import { submitReviewApi, claimReviewRewardApi } from '../util/api/product-feature.api';
 import { addToCart } from '../util/api/cart.api';
 import { getImageUrl } from '../util/helpers';
@@ -25,7 +25,9 @@ const ORDER_STATUS = Object.freeze({
 
 const ORDER_DETAIL_STATUS = Object.freeze({
     EXISTED: 'EXISTED',
-    CANCELLED: 'CANCELLED'
+    CANCELLED: 'CANCELLED',
+    RETURN_REQUESTED: 'RETURN_REQUESTED',
+    RETURNED: 'RETURNED'
 });
 
 const STATUS_STEPS = [
@@ -260,11 +262,14 @@ const OrderHeader = ({ order }) => {
     );
 };
 
-const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward, onBuyAgain, hasReview }) => {
+const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onReturnItem, onClaimReward, onBuyAgain, hasReview }) => {
     const canCancel = [ORDER_STATUS.NEW, ORDER_STATUS.CONFIRMED].includes(orderStatus);
+    const canReturn = orderStatus === ORDER_STATUS.DELIVERED;
     const isCancelled = item.status === ORDER_DETAIL_STATUS.CANCELLED;
+    const isReturnRequested = item.status === ORDER_DETAIL_STATUS.RETURN_REQUESTED;
+    const isReturned = item.status === ORDER_DETAIL_STATUS.RETURNED;
 
-    const itemStyle = isCancelled ? { opacity: 0.5, textDecoration: 'line-through' } : {};
+    const itemStyle = (isCancelled || isReturned) ? { opacity: 0.5, textDecoration: 'line-through' } : {};
 
     return (
         <>
@@ -279,7 +284,7 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward,
                     <Text style={{ fontSize: 16 }}>{formatPrice(Number(item.price) * item.quantity)}</Text>
                     <div style={{ marginTop: 8 }}>
                         <Space>
-                            {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && (
+                            {orderStatus === ORDER_STATUS.DELIVERED && !isCancelled && !isReturnRequested && !isReturned && (
                                 <>
                                     {hasReview ? (
                                         hasReview.rewardToken ? (
@@ -300,7 +305,10 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward,
                                 </>
                             )}
                             {canCancel && !isCancelled && <Button size="small" danger onClick={onCancelItem}>Hủy</Button>}
+                            {canReturn && !isCancelled && !isReturnRequested && !isReturned && <Button size="small" icon={<UndoOutlined />} onClick={onReturnItem}>Trả hàng</Button>}
                             {isCancelled && <Tag color="red">Đã hủy</Tag>}
+                            {isReturnRequested && <Tag color="orange">Chờ duyệt trả hàng</Tag>}
+                            {isReturned && <Tag color="red">Đã trả hàng</Tag>}
                         </Space>
                     </div>
                 </div>
@@ -310,7 +318,7 @@ const ProductItem = ({ item, orderStatus, onReview, onCancelItem, onClaimReward,
     );
 };
 
-const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, onCancelItem, onClaimReward, onBuyAgain }) => {
+const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, onCancelItem, onReturnItem, onClaimReward, onBuyAgain }) => {
     const [isCollapsed, setIsCollapsed] = useState(details.length > 3);
     const itemsToShow = isCollapsed ? details.slice(0, 3) : details;
 
@@ -327,6 +335,7 @@ const ProductListCard = ({ details, orderStatus, productReviews = [], onReview, 
                                 orderStatus={orderStatus}
                                 onReview={() => onReview(item)}
                                 onCancelItem={() => onCancelItem(item.id)}
+                                onReturnItem={() => onReturnItem(item.id)}
                                 onClaimReward={onClaimReward}
                                 onBuyAgain={onBuyAgain}
                                 hasReview={hasReview}
@@ -637,7 +646,7 @@ const CancelOrderCard = ({ order, onCancelInitiated }) => {
 };
 
 const OrderSummary = ({ order }) => {
-    const activeItems = order.details.filter(item => item.status !== ORDER_DETAIL_STATUS.CANCELLED);
+    const activeItems = order.details.filter(item => item.status !== ORDER_DETAIL_STATUS.CANCELLED && item.status !== ORDER_DETAIL_STATUS.RETURNED);
     const subtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
     const shippingFee = Number(order.shippingFee || 30000);
     const total = Number(order.totalAmount);
@@ -817,6 +826,7 @@ const OrderDetailPage = () => {
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [cancelType, setCancelType] = useState('direct');
     const [cancelReasonInput, setCancelReasonInput] = useState('');
+    const [returnModal, setReturnModal] = useState({ visible: false, itemId: null, reason: '' });
 
     const fetchOrder = async () => {
         setLoading(true);
@@ -837,7 +847,6 @@ const OrderDetailPage = () => {
     const handleOpenReview = (product) => setReviewDrawer({ visible: true, product });
     const handleCloseReview = () => setReviewDrawer({ visible: false, product: null });
 
-    // ✅ FIX: Build FormData đúng cách để gửi ảnh multipart/form-data
     const handleReviewSubmit = async (reviewData) => {
         try {
             const formData = new FormData();
@@ -845,7 +854,6 @@ const OrderDetailPage = () => {
             formData.append('rating', reviewData.rating);
             formData.append('comment', reviewData.comment || '');
 
-            // ✅ Append từng file một — images là mảng File object đã được filter sạch
             if (reviewData.images && reviewData.images.length > 0) {
                 reviewData.images.forEach((file) => {
                     formData.append('images', file);
@@ -880,13 +888,40 @@ const OrderDetailPage = () => {
         }
     };
 
-    const handleCancelItem = async (itemId) => {
+    const handleCancelItem = (itemId) => {
+        Modal.confirm({
+            title: 'Xác nhận hủy sản phẩm',
+            content: 'Bạn có chắc chắn muốn hủy sản phẩm này khỏi đơn hàng không?',
+            okText: 'Xác nhận',
+            cancelText: 'Không',
+            onOk: async () => {
+                try {
+                    await cancelOrderItemApi(id, itemId);
+                    message.success('Sản phẩm đã được hủy.');
+                    fetchOrder();
+                } catch (error) {
+                    message.error('Hủy sản phẩm thất bại.');
+                }
+            }
+        });
+    };
+
+    const handleReturnItem = (itemId) => {
+        setReturnModal({ visible: true, itemId, reason: '' });
+    };
+
+    const handleConfirmReturnItem = async () => {
+        const { itemId, reason } = returnModal;
+        if (!reason.trim()) {
+            return message.warning('Vui lòng nhập lý do trả hàng!');
+        }
         try {
-            await cancelOrderItemApi(id, itemId);
-            message.success('Sản phẩm đã được hủy.');
+            await requestReturnOrderItemApi(id, itemId, reason);
+            message.success('Yêu cầu trả hàng đã được gửi.');
+            setReturnModal({ visible: false, itemId: null, reason: '' });
             fetchOrder();
         } catch (error) {
-            message.error('Hủy sản phẩm thất bại.');
+            message.error(error.response?.data?.message || 'Gửi yêu cầu thất bại.');
         }
     };
 
@@ -966,6 +1001,7 @@ const OrderDetailPage = () => {
                             productReviews={order.productReviews}
                             onReview={handleOpenReview}
                             onCancelItem={handleCancelItem}
+                            onReturnItem={handleReturnItem}
                             onClaimReward={handleClaimReward}
                             onBuyAgain={handleBuyAgain}
                         />
@@ -1022,6 +1058,27 @@ const OrderDetailPage = () => {
                         placeholder={cancelType === 'direct' ? "Nhập lý do hủy đơn trực tiếp..." : "Nhập lý do gửi yêu cầu hủy đơn..."}
                         value={cancelReasonInput}
                         onChange={(e) => setCancelReasonInput(e.target.value)}
+                    />
+                </div>
+            </Modal>
+
+            <Modal
+                title="Yêu cầu trả hàng"
+                open={returnModal.visible}
+                onOk={handleConfirmReturnItem}
+                onCancel={() => setReturnModal({ visible: false, itemId: null, reason: '' })}
+                okText="Gửi yêu cầu"
+                cancelText="Hủy"
+            >
+                <div style={{ marginTop: 16 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Lý do trả hàng <Text type="danger">*</Text>
+                    </Text>
+                    <Input.TextArea
+                        rows={4}
+                        placeholder="Vui lòng mô tả chi tiết lý do bạn muốn trả sản phẩm này..."
+                        value={returnModal.reason}
+                        onChange={(e) => setReturnModal(prev => ({ ...prev, reason: e.target.value }))}
                     />
                 </div>
             </Modal>

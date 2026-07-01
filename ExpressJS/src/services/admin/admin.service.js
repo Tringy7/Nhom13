@@ -2,7 +2,7 @@ import { Op, fn, col, literal } from "sequelize";
 import db from "../../entities/index.js";
 import bcrypt from "bcryptjs";
 
-const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, Product, SystemSetting } = db;
+const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, OrderDetailReturnRequest, Product, SystemSetting } = db;
 
 const ROLE = {
   ADMIN: "admin",
@@ -18,6 +18,13 @@ const ORDER_STATUS = {
   DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
   CANCEL_REQUEST: "CANCEL_REQUEST",
+};
+
+const ORDER_DETAIL_STATUS = {
+    EXISTED: 'EXISTED',
+    CANCELLED: 'CANCELLED',
+    RETURN_REQUESTED: 'RETURN_REQUESTED',
+    RETURNED: 'RETURNED'
 };
 
 const SYSTEM_SETTING_DEFAULTS = [
@@ -325,6 +332,48 @@ export const rejectCancelRequest = async (id, adminId, adminNotes) => {
     await request.order.update({ orderStatus: ORDER_STATUS.CONFIRMED });
   }
   return request;
+};
+
+// ─── ORDER DETAIL RETURN REQUESTS ───────────────────────────────────────────
+export const getOrderDetailReturnRequests = async ({ page = 1, limit = 10, status = "" }) => {
+    const offset = (page - 1) * limit;
+    const where = {};
+    if (status) where.status = status;
+
+    const { count, rows } = await OrderDetailReturnRequest.findAndCountAll({
+        where,
+        include: [
+            { model: OrderDetail, as: "orderDetail", include: [{model: Order, as: 'order'}] },
+            { model: User, as: "user", attributes: ["id", "fullName", "email"] },
+        ],
+        limit: +limit, offset,
+        order: [["createdAt", "DESC"]],
+        distinct: true,
+    });
+    return { total: count, page: +page, limit: +limit, data: rows };
+};
+
+export const approveOrderDetailReturnRequest = async (id, adminId) => {
+    const request = await OrderDetailReturnRequest.findByPk(id, {
+        include: [{ model: OrderDetail, as: "orderDetail", include: [{model: Product, as: 'product'}] }],
+    });
+    if (!request) throw new Error("Request not found");
+    if (request.status !== "PENDING") throw new Error("Request already processed");
+    await request.update({ status: "APPROVED", approvedBy: adminId, processedAt: new Date() });
+    await request.orderDetail.update({ status: ORDER_DETAIL_STATUS.RETURNED });
+    await request.orderDetail.product.increment('stock', { by: request.orderDetail.quantity });
+    return request;
+};
+
+export const rejectOrderDetailReturnRequest = async (id, adminId, adminNotes) => {
+    const request = await OrderDetailReturnRequest.findByPk(id, {
+        include: [{ model: OrderDetail, as: "orderDetail" }],
+    });
+    if (!request) throw new Error("Request not found");
+    if (request.status !== "PENDING") throw new Error("Request already processed");
+    await request.update({ status: "REJECTED", approvedBy: adminId, adminNotes, processedAt: new Date() });
+    await request.orderDetail.update({ status: ORDER_DETAIL_STATUS.EXISTED });
+    return request;
 };
 
 // ─── REVENUE ─────────────────────────────────────────────────────────────────

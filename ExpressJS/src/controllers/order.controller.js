@@ -107,6 +107,25 @@ const cancelOrderItem = async (req, res) => {
   }
 };
 
+const requestReturnOrderItem = async (req, res) => {
+  try {
+    const userId = req.user?.id ?? req.user?.userId;
+    const { orderId, itemId } = req.params;
+    const { reason } = req.body;
+    const result = await orderService.requestReturnOrderItem(userId, orderId, parseInt(itemId, 10), reason);
+    return res.status(200).json({
+      success: true,
+      message: 'Gửi yêu cầu trả hàng thành công.',
+      data: result
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 const cancelOrder = async (req, res) => {
   try {
     const userId = req.user?.id ?? req.user?.userId;
@@ -317,6 +336,7 @@ export default {
   getOrders,
   getOrderById,
   cancelOrderItem,
+  requestReturnOrderItem,
   cancelOrder,
   requestCancelOrder,
   getAdminOrders,

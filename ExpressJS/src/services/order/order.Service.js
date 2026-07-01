@@ -17,6 +17,7 @@ const {
     UserVoucher,
     Voucher,
     OrderCancellationRequest,
+    OrderDetailReturnRequest,
     Review,
     ProductReview,
     sequelize
@@ -243,6 +244,40 @@ const cancelOrderItem = async (userId, orderId, orderItemId) => {
     }
 };
 
+const requestReturnOrderItem = async (userId, orderId, itemId, reason) => {
+    const t = await sequelize.transaction();
+    try {
+        const order = await Order.findOne({ where: { id: orderId, userId }, transaction: t });
+        if (!order) throw new Error('Không tìm thấy đơn hàng.');
+        if (order.orderStatus !== ORDER_STATUS.DELIVERED) {
+            throw new Error('Chỉ có thể yêu cầu trả hàng cho đơn hàng đã giao thành công.');
+        }
+
+        const orderDetail = await OrderDetail.findOne({ where: { id: itemId, orderId: orderId }, transaction: t });
+        if (!orderDetail) throw new Error('Sản phẩm không tồn tại trong đơn hàng.');
+
+        const existingRequest = await OrderDetailReturnRequest.findOne({ where: { orderDetailId: itemId }, transaction: t });
+        if (existingRequest) {
+            throw new Error('Bạn đã gửi yêu cầu trả hàng cho sản phẩm này rồi.');
+        }
+
+        await orderDetail.update({ status: ORDER_DETAIL_STATUS.RETURN_REQUESTED }, { transaction: t });
+
+        const returnRequest = await OrderDetailReturnRequest.create({
+            orderDetailId: itemId,
+            userId,
+            reason,
+            status: 'PENDING'
+        }, { transaction: t });
+
+        await t.commit();
+        return returnRequest;
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
+};
+
 const autoConfirmOldOrders = async () => {
     try {
         const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
@@ -285,11 +320,10 @@ const getOrderById = async (userId, orderId) => {
             {
                 model: OrderDetail,
                 as: 'details',
-                include: [{
-                    model: Product,
-                    as: 'product',
-                    attributes: ['id', 'name', 'price', 'thumbnail', 'stock']
-                }]
+                include: [
+                    { model: Product, as: 'product', attributes: ['id', 'name', 'price', 'thumbnail', 'stock'] },
+                    { model: OrderDetailReturnRequest, as: 'returnRequest' }
+                ]
             },
             {
                 model: Payment,
@@ -456,19 +490,6 @@ const updateOrderStatus = async (adminId, orderId, nextStatus, note = null) => {
     note
   });
 };
-
-// const handleCancelRequest = async (adminId, orderId, approve) => {
-//     const { Order } = db;
-//     const order = await Order.findByPk(orderId);
-//     if (!order) throw new Error('Không tìm thấy đơn hàng');
-//
-//     await order.update({
-//         orderStatus: status,
-//         shipperId: shipperId || order.shipperId
-//     });
-//
-//     return order;
-// };
 
 const handleCancelRequest = async (adminId, orderId, { approve, adminNotes = '' }) => {
     const t = await sequelize.transaction();
@@ -676,6 +697,7 @@ export default {
     getOrderById,
     cancelOrder,
     cancelOrderItem,
+    requestReturnOrderItem,
     requestCancelOrder,
     getAdminOrders,
     getAdminOrderById,

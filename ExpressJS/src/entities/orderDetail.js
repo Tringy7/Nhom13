@@ -5,8 +5,13 @@ import { ORDER_DETAIL_STATUS } from '../constants/order.constants.js';
 export default (sequelize, DataTypes) => {
   class OrderDetail extends Model {
     static associate(entities) {
-      OrderDetail.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });
-      OrderDetail.belongsTo(entities.Product, { foreignKey: 'productId', as: 'product' });
+      this.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });
+      this.belongsTo(entities.Product, { foreignKey: 'productId', as: 'product' });
+      // Thêm quan hệ một-một với OrderDetailReturnRequest
+      this.hasOne(entities.OrderDetailReturnRequest, {
+        foreignKey: 'orderDetailId',
+        as: 'returnRequest',
+      });
     }
   }
   OrderDetail.init({
@@ -43,7 +48,7 @@ export default (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'OrderDetail',
-    tableName: 'OrderDetails'
+    tableName: 'orderdetails' // Đảm bảo tên bảng là 'order_details' để khớp với migration
   });
   return OrderDetail;
 };

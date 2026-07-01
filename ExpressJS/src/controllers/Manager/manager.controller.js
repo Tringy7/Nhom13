@@ -287,6 +287,26 @@ const processCancellationRequest = async (req, res) => {
     }
 };
 
+const getOrderDetailReturnRequests = async (req, res) => {
+    try {
+        const data = await managerService.getOrderDetailReturnRequests();
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const processOrderDetailReturnRequest = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const { status, adminNotes } = req.body;
+        const data = await managerService.processOrderDetailReturnRequest(req.params.id, status, adminNotes, adminId);
+        return res.status(200).json({ success: true, message: "Xử lý yêu cầu trả hàng thành công", data });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 const getSalesReport = async (req, res) => {
     try {
         const data = await managerService.getSalesReport();
@@ -354,6 +374,8 @@ export default {
     deletePromotion,
     getCancellationRequests,
     processCancellationRequest,
+    getOrderDetailReturnRequests,
+    processOrderDetailReturnRequest,
     getSalesReport,
     getChatHistory,
     getChatDetail

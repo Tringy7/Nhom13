@@ -59,6 +59,10 @@ router.delete("/api/manager/promotions/:id", managerController.deletePromotion);
 router.get("/api/manager/cancellation-requests", managerController.getCancellationRequests);
 router.patch("/api/manager/cancellation-requests/:id", managerController.processCancellationRequest);
 
+// Order Detail Returns
+router.get("/api/manager/order-detail-return-requests", managerController.getOrderDetailReturnRequests);
+router.patch("/api/manager/order-detail-return-requests/:id", managerController.processOrderDetailReturnRequest);
+
 // Chat History
 router.get("/api/manager/chat/history", managerController.getChatHistory);
 router.get("/api/manager/chat/history/:conversationId", managerController.getChatDetail);
