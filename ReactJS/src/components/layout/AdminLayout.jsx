@@ -18,7 +18,7 @@ const menuItems = [
   { key: "/admin/shippers", icon: <CarOutlined />, label: "Shippers" },
   { key: "/admin/orders", icon: <ShoppingCartOutlined />, label: "Orders" },
   { key: "/admin/cancel-requests", icon: <FileExclamationOutlined />, label: "Cancel Requests" },
-  { key: "/admin/order-detail-return-requests", icon: <UndoOutlined />, label: "Return Requests" },
+  // { key: "/admin/order-detail-return-requests", icon: <UndoOutlined />, label: "Return Requests" },
   { key: "/admin/revenue", icon: <BarChartOutlined />, label: "Revenue" },
   { key: "/admin/settings", icon: <SettingOutlined />, label: "Settings" },
 ];
