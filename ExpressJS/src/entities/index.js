@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Sequelize from 'sequelize';
 import process from 'process';
+import 'dotenv/config';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,7 +12,15 @@ const env = process.env.NODE_ENV || 'development';
 
 const configPath = path.join(__dirname, '..', 'config', 'config.json');
 const configRaw = fs.readFileSync(configPath, 'utf8');
-const config = JSON.parse(configRaw)[env];
+const fileConfig = JSON.parse(configRaw)[env];
+const config = {
+  ...fileConfig,
+  host: process.env.DB_HOST || fileConfig.host,
+  port: Number(process.env.DB_PORT || fileConfig.port || 3306),
+  database: process.env.DB_NAME || fileConfig.database,
+  username: process.env.DB_USER || fileConfig.username,
+  password: process.env.DB_PASSWORD ?? fileConfig.password
+};
 
 const db = {};
 

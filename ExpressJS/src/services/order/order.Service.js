@@ -300,7 +300,7 @@ const getOrders = async (userId) => {
             {
                 model: OrderDetail,
                 as: 'details',
-                attributes: ['id', 'quantity', 'price', 'status'],
+                attributes: ['id', 'productId', 'productName', 'quantity', 'price', 'status'],
                 include: [{
                     model: Product,
                     as: 'product',

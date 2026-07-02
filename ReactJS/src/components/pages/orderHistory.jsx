@@ -74,12 +74,12 @@ const OrderHistoryPage = () => {
                 paymentStatus: order.payment?.status,
                 shippingAddress: order.shippingAddress,
                 items: (order.details || []).map((item, index) => ({
-                    id: item.productId || `temp-${index}`,
-                    name: item.product.name,
+                    id: item.id || `temp-${index}`,
+                    productName: item.productName,
                     quantity: Number(item.quantity),
                     price: Number(item.price),
                     status: item.status,
-                    image: getImageUrl(item.product.thumbnail)
+                    image: getImageUrl(item.product?.thumbnail)
                 }))
             }));
             
@@ -251,7 +251,7 @@ const OrderHistoryPage = () => {
                                                                 />
                                                             </Col>
                                                             <Col flex="auto">
-                                                                <Text strong className="product-name">{item.name}</Text>
+                                                                <Text strong className="product-name">{item.productName}</Text>
                                                                 <Text type="secondary" style={{ display: 'block' }}>Qty: {item.quantity}</Text>
                                                             </Col>
                                                             <Col>
