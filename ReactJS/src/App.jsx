@@ -103,7 +103,7 @@ function App() {
             <Route path="shippers" element={<AdminShipperPage />} />
             <Route path="orders" element={<AdminOrderPage />} />
             <Route path="cancel-requests" element={<AdminCancelRequestPage />} />
-            <Route path="order-detail-return-requests" element={<AdminReturnRequestPage />} />
+            <Route path="return-requests" element={<AdminReturnRequestPage />} />
             <Route path="revenue" element={<AdminRevenuePage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="profile" element={<AdminProfile />} />

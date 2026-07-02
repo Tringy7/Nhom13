@@ -2,7 +2,7 @@ import { Op, fn, col, literal } from "sequelize";
 import db from "../../entities/index.js";
 import bcrypt from "bcryptjs";
 
-const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, OrderDetailReturnRequest, Product, SystemSetting } = db;
+const { User, Order, OrderDetail, Payment, Voucher, OrderCancellationRequest, OrderReturnRequest, OrderDetailReturnRequest, Product, SystemSetting } = db;
 
 const ROLE = {
   ADMIN: "admin",
@@ -18,6 +18,8 @@ const ORDER_STATUS = {
   DELIVERED: "DELIVERED",
   CANCELLED: "CANCELLED",
   CANCEL_REQUEST: "CANCEL_REQUEST",
+  RETURN_REQUEST: "RETURN_REQUEST",
+  RETURNED: "RETURNED",
 };
 
 const ORDER_DETAIL_STATUS = {
@@ -291,7 +293,7 @@ export const getOrderById = async (id) => {
   return normalizeOrder(order);
 };
 
-// ─── CANCEL REQUESTS ─────────────────────────────────────────────────────────
+// ─── CANCEL & RETURN REQUESTS ────────────────────────────────────────────────
 export const getCancelRequests = async ({ page = 1, limit = 10, status = "" }) => {
   const offset = (page - 1) * limit;
   const where = {};
@@ -334,7 +336,51 @@ export const rejectCancelRequest = async (id, adminId, adminNotes) => {
   return request;
 };
 
-// ─── ORDER DETAIL RETURN REQUESTS ───────────────────────────────────────────
+export const getReturnRequests = async ({ page = 1, limit = 10, status = "" }) => {
+    const offset = (page - 1) * limit;
+    const where = {};
+    if (status) where.status = status;
+
+    const { count, rows } = await OrderReturnRequest.findAndCountAll({
+        where,
+        include: [
+            { model: Order, as: "order" },
+            { model: User, as: "user", attributes: ["id", "fullName", "email"] },
+        ],
+        limit: +limit, offset,
+        order: [["createdAt", "DESC"]],
+        distinct: true,
+    });
+    return { total: count, page: +page, limit: +limit, data: rows };
+};
+
+export const approveReturnRequest = async (id, adminId) => {
+    const request = await OrderReturnRequest.findByPk(id, {
+        include: [{ model: Order, as: "order", include: [{model: OrderDetail, as: 'details'}] }],
+    });
+    if (!request) throw new Error("Request not found");
+    if (request.status !== "PENDING") throw new Error("Request already processed");
+    await request.update({ status: "APPROVED", approvedBy: adminId, processedAt: new Date() });
+    await request.order.update({ orderStatus: ORDER_STATUS.RETURNED });
+    for(const detail of request.order.details){
+        await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId } });
+    }
+    return request;
+};
+
+export const rejectReturnRequest = async (id, adminId, adminNotes) => {
+    const request = await OrderReturnRequest.findByPk(id, {
+        include: [{ model: Order, as: "order" }],
+    });
+    if (!request) throw new Error("Request not found");
+    if (request.status !== "PENDING") throw new Error("Request already processed");
+    await request.update({ status: "REJECTED", approvedBy: adminId, adminNotes, processedAt: new Date() });
+    if (request.order?.orderStatus === ORDER_STATUS.RETURN_REQUEST) {
+        await request.order.update({ orderStatus: ORDER_STATUS.DELIVERED });
+    }
+    return request;
+};
+
 export const getOrderDetailReturnRequests = async ({ page = 1, limit = 10, status = "" }) => {
     const offset = (page - 1) * limit;
     const where = {};
@@ -343,7 +389,7 @@ export const getOrderDetailReturnRequests = async ({ page = 1, limit = 10, statu
     const { count, rows } = await OrderDetailReturnRequest.findAndCountAll({
         where,
         include: [
-            { model: OrderDetail, as: "orderDetail", include: [{model: Order, as: 'order'}] },
+            { model: OrderDetail, as: "orderDetail", include: [{model: Order, as: 'order'}, {model: Product, as: 'product'}] },
             { model: User, as: "user", attributes: ["id", "fullName", "email"] },
         ],
         limit: +limit, offset,

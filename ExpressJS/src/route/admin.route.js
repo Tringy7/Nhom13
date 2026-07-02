@@ -52,4 +52,8 @@ router.get("/reports/revenue", ...guard, adminCtrl.getRevenueReport);
 router.get("/settings", ...guard, adminCtrl.getSystemSettings);
 router.put("/settings", ...guard, adminCtrl.updateSystemSettings);
 
+router.get("/return-requests",                ...guard, adminCtrl.getReturnRequests);
+router.patch("/return-requests/:id/approve",  ...guard, adminCtrl.approveReturnRequest);
+router.patch("/return-requests/:id/reject",   ...guard, adminCtrl.rejectReturnRequest);
+
 export default router;

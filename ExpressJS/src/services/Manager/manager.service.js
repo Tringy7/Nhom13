@@ -7,12 +7,12 @@ const getModels = () => {
     const {
         Product, Brand, ProductImage, Order, OrderDetail, User,
         Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderDetailReturnRequest, OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction
+        OrderReturnRequest, OrderDetailReturnRequest, OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction
     } = db;
     return {
         Product, Brand, ProductImage, Order, OrderDetail, User,
         Voucher, UserVoucher, Promotion, PromotionProduct, OrderCancellationRequest,
-        OrderDetailReturnRequest, OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction,
+        OrderReturnRequest, OrderDetailReturnRequest, OrderStatusHistory, Payment, Category, Sequelize, RewardTransaction,
         sequelize: db.sequelize
     };
 };
@@ -646,7 +646,7 @@ const deletePromotion = async (id) => {
 };
 
 /* =========================================================================
-   CANCELLATIONS
+   CANCELLATIONS & RETURNS
    ========================================================================= */
 
 const getCancellationRequests = async () => {
@@ -753,12 +753,46 @@ const processCancellationRequest = async (id, status, adminNotes = "", adminId =
     }
 };
 
-/* =========================================================================
-   ORDER DETAIL RETURNS
-   ========================================================================= */
+const getReturnRequests = async () => {
+    const { OrderReturnRequest, Order, User } = getModels();
+    return await OrderReturnRequest.findAll({
+        include: [
+            { model: Order, as: 'order', attributes: ['id', 'totalAmount', 'orderStatus', 'createdAt'] },
+            { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] }
+        ],
+        order: [['createdAt', 'DESC']]
+    });
+};
+
+const processReturnRequest = async (requestId, status, adminNotes, adminId) => {
+    const { OrderReturnRequest, Order, OrderDetail, Product, sequelize } = getModels();
+    const t = await sequelize.transaction();
+    try {
+        const request = await OrderReturnRequest.findByPk(requestId, { include: 'order', transaction: t });
+        if (!request || request.status !== 'PENDING') throw new Error('Yêu cầu không hợp lệ hoặc đã được xử lý.');
+
+        await request.update({ status, adminNotes, approvedBy: adminId, processedAt: new Date() }, { transaction: t });
+
+        if (status === 'APPROVED') {
+            await request.order.update({ orderStatus: 'RETURNED' }, { transaction: t });
+            const details = await OrderDetail.findAll({ where: { orderId: request.orderId }, transaction: t });
+            for (const detail of details) {
+                await Product.increment('stock', { by: detail.quantity, where: { id: detail.productId }, transaction: t });
+            }
+        } else {
+            await request.order.update({ orderStatus: 'DELIVERED' }, { transaction: t });
+        }
+
+        await t.commit();
+        return request;
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
+};
 
 const getOrderDetailReturnRequests = async () => {
-    const { OrderDetailReturnRequest, OrderDetail, Order, User } = getModels();
+    const { OrderDetailReturnRequest, OrderDetail, Order, User, Product } = getModels();
     return await OrderDetailReturnRequest.findAll({
         include: [
             {
@@ -1030,6 +1064,8 @@ export default {
     deletePromotion,
     getCancellationRequests,
     processCancellationRequest,
+    getReturnRequests,
+    processReturnRequest,
     getOrderDetailReturnRequests,
     processOrderDetailReturnRequest,
     getSalesReport,

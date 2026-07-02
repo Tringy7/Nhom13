@@ -39,6 +39,13 @@ router.post(
   orderController.requestCancelOrder
 );
 
+router.post(
+  '/api/order/:orderId/return-request',
+  verifyToken,
+  authorize("user"),
+  orderController.requestReturnOrder
+);
+
 router.get(
   '/api/orders',
   verifyToken,

@@ -58,7 +58,15 @@ export const approveCancelRequest = (id) =>
 export const rejectCancelRequest = (id, data) =>
   asAxiosResponse(axiosInstance.patch(`/api/admin/cancel-requests/${id}/reject`, data));
 
-// Order Detail Return Requests
+// Return Requests (Whole Order)
+export const getReturnRequests = (params) =>
+    asAxiosResponse(axiosInstance.get("/api/admin/return-requests", { params }));
+export const approveReturnRequest = (id) =>
+    asAxiosResponse(axiosInstance.patch(`/api/admin/return-requests/${id}/approve`));
+export const rejectReturnRequest = (id, data) =>
+    asAxiosResponse(axiosInstance.patch(`/api/admin/return-requests/${id}/reject`, data));
+
+// Order Detail Return Requests (Single Item)
 export const getOrderDetailReturnRequests = (params) =>
     asAxiosResponse(axiosInstance.get("/api/admin/order-detail-return-requests", { params }));
 export const approveOrderDetailReturnRequest = (id) =>

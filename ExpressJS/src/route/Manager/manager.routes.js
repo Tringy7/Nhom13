@@ -63,6 +63,9 @@ router.patch("/api/manager/cancellation-requests/:id", managerController.process
 router.get("/api/manager/order-detail-return-requests", managerController.getOrderDetailReturnRequests);
 router.patch("/api/manager/order-detail-return-requests/:id", managerController.processOrderDetailReturnRequest);
 
+router.get("/api/manager/return-requests", managerController.getReturnRequests);
+router.patch("/api/manager/return-requests/:id", managerController.processReturnRequest);
+
 // Chat History
 router.get("/api/manager/chat/history", managerController.getChatHistory);
 router.get("/api/manager/chat/history/:conversationId", managerController.getChatDetail);

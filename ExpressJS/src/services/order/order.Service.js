@@ -17,6 +17,7 @@ const {
     UserVoucher,
     Voucher,
     OrderCancellationRequest,
+    OrderReturnRequest,
     OrderDetailReturnRequest,
     Review,
     ProductReview,
@@ -331,6 +332,7 @@ const getOrderById = async (userId, orderId) => {
             },
             { model: User, as: 'shipper', attributes: ['fullName', 'phone'] },
             { model: OrderCancellationRequest, as: 'cancellationRequest' },
+            { model: OrderReturnRequest, as: 'returnRequest' },
             { model: Voucher, as: 'voucher' }
         ]
     });
@@ -382,6 +384,24 @@ const requestCancelOrder = async (userId, orderId, reason) => {
     });
 
     return cancellationRequest;
+};
+
+const requestReturnOrder = async (userId, orderId, reason) => {
+    const order = await Order.findOne({ where: { id: orderId, userId } });
+    if (!order) throw new Error('Không tìm thấy đơn hàng.');
+    if (order.orderStatus !== 'DELIVERED') throw new Error('Chỉ có thể trả hàng cho đơn đã giao thành công.');
+
+    const existingRequest = await OrderReturnRequest.findOne({ where: { orderId } });
+    if (existingRequest) throw new Error('Bạn đã gửi yêu cầu trả hàng cho đơn này rồi.');
+
+    await order.update({ orderStatus: 'RETURN_REQUEST' });
+
+    return await OrderReturnRequest.create({
+        orderId,
+        userId,
+        reason,
+        status: 'PENDING'
+    });
 };
 
 const cancelOrder = async (userId, orderId, reason) => {
@@ -699,6 +719,7 @@ export default {
     cancelOrderItem,
     requestReturnOrderItem,
     requestCancelOrder,
+    requestReturnOrder,
     getAdminOrders,
     getAdminOrderById,
     updateOrderStatus,

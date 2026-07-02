@@ -3,16 +3,17 @@ import { Model } from 'sequelize';
 export default (sequelize, DataTypes) => {
   class Order extends Model {
     static associate(entities) {
-      const { User, Voucher, OrderDetail, Review, OrderCancellationRequest, Payment } = entities;
+      const { User, Voucher, OrderDetail, Review, OrderCancellationRequest, OrderReturnRequest, Payment, OrderStatusHistory } = entities;
       
       Order.belongsTo(User, { foreignKey: 'userId', as: 'customer' });
       Order.belongsTo(User, { foreignKey: 'shipperId', as: 'shipper' });
       Order.belongsTo(Voucher, { foreignKey: 'voucherId', as: 'voucher' });
-      Order.hasMany(entities.OrderDetail, { foreignKey: 'orderId', as: 'details' });
-      Order.hasMany(entities.Review, { foreignKey: 'orderId', as: 'reviews' });
-      Order.hasOne(entities.OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
-      Order.hasOne(entities.Payment, { foreignKey: 'orderId', as: 'payment' });
-      Order.hasMany(entities.OrderStatusHistory, { foreignKey: 'orderId', as: 'statusHistory' });
+      Order.hasMany(OrderDetail, { foreignKey: 'orderId', as: 'details' });
+      Order.hasMany(Review, { foreignKey: 'orderId', as: 'reviews' });
+      Order.hasOne(OrderCancellationRequest, { foreignKey: 'orderId', as: 'cancellationRequest' });
+      Order.hasOne(OrderReturnRequest, { foreignKey: 'orderId', as: 'returnRequest' });
+      Order.hasOne(Payment, { foreignKey: 'orderId', as: 'payment' });
+      Order.hasMany(OrderStatusHistory, { foreignKey: 'orderId', as: 'statusHistory' });
     }
   }
   Order.init({
@@ -72,7 +73,7 @@ export default (sequelize, DataTypes) => {
       allowNull: true
     },
     orderStatus: {
-      type: DataTypes.ENUM('NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'CANCEL_REQUEST', 'DELIVERY_FAILED'),
+      type: DataTypes.ENUM('NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'CANCEL_REQUEST', 'DELIVERY_FAILED', 'RETURN_REQUEST', 'RETURNED'),
       allowNull: false,
       defaultValue: 'NEW'
     },

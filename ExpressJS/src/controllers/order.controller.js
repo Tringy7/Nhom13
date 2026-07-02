@@ -172,6 +172,18 @@ const requestCancelOrder = async (req, res) => {
   }
 };
 
+const requestReturnOrder = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { orderId } = req.params;
+    const { reason } = req.body;
+    const result = await orderService.requestReturnOrder(userId, orderId, reason);
+    return res.status(200).json({ success: true, message: 'Gửi yêu cầu trả hàng thành công.', data: result });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const getAdminOrders = async (req, res) => {
   try {
     const orders = await orderService.getAdminOrders();
@@ -339,6 +351,7 @@ export default {
   requestReturnOrderItem,
   cancelOrder,
   requestCancelOrder,
+  requestReturnOrder,
   getAdminOrders,
   getAdminOrderById,
   updateOrderStatus,

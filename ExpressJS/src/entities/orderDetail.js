@@ -7,7 +7,6 @@ export default (sequelize, DataTypes) => {
     static associate(entities) {
       this.belongsTo(entities.Order, { foreignKey: 'orderId', as: 'order' });
       this.belongsTo(entities.Product, { foreignKey: 'productId', as: 'product' });
-      // Thêm quan hệ một-một với OrderDetailReturnRequest
       this.hasOne(entities.OrderDetailReturnRequest, {
         foreignKey: 'orderDetailId',
         as: 'returnRequest',
@@ -48,7 +47,7 @@ export default (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'OrderDetail',
-    tableName: 'orderdetails' // Đảm bảo tên bảng là 'order_details' để khớp với migration
+    tableName: 'orderdetails'
   });
   return OrderDetail;
 };

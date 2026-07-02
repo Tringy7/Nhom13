@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Button, Badge, Space, Image, Divider, Empty, Breadcrumb, Tag, Spin, message } from 'antd';
-import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Button, Badge, Space, Image, Divider, Empty, Breadcrumb, Tag, Spin, message, Modal, Input } from 'antd';
+import { ShoppingOutlined, EyeOutlined, ReloadOutlined, FileTextOutlined, AppstoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined, CarOutlined, InboxOutlined, DollarOutlined, WarningOutlined, UndoOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
-import { getOrders } from '../util/api/order.api';
+import { getOrders, requestReturnOrder } from '../util/api/order.api';
 import { getImageUrl } from '../util/helpers';
 
 const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const STATUS_CONFIG = {
     'NEW': { text: 'Đơn mới', color: 'blue', icon: <SyncOutlined spin /> },
@@ -16,6 +17,8 @@ const STATUS_CONFIG = {
     'DELIVERY_FAILED': { text: 'Giao thất bại', color: 'red', icon: <CloseCircleOutlined /> },
     'CANCELLED': { text: 'Đã hủy', color: 'red', icon: <CloseCircleOutlined /> },
     'CANCEL_REQUEST': { text: 'Yêu cầu hủy', color: 'volcano', icon: <SyncOutlined spin /> },
+    'RETURN_REQUEST': { text: 'Đang chờ trả hàng', color: 'volcano', icon: <UndoOutlined spin /> },
+    'RETURNED': { text: 'Đã trả hàng', color: 'red', icon: <CloseCircleOutlined /> },
 };
 
 const ORDER_DETAIL_STATUS = Object.freeze({
@@ -41,6 +44,7 @@ const OrderHistoryPage = () => {
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [returnModal, setReturnModal] = useState({ visible: false, orderId: null, reason: '' });
 
     const breadcrumbItems = [
         { title: <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</a> },
@@ -52,61 +56,70 @@ const OrderHistoryPage = () => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
     };
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            setLoading(true);
-            try {
-                const res = await getOrders();
-                const data = res?.data || [];
-                
-                const formattedOrders = data.map(order => ({
-                    id: order.id,
-                    createdAt: order.createdAt,
-                    date: new Date(order.createdAt).toLocaleDateString('vi-VN'),
-                    status: order.orderStatus,
-                    totalPrice: Number(order.totalAmount),
-                    shippingFee: Number(order.shippingFee || 0),
-                    shippingMethod: order.shippingMethod,
-                    paymentMethod: order.payment?.method || 'COD',
-                    paymentStatus: order.payment?.status,
-                    shippingAddress: order.shippingAddress,
-                    items: (order.details || []).map((item, index) => ({
-                        id: item.productId || `temp-${index}`,
-                        name: item.product.name,
-                        quantity: Number(item.quantity),
-                        price: Number(item.price),
-                        status: item.status,
-                        image: getImageUrl(item.product.thumbnail)
-                    }))
-                }));
-                
-                setOrders(formattedOrders);
-            } catch (error) {
-                console.error(error);
-                // message.error('Lỗi khi tải lịch sử đơn hàng');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchOrders = async () => {
+        setLoading(true);
+        try {
+            const res = await getOrders();
+            const data = res?.data || [];
+            
+            const formattedOrders = data.map(order => ({
+                id: order.id,
+                createdAt: order.createdAt,
+                date: new Date(order.createdAt).toLocaleDateString('vi-VN'),
+                status: order.orderStatus,
+                totalPrice: Number(order.totalAmount),
+                shippingFee: Number(order.shippingFee || 0),
+                shippingMethod: order.shippingMethod,
+                paymentMethod: order.payment?.method || 'COD',
+                paymentStatus: order.payment?.status,
+                shippingAddress: order.shippingAddress,
+                items: (order.details || []).map((item, index) => ({
+                    id: item.productId || `temp-${index}`,
+                    name: item.product.name,
+                    quantity: Number(item.quantity),
+                    price: Number(item.price),
+                    status: item.status,
+                    image: getImageUrl(item.product.thumbnail)
+                }))
+            }));
+            
+            setOrders(formattedOrders);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchOrders();
     }, []);
 
-    const filteredOrders = filterStatus === 'ALL' 
-        ? orders 
-        : filterStatus === 'PROGRESS'
-            ? orders.filter(order => ['NEW', 'CONFIRMED', 'PREPARING'].includes(order.status))
-            : filterStatus === 'SHIPPING'
-                ? orders.filter(order => order.status === 'SHIPPING')
-                : filterStatus === 'DELIVERED'
-                    ? orders.filter(order => order.status === 'DELIVERED')
-                    : filterStatus === 'FAILED'
-                        ? orders.filter(order => order.status === 'DELIVERY_FAILED')
-                        : filterStatus === 'CANCELLED'
-                            ? orders.filter(order => order.status === 'CANCELLED')
-                            : filterStatus === 'CANCEL_REQUEST'
-                                ? orders.filter(order => order.status === 'CANCEL_REQUEST')
-                                : orders;
+    const handleReturnOrder = (orderId) => {
+        setReturnModal({ visible: true, orderId, reason: '' });
+    };
+
+    const handleConfirmReturn = async () => {
+        const { orderId, reason } = returnModal;
+        if (!reason.trim()) {
+            return message.warning('Vui lòng nhập lý do trả hàng!');
+        }
+        try {
+            await requestReturnOrder(orderId, reason);
+            message.success('Yêu cầu trả hàng đã được gửi đi');
+            setReturnModal({ visible: false, orderId: null, reason: '' });
+            fetchOrders();
+        } catch (error) {
+            console.error(error);
+            message.error(error.response?.data?.message || 'Lỗi khi gửi yêu cầu trả hàng');
+        }
+    };
+
+    const filteredOrders = orders.filter(order => {
+        if (filterStatus === 'ALL') return true;
+        if (filterStatus === 'PROGRESS') return ['NEW', 'CONFIRMED', 'PREPARING'].includes(order.status);
+        return order.status === filterStatus;
+    });
 
     const stats = {
         total: orders.length,
@@ -116,6 +129,8 @@ const OrderHistoryPage = () => {
         failed: orders.filter(o => o.status === 'DELIVERY_FAILED').length,
         cancelled: orders.filter(o => o.status === 'CANCELLED').length,
         cancelRequest: orders.filter(o => o.status === 'CANCEL_REQUEST').length,
+        returnRequest: orders.filter(o => o.status === 'RETURN_REQUEST').length,
+        returned: orders.filter(o => o.status === 'RETURNED').length,
         totalSpent: orders.filter(o => o.status === 'DELIVERED').reduce((acc, curr) => acc + curr.totalPrice, 0)
     };
 
@@ -191,17 +206,14 @@ const OrderHistoryPage = () => {
                                     let paymentStatusText = isCOD ? 'Chưa thanh toán' : 'Đã thanh toán';
                                     let paymentStatusColor = isCOD ? 'orange' : 'green';
 
-                                    // If COD and delivered, it's paid
                                     if (isCOD && order.status === 'DELIVERED') {
                                         paymentStatusText = 'Đã thanh toán';
                                         paymentStatusColor = 'green';
                                     }
-                                    // If cancelled, payment status is moot
-                                    if (order.status === 'CANCELLED') {
-                                        paymentStatusText = 'Giao dịch hủy';
+                                    if (order.status === 'CANCELLED' || order.status === 'RETURNED') {
+                                        paymentStatusText = 'Giao dịch hủy/trả';
                                         paymentStatusColor = 'default';
                                     }
-
 
                                     return (
                                         <Card key={order.id} variant="borderless" className="order-card" style={styles.card} bodyStyle={{ padding: 0 }}>
@@ -266,6 +278,15 @@ const OrderHistoryPage = () => {
                                                         <Button icon={<EyeOutlined />} style={styles.outlineBtn} onClick={() => navigate(`/orders/${order.id}`)}>
                                                             View Details
                                                         </Button>
+                                                        {order.status === 'DELIVERED' && (
+                                                            <Button
+                                                                icon={<UndoOutlined />}
+                                                                style={styles.outlineBtn}
+                                                                onClick={() => handleReturnOrder(order.id)}
+                                                            >
+                                                                Trả hàng
+                                                            </Button>
+                                                        )}
                                                     </Space>
                                                 </Col>
                                             </Row>
@@ -284,18 +305,41 @@ const OrderHistoryPage = () => {
                             <div style={{ padding: 24 }}>
                                 <Space direction="vertical" style={{ width: '100%' }} size={8}>
                                     <FilterMenuItem id="ALL" label="Tất cả đơn" icon={<FileTextOutlined />} count={stats.total} active={filterStatus === 'ALL'} onClick={() => setFilterStatus('ALL')} />
-                                    <FilterMenuItem id="PROGRESS" label="Đang chuẩn bị" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'PROGRESS'} onClick={() => setFilterStatus('PROGRESS')} />
+                                    <FilterMenuItem id="PROGRESS" label="Đang xử lý" icon={<SyncOutlined />} count={stats.progress} active={filterStatus === 'PROGRESS'} onClick={() => setFilterStatus('PROGRESS')} />
                                     <FilterMenuItem id="SHIPPING" label="Đang giao" icon={<CarOutlined />} count={stats.shipping} active={filterStatus === 'SHIPPING'} onClick={() => setFilterStatus('SHIPPING')} />
                                     <FilterMenuItem id="DELIVERED" label="Đã giao" icon={<CheckCircleOutlined />} count={stats.delivered} active={filterStatus === 'DELIVERED'} onClick={() => setFilterStatus('DELIVERED')} />
                                     <FilterMenuItem id="FAILED" label="Giao thất bại" icon={<CloseCircleOutlined />} count={stats.failed} active={filterStatus === 'FAILED'} onClick={() => setFilterStatus('FAILED')} />
                                     <FilterMenuItem id="CANCELLED" label="Đã hủy" icon={<CloseCircleOutlined />} count={stats.cancelled} active={filterStatus === 'CANCELLED'} onClick={() => setFilterStatus('CANCELLED')} />
                                     <FilterMenuItem id="CANCEL_REQUEST" label="Yêu cầu hủy" icon={<WarningOutlined />} count={stats.cancelRequest} active={filterStatus === 'CANCEL_REQUEST'} onClick={() => setFilterStatus('CANCEL_REQUEST')} />
+                                    <FilterMenuItem id="RETURN_REQUEST" label="Yêu cầu trả hàng" icon={<UndoOutlined />} count={stats.returnRequest} active={filterStatus === 'RETURN_REQUEST'} onClick={() => setFilterStatus('RETURN_REQUEST')} />
+                                    <FilterMenuItem id="RETURNED" label="Đã trả hàng" icon={<CloseCircleOutlined />} count={stats.returned} active={filterStatus === 'RETURNED'} onClick={() => setFilterStatus('RETURNED')} />
                                 </Space>
                             </div>
                         </div>
                     </Col>
                 </Row>
             </div>
+
+            <Modal
+                title="Yêu cầu trả hàng"
+                open={returnModal.visible}
+                onOk={handleConfirmReturn}
+                onCancel={() => setReturnModal({ visible: false, orderId: null, reason: '' })}
+                okText="Gửi yêu cầu"
+                cancelText="Hủy"
+            >
+                <div style={{ marginTop: 16 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                        Lý do trả hàng <Text type="danger">*</Text>
+                    </Text>
+                    <TextArea
+                        rows={4}
+                        placeholder="Vui lòng mô tả chi tiết lý do bạn muốn trả lại đơn hàng này..."
+                        value={returnModal.reason}
+                        onChange={(e) => setReturnModal(prev => ({ ...prev, reason: e.target.value }))}
+                    />
+                </div>
+            </Modal>
         </div>
     );
 };
