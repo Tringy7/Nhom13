@@ -11,26 +11,6 @@ Một dự án website thương mại điện tử chuyên bán các sản phẩ
 ## Video giới thiệu
 https://www.youtube.com/watch?v=XEtEjnwb9n0&t=5s
 
-## 📖 Mục lục
-
-- [Giới thiệu](#-giới-thiệu)
-- [Demo](#-demo)
-- [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
-- [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
-- [Chức năng](#-chức-năng)
-- [Cấu trúc thư mục](#-cấu-trúc-thư-mục)
-- [Database](#-database)
-- [API Endpoints](#-api-endpoints)
-- [Luồng hoạt động](#-luồng-hoạt-động)
-- [Hướng dẫn cài đặt](#-hướng-dẫn-cài-đặt)
-- [Biến môi trường (.env)](#-biến-môi-trường-env)
-- [Tài khoản test](#-tài-khoản-test)
-- [Screenshots](#-screenshots)
-- [Hướng phát triển](#-hướng-phát-triển)
-- [Thành viên](#-thành-viên)
-- [Giấy phép](#-giấy-phép)
-- [Liên hệ](#-liên-hệ)
-
 ## 🌟 Giới thiệu
 
 Dự án **Website Bán Laptop XYZ** là một hệ thống thương mại điện tử hoàn chỉnh.
