@@ -8,6 +8,9 @@ Một dự án website thương mại điện tử chuyên bán các sản phẩ
 
 ---
 
+## Video giới thiệu
+https://www.youtube.com/watch?v=XEtEjnwb9n0&t=5s
+
 ## 📖 Mục lục
 
 - [Giới thiệu](#-giới-thiệu)
