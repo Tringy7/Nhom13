@@ -1,16 +1,18 @@
 import { Sequelize } from 'sequelize';
-//const { Sequelize } = require('sequelize');//ES5 module
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Option 3: Passing parameters separately (other dialects)
-const sequelize = new Sequelize('uteshop', 'root', '1234', {
-    host: 'localhost',
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: 'mysql',
     logging: false
 });
 
 const ensureUsersRoleColumn = async () => {
     const queryInterface = sequelize.getQueryInterface();
-    const tableName = 'Users';
+    const tableName = 'users';
 
     const columns = await queryInterface.describeTable(tableName);
     if (!Object.prototype.hasOwnProperty.call(columns, 'role')) {

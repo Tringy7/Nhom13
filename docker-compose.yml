@@ -1,0 +1,68 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: uteshop-mysql
+
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: 171005
+      MYSQL_DATABASE: uteshop
+      MYSQL_USER: uteshop
+      MYSQL_PASSWORD: 171005
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./Database/uteshop.sql:/docker-entrypoint-initdb.d/init.sql
+
+    networks:
+      - uteshop-network
+
+  backend:
+    build:
+      context: ./ExpressJS
+
+    container_name: uteshop-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - ./ExpressJS/.env
+
+    ports:
+      - "8081:8080"
+
+    depends_on:
+      - mysql
+
+    networks:
+      - uteshop-network
+
+  frontend:
+    build:
+      context: ./ReactJS
+
+    container_name: uteshop-frontend
+
+    restart: unless-stopped
+
+    env_file:
+      - ./ReactJS/.env
+
+    ports:
+      - "5173:5173"
+
+    depends_on:
+      - backend
+
+    networks:
+      - uteshop-network
+
+volumes:
+  mysql-data:
+
+networks:
+  uteshop-network:
